@@ -2,6 +2,7 @@
 import { Settings2, Users } from "lucide-react";
 import { saveScheduleRuleAction, saveTemplateAssignmentAction } from "@/app/actions";
 import { AppShell } from "@/components/app-shell";
+import { AuthRequiredState } from "@/components/auth-required-state";
 import { EmptyState } from "@/components/empty-state";
 import { Pill } from "@/components/pill";
 import { ScheduleBoard } from "@/components/schedule-board";
@@ -21,9 +22,25 @@ interface TemplatePageProps {
 
 export default async function TemplatePage({ searchParams }: TemplatePageProps) {
   const { message, error } = await searchParams;
-  const { authEnabled, user } = await getUserContext();
+  const { authEnabled, user } = await getUserContext({ required: false });
+  if (authEnabled && !user) {
+    return (
+      <AppShell
+        currentPath="/template"
+        title="Lịch nền"
+        description="Thiết lập khung phân công mặc định cho từng vị trí theo từng ca để làm điểm xuất phát khi lập lịch tuần mới."
+        authEnabled={authEnabled}
+        user={user}
+        message={message}
+        error={error}
+      >
+        <AuthRequiredState returnTo="/template" />
+      </AppShell>
+    );
+  }
+  const currentUser = user!;
   const data = await getAppData();
-  const editable = canEdit(user.role);
+  const editable = canEdit(currentUser.role);
   const previewWeekStart = getNextWeekStart();
   const scheduleRules = data.scheduleRules.length > 0 ? data.scheduleRules : DEFAULT_SCHEDULE_RULES;
   const activeStaff = data.staff.filter((member) => member.active);
@@ -51,7 +68,7 @@ export default async function TemplatePage({ searchParams }: TemplatePageProps) 
       title="Lịch nền"
       description="Thiết lập khung phân công mặc định cho từng vị trí theo từng ca để làm điểm xuất phát khi lập lịch tuần mới."
       authEnabled={authEnabled}
-      user={user}
+      user={currentUser}
       message={message}
       error={error}
     >

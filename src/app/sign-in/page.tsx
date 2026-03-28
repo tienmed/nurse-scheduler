@@ -5,7 +5,15 @@ import { Pill } from "@/components/pill";
 import { APP_NAME } from "@/lib/constants";
 import { isAuthConfigured, isSheetsConfigured } from "@/lib/env";
 
-export default async function SignInPage() {
+interface SignInPageProps {
+  searchParams: Promise<{
+    returnTo?: string;
+  }>;
+}
+
+export default async function SignInPage({ searchParams }: SignInPageProps) {
+  const { returnTo } = await searchParams;
+  const redirectTo = returnTo || "/";
   const oauthReady = isAuthConfigured();
   const sheetsReady = isSheetsConfigured();
 
@@ -67,7 +75,7 @@ export default async function SignInPage() {
                 <form
                   action={async () => {
                     "use server";
-                    await signIn("google", { redirectTo: "/" });
+                    await signIn("google", { redirectTo });
                   }}
                 >
                   <button

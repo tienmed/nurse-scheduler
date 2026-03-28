@@ -1,5 +1,6 @@
 ﻿import { BarChart3, CalendarSearch, RefreshCcwDot } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
+import { AuthRequiredState } from "@/components/auth-required-state";
 import { EmptyState } from "@/components/empty-state";
 import { Pill } from "@/components/pill";
 import { SurfaceSection } from "@/components/surface-section";
@@ -23,7 +24,22 @@ interface ReportsPageProps {
 export default async function ReportsPage({ searchParams }: ReportsPageProps) {
   const { month, message, error } = await searchParams;
   const monthKey = getMonthKey(month);
-  const { authEnabled, user } = await getUserContext();
+  const { authEnabled, user } = await getUserContext({ required: false });
+  if (authEnabled && !user) {
+    return (
+      <AppShell
+        currentPath="/reports"
+        title="Báo cáo tháng"
+        description="Thống kê số ngày làm, số lượt nghỉ và phạm vi vị trí đã phụ trách để hỗ trợ cân bằng tải và xoay vòng nhân sự."
+        authEnabled={authEnabled}
+        user={user}
+        message={message}
+        error={error}
+      >
+        <AuthRequiredState returnTo={`/reports?month=${monthKey}`} />
+      </AppShell>
+    );
+  }
   const data = await getAppData();
 
   const workload = calculateMonthlyWorkload(data.weeklySchedule, monthKey).sort(

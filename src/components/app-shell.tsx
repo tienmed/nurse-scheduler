@@ -18,7 +18,7 @@ interface AppShellProps {
   title: string;
   description: string;
   authEnabled: boolean;
-  user: SessionUser;
+  user: SessionUser | null;
   children: React.ReactNode;
   message?: string;
   error?: string;
@@ -42,12 +42,14 @@ export function AppShell({
   message,
   error,
 }: AppShellProps) {
-  const userInitials = user.name
-    .split(" ")
-    .slice(0, 2)
-    .map((part) => part[0])
-    .join("")
-    .toUpperCase();
+  const userInitials = user
+    ? user.name
+        .split(" ")
+        .slice(0, 2)
+        .map((part) => part[0])
+        .join("")
+        .toUpperCase()
+    : "??";
 
   return (
     <div className="min-h-screen bg-[var(--canvas)] text-slate-900">
@@ -94,17 +96,25 @@ export function AppShell({
                 {userInitials}
               </div>
               <div className="space-y-1 text-sm">
-                <p className="font-semibold text-white">{user.name}</p>
-                <p className="text-slate-400">{user.email}</p>
+                <p className="font-semibold text-white">
+                  {user?.name ?? "Chưa nhận diện phiên"}
+                </p>
+                <p className="text-slate-400">
+                  {user?.email ?? "Cần đăng nhập lại để tiếp tục"}
+                </p>
               </div>
             </div>
             <div className="flex flex-wrap gap-2">
-              <Pill tone={authEnabled ? "teal" : "amber"}>
-                {authEnabled ? "Đăng nhập Google" : "Chế độ demo"}
+              <Pill tone={!authEnabled ? "amber" : user ? "teal" : "rose"}>
+                {!authEnabled
+                  ? "Chế độ demo"
+                  : user
+                    ? "Đăng nhập Google"
+                    : "Cần làm mới phiên"}
               </Pill>
-              <Pill tone="slate">{ROLE_LABELS[user.role]}</Pill>
+              <Pill tone="slate">{ROLE_LABELS[user?.role ?? "viewer"]}</Pill>
             </div>
-            {authEnabled ? (
+            {authEnabled && user ? (
               <form
                 action={async () => {
                   "use server";
@@ -119,6 +129,14 @@ export function AppShell({
                   Đăng xuất
                 </button>
               </form>
+            ) : authEnabled ? (
+              <Link
+                href="/sign-in"
+                className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-white/14 bg-white/6 px-4 py-3 text-sm font-medium text-white transition hover:bg-white/12"
+              >
+                <LogOut className="h-4 w-4" />
+                Đăng nhập lại
+              </Link>
             ) : (
               <p className="text-sm leading-6 text-slate-400">
                 Bạn đang xem bản demo. Khi nối Google OAuth và Google Sheets, toàn bộ thao tác sẽ lưu trực tiếp lên dữ liệu thật.
@@ -154,8 +172,12 @@ export function AppShell({
                 <p className="max-w-3xl text-sm leading-6 text-slate-600">{description}</p>
               </div>
               <div className="flex flex-wrap gap-2">
-                <Pill tone={authEnabled ? "teal" : "amber"}>
-                  {authEnabled ? "Dữ liệu từ Google Sheets" : "Đang dùng dữ liệu mẫu"}
+                <Pill tone={!authEnabled ? "amber" : user ? "teal" : "rose"}>
+                  {!authEnabled
+                    ? "Đang dùng dữ liệu mẫu"
+                    : user
+                      ? "Dữ liệu từ Google Sheets"
+                      : "Phiên cần làm mới"}
                 </Pill>
                 <Pill tone="slate">Sẵn sàng mở rộng</Pill>
               </div>

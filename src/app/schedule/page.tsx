@@ -13,6 +13,7 @@ import {
   saveWeeklyAssignmentAction,
 } from "@/app/actions";
 import { AppShell } from "@/components/app-shell";
+import { AuthRequiredState } from "@/components/auth-required-state";
 import { EmptyState } from "@/components/empty-state";
 import { Pill } from "@/components/pill";
 import { ScheduleBoard } from "@/components/schedule-board";
@@ -44,9 +45,25 @@ export default async function SchedulePage({ searchParams }: SchedulePageProps) 
   const { week, message, error } = await searchParams;
   const weekStart = getWeekStartFromInput(week);
   const returnTo = `/schedule?week=${weekStart}`;
-  const { authEnabled, user } = await getUserContext();
+  const { authEnabled, user } = await getUserContext({ required: false });
+  if (authEnabled && !user) {
+    return (
+      <AppShell
+        currentPath="/schedule"
+        title="Lịch tuần"
+        description="Tạo dự thảo từ lịch nền, điều chỉnh ca phát sinh và chốt lịch tuần chính thức khi đã đủ nhân sự."
+        authEnabled={authEnabled}
+        user={user}
+        message={message}
+        error={error}
+      >
+        <AuthRequiredState returnTo={returnTo} />
+      </AppShell>
+    );
+  }
+  const currentUser = user!;
   const data = await getAppData();
-  const editable = canEdit(user.role);
+  const editable = canEdit(currentUser.role);
   const activeRules = getActiveScheduleRules(data.scheduleRules);
 
   const actualAssignments = getWeeklyAssignments(data.weeklySchedule, weekStart);
@@ -80,7 +97,7 @@ export default async function SchedulePage({ searchParams }: SchedulePageProps) 
       title="Lịch tuần"
       description="Tạo dự thảo từ lịch nền, điều chỉnh ca phát sinh và chốt lịch tuần chính thức khi đã đủ nhân sự."
       authEnabled={authEnabled}
-      user={user}
+      user={currentUser}
       message={message}
       error={error}
     >

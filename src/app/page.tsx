@@ -8,6 +8,7 @@ import {
   UserRoundCheck,
 } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
+import { AuthRequiredState } from "@/components/auth-required-state";
 import { EmptyState } from "@/components/empty-state";
 import { Pill } from "@/components/pill";
 import { SurfaceSection } from "@/components/surface-section";
@@ -33,7 +34,22 @@ interface HomePageProps {
 
 export default async function HomePage({ searchParams }: HomePageProps) {
   const { message, error } = await searchParams;
-  const { authEnabled, user } = await getUserContext();
+  const { authEnabled, user } = await getUserContext({ required: false });
+  if (authEnabled && !user) {
+    return (
+      <AppShell
+        currentPath="/"
+        title="Tổng quan vận hành"
+        description="Theo dõi nhanh tuần đang chạy, tuần kế tiếp, tình trạng nghỉ phép và khối lượng công việc trong tháng."
+        authEnabled={authEnabled}
+        user={user}
+        message={message}
+        error={error}
+      >
+        <AuthRequiredState returnTo="/" />
+      </AppShell>
+    );
+  }
   const data = await getAppData();
   const currentMonth = getMonthKey();
   const nextWeekStart = getNextWeekStart();

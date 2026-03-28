@@ -30,7 +30,11 @@ function redirectWithState(returnTo: string, params: Record<string, string>) {
 }
 
 async function assertEditor() {
-  const { user } = await getUserContext();
+  const { user } = await getUserContext({ required: false });
+  if (!user) {
+    throw new Error("Phiên đăng nhập đã hết hạn hoặc chưa sẵn sàng. Vui lòng đăng nhập lại rồi thử lại.");
+  }
+
   if (!canEdit(user.role)) {
     throw new Error("Tài khoản hiện tại chỉ có quyền xem lịch.");
   }

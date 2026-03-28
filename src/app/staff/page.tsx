@@ -1,6 +1,7 @@
 ﻿import { FilePlus2, ShieldCheck, Stethoscope, Users } from "lucide-react";
 import { saveLeaveAction, savePositionAction, saveStaffAction } from "@/app/actions";
 import { AppShell } from "@/components/app-shell";
+import { AuthRequiredState } from "@/components/auth-required-state";
 import { EmptyState } from "@/components/empty-state";
 import { Pill } from "@/components/pill";
 import { SurfaceSection } from "@/components/surface-section";
@@ -21,8 +22,24 @@ interface StaffPageProps {
 
 export default async function StaffPage({ searchParams }: StaffPageProps) {
   const { message, error } = await searchParams;
-  const { authEnabled, user } = await getUserContext();
-  const editable = canEdit(user.role);
+  const { authEnabled, user } = await getUserContext({ required: false });
+  if (authEnabled && !user) {
+    return (
+      <AppShell
+        currentPath="/staff"
+        title="Nhân sự và nghỉ phép"
+        description="Quản lý danh sách điều dưỡng, vị trí làm việc, thông tin nghỉ phép và danh sách email được phép đăng nhập."
+        authEnabled={authEnabled}
+        user={user}
+        message={message}
+        error={error}
+      >
+        <AuthRequiredState returnTo="/staff" />
+      </AppShell>
+    );
+  }
+  const currentUser = user!;
+  const editable = canEdit(currentUser.role);
   const data = await getAppData();
 
   return (
@@ -31,7 +48,7 @@ export default async function StaffPage({ searchParams }: StaffPageProps) {
       title="Nhân sự và nghỉ phép"
       description="Quản lý danh sách điều dưỡng, vị trí làm việc, thông tin nghỉ phép và danh sách email được phép đăng nhập."
       authEnabled={authEnabled}
-      user={user}
+      user={currentUser}
       message={message}
       error={error}
     >
