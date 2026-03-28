@@ -1,5 +1,5 @@
 ﻿import Link from "next/link";
-import { ShieldCheck } from "lucide-react";
+import { ArrowRight, ShieldCheck } from "lucide-react";
 import { signIn } from "@/auth";
 import { Pill } from "@/components/pill";
 import { APP_NAME } from "@/lib/constants";
@@ -10,57 +10,59 @@ export default async function SignInPage() {
   const sheetsReady = isSheetsConfigured();
 
   return (
-    <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[radial-gradient(circle_at_top_left,_rgba(13,148,136,0.18),_transparent_28%),radial-gradient(circle_at_bottom_right,_rgba(249,115,22,0.14),_transparent_30%),linear-gradient(180deg,_#f8fbfb_0%,_#eef2f7_100%)] px-4 py-8">
-      <div className="w-full max-w-[1120px] rounded-[36px] border border-white/80 bg-white/88 p-6 shadow-[0_24px_100px_rgba(15,23,42,0.12)] backdrop-blur md:p-8">
-        <div className="grid gap-10 lg:grid-cols-[1.08fr_0.92fr] lg:items-center">
-          <section className="space-y-6">
-            <div className="space-y-3">
-              <p className="text-sm font-semibold text-teal-700">Không gian điều phối lịch</p>
-              <h1 className="max-w-2xl text-4xl font-semibold tracking-tight text-slate-950 md:text-5xl">
-                {APP_NAME} giúp lập lịch tuần rõ ràng, sửa nhanh khi có phát sinh và lưu dữ liệu tập trung.
-              </h1>
-              <p className="max-w-2xl text-base leading-8 text-slate-600">
-                Ứng dụng dành cho điều phối điều dưỡng: lấy lịch nền để tạo tuần mới, nhập nghỉ phép, chỉnh lịch đột xuất, xuất Excel và theo dõi báo cáo tháng.
-              </p>
-            </div>
-
-            <div className="flex flex-wrap gap-2">
+    <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[radial-gradient(circle_at_top_left,_rgba(13,148,136,0.24),_transparent_28%),radial-gradient(circle_at_bottom_right,_rgba(249,115,22,0.18),_transparent_32%),linear-gradient(180deg,_#020617_0%,_#0f172a_46%,_#172554_100%)] px-4 py-8 text-white">
+      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(120deg,transparent_0%,rgba(255,255,255,0.04)_38%,transparent_72%)]" />
+      <div className="relative w-full max-w-[1180px] overflow-hidden rounded-[40px] border border-white/10 bg-white/8 shadow-[0_30px_120px_rgba(2,6,23,0.5)] backdrop-blur">
+        <div className="grid gap-0 lg:grid-cols-[1.12fr_0.88fr]">
+          <section className="space-y-8 p-6 md:p-8 lg:p-10">
+            <div className="space-y-4">
               <Pill tone={oauthReady ? "teal" : "amber"}>
                 {oauthReady ? "Google OAuth sẵn sàng" : "Chưa cấu hình OAuth"}
               </Pill>
-              <Pill tone={sheetsReady ? "teal" : "slate"}>
-                {sheetsReady ? "Google Sheets đang hoạt động" : "Đang xem bằng dữ liệu mẫu"}
-              </Pill>
+              <h1 className="max-w-3xl text-4xl font-semibold tracking-tight text-white md:text-5xl lg:text-6xl">
+                {APP_NAME} cho điều phối điều dưỡng cần một màn hình làm việc nhanh và dứt khoát.
+              </h1>
+              <p className="max-w-2xl text-base leading-8 text-white/72">
+                Tạo tuần mới từ lịch nền, cập nhật nghỉ phép, xử lý phát sinh và xuất báo cáo mà không bị rối bởi quá nhiều bước hay quá nhiều màn hình.
+              </p>
             </div>
 
             <div className="grid gap-4 md:grid-cols-2">
-              <div className="rounded-[28px] border border-teal-200 bg-teal-50 p-5">
-                <p className="text-sm font-semibold text-teal-700">Quy trình vận hành</p>
-                <ul className="mt-3 space-y-2 text-sm leading-6 text-teal-800">
-                  <li>1. Lấy tuần mới từ lịch nền.</li>
-                  <li>2. Cập nhật nghỉ phép và chỉnh ca phát sinh.</li>
-                  <li>3. Chốt lịch và xuất Excel khi hoàn tất.</li>
+              <div className="rounded-[30px] border border-white/10 bg-white/8 p-5">
+                <p className="text-sm font-semibold text-teal-300">Luồng vận hành</p>
+                <ul className="mt-3 space-y-2 text-sm leading-6 text-white/72">
+                  <li>1. Tạo tuần mới từ lịch nền.</li>
+                  <li>2. Nhập nghỉ phép và chỉnh ca phát sinh.</li>
+                  <li>3. Chốt lịch, xuất Excel và xem báo cáo tháng.</li>
                 </ul>
               </div>
-              <div className="rounded-[28px] border border-slate-200 bg-slate-50 p-5">
-                <p className="text-sm font-semibold text-slate-700">Dữ liệu quản trị</p>
-                <ul className="mt-3 space-y-2 text-sm leading-6 text-slate-600">
-                  <li>• Nhân sự và vị trí trực.</li>
-                  <li>• Lịch nền và lịch tuần chính thức.</li>
-                  <li>• Báo cáo tháng theo nhân sự và vị trí.</li>
-                </ul>
+              <div className="rounded-[30px] border border-white/10 bg-white/8 p-5">
+                <p className="text-sm font-semibold text-amber-300">Trạng thái tích hợp</p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <Pill tone={oauthReady ? "teal" : "amber"}>
+                    {oauthReady ? "OAuth đã nối" : "OAuth chưa nối"}
+                  </Pill>
+                  <Pill tone={sheetsReady ? "teal" : "slate"}>
+                    {sheetsReady ? "Sheets đang live" : "Đang xem demo"}
+                  </Pill>
+                </div>
+                <p className="mt-4 text-sm leading-6 text-white/72">
+                  Khi hai phần này sẵn sàng, ứng dụng có thể chạy production trên Vercel với dữ liệu thật.
+                </p>
               </div>
             </div>
           </section>
 
-          <section className="rounded-[32px] border border-slate-200/80 bg-slate-50/88 p-6">
-            <div className="space-y-5">
-              <div>
+          <section className="border-t border-white/10 bg-white/94 p-6 text-slate-900 md:p-8 lg:border-l lg:border-t-0 lg:p-10">
+            <div className="space-y-6">
+              <div className="space-y-2">
                 <p className="text-sm font-semibold text-slate-500">Đăng nhập</p>
-                <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">
-                  Vào bảng điều phối
-                </h2>
+                <h2 className="text-3xl font-semibold tracking-tight text-slate-950">Vào bảng điều phối</h2>
+                <p className="text-sm leading-6 text-slate-600">
+                  Dành cho điều phối viên, trưởng ca và người xem lịch theo đúng phân quyền đã cấu hình.
+                </p>
               </div>
+
               {oauthReady ? (
                 <form
                   action={async () => {
@@ -81,19 +83,22 @@ export default async function SignInPage() {
                   Chưa có cấu hình Google OAuth. Bạn vẫn có thể mở bản demo để kiểm tra giao diện và luồng nghiệp vụ.
                 </div>
               )}
-              <div className="space-y-3 text-sm leading-6 text-slate-600">
-                <p>Checklist trước khi chạy production:</p>
-                <ul className="space-y-2">
+
+              <div className="rounded-[28px] border border-slate-200 bg-slate-50 p-5">
+                <p className="text-sm font-semibold text-slate-700">Checklist trước khi chạy production</p>
+                <ul className="mt-3 space-y-2 text-sm leading-6 text-slate-600">
                   <li>1. Tạo OAuth Client và điền `AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET`.</li>
                   <li>2. Tạo service account cho Google Sheets và khai báo `GOOGLE_SHEET_ID`, email, private key.</li>
-                  <li>3. Cấp quyền email truy cập bằng tab `access_control` hoặc allowlist môi trường.</li>
+                  <li>3. Thêm email được phép truy cập trong tab `access_control` hoặc allowlist môi trường.</li>
                 </ul>
               </div>
+
               <Link
                 href="/"
-                className="inline-flex items-center justify-center rounded-2xl border border-slate-200 px-4 py-3 text-sm font-medium text-slate-700 transition hover:border-slate-300 hover:bg-white"
+                className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 px-4 py-3 text-sm font-medium text-slate-700 transition hover:border-slate-300 hover:bg-slate-100"
               >
                 Vào bản demo
+                <ArrowRight className="h-4 w-4" />
               </Link>
             </div>
           </section>

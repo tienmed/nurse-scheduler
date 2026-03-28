@@ -25,11 +25,11 @@ interface AppShellProps {
 }
 
 const navItems = [
-  { href: "/", label: "Tổng quan", icon: ClipboardList },
-  { href: "/schedule", label: "Lịch tuần", icon: CalendarDays },
-  { href: "/template", label: "Lịch nền", icon: LayoutTemplate },
-  { href: "/staff", label: "Nhân sự", icon: Users },
-  { href: "/reports", label: "Báo cáo", icon: FileSpreadsheet },
+  { href: "/", label: "Tổng quan", shortLabel: "Tổng quan", icon: ClipboardList },
+  { href: "/schedule", label: "Lịch tuần", shortLabel: "Tuần", icon: CalendarDays },
+  { href: "/template", label: "Lịch nền", shortLabel: "Nền", icon: LayoutTemplate },
+  { href: "/staff", label: "Nhân sự", shortLabel: "Nhân sự", icon: Users },
+  { href: "/reports", label: "Báo cáo", shortLabel: "Báo cáo", icon: FileSpreadsheet },
 ];
 
 export function AppShell({
@@ -51,18 +51,18 @@ export function AppShell({
 
   return (
     <div className="min-h-screen bg-[var(--canvas)] text-slate-900">
-      <div className="pointer-events-none fixed inset-0 -z-10 bg-[radial-gradient(circle_at_top_left,_rgba(13,148,136,0.14),_transparent_34%),radial-gradient(circle_at_top_right,_rgba(249,115,22,0.1),_transparent_28%),linear-gradient(180deg,_#f8fbfb_0%,_#f4f7f7_45%,_#edf2f7_100%)]" />
-      <div className="mx-auto flex min-h-screen w-full max-w-[1560px]">
-        <aside className="hidden w-[288px] shrink-0 flex-col justify-between border-r border-white/70 bg-white/60 px-6 py-7 backdrop-blur lg:flex">
+      <div className="pointer-events-none fixed inset-0 -z-10 bg-[radial-gradient(circle_at_top_left,_rgba(13,148,136,0.18),_transparent_32%),radial-gradient(circle_at_85%_15%,_rgba(249,115,22,0.14),_transparent_24%),linear-gradient(180deg,_#f8fbfb_0%,_#edf3f3_44%,_#e8edf5_100%)]" />
+      <div className="mx-auto flex min-h-screen w-full max-w-[1600px]">
+        <aside className="hidden w-[300px] shrink-0 flex-col justify-between border-r border-slate-900/70 bg-[linear-gradient(180deg,#020617_0%,#0f172a_52%,#111827_100%)] px-6 py-7 text-white lg:flex">
           <div className="space-y-8">
             <div className="space-y-4">
-              <div className="inline-flex h-14 w-14 items-center justify-center rounded-[22px] bg-teal-700 text-lg font-bold text-white shadow-lg shadow-teal-900/20">
+              <div className="inline-flex h-14 w-14 items-center justify-center rounded-[22px] bg-[linear-gradient(135deg,#14b8a6_0%,#f97316_100%)] text-lg font-bold text-white shadow-lg shadow-teal-950/30">
                 NF
               </div>
               <div className="space-y-2">
-                <p className="text-sm font-semibold text-teal-700">Lịch điều dưỡng</p>
-                <h1 className="text-3xl font-semibold tracking-tight text-slate-950">{APP_NAME}</h1>
-                <p className="text-sm leading-6 text-slate-600">{APP_TAGLINE}</p>
+                <p className="text-sm font-semibold text-teal-300">Lịch điều dưỡng</p>
+                <h1 className="text-3xl font-semibold tracking-tight text-white">{APP_NAME}</h1>
+                <p className="text-sm leading-6 text-slate-300">{APP_TAGLINE}</p>
               </div>
             </div>
 
@@ -76,8 +76,8 @@ export function AppShell({
                     className={cn(
                       "flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium transition duration-200",
                       active
-                        ? "bg-slate-950 text-white shadow-lg shadow-slate-950/15"
-                        : "text-slate-600 hover:bg-white hover:text-slate-950",
+                        ? "bg-white text-slate-950 shadow-[0_12px_35px_rgba(255,255,255,0.14)]"
+                        : "text-slate-300 hover:bg-white/8 hover:text-white",
                     )}
                   >
                     <Icon className="h-4 w-4" />
@@ -88,14 +88,14 @@ export function AppShell({
             </nav>
           </div>
 
-          <div className="space-y-4 rounded-[24px] border border-white/80 bg-white/88 p-4 shadow-[0_20px_50px_rgba(15,23,42,0.06)]">
+          <div className="space-y-4 rounded-[28px] border border-white/10 bg-white/6 p-4 backdrop-blur">
             <div className="flex items-center gap-3">
-              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-950 text-sm font-semibold text-white">
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white text-sm font-semibold text-slate-950">
                 {userInitials}
               </div>
               <div className="space-y-1 text-sm">
-                <p className="font-semibold text-slate-950">{user.name}</p>
-                <p className="text-slate-500">{user.email}</p>
+                <p className="font-semibold text-white">{user.name}</p>
+                <p className="text-slate-400">{user.email}</p>
               </div>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -113,22 +113,22 @@ export function AppShell({
               >
                 <button
                   type="submit"
-                  className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-slate-200 px-4 py-3 text-sm font-medium text-slate-700 transition hover:border-slate-300 hover:bg-slate-100"
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-white/14 bg-white/6 px-4 py-3 text-sm font-medium text-white transition hover:bg-white/12"
                 >
                   <LogOut className="h-4 w-4" />
                   Đăng xuất
                 </button>
               </form>
             ) : (
-              <p className="text-sm leading-6 text-slate-500">
+              <p className="text-sm leading-6 text-slate-400">
                 Bạn đang xem bản demo. Khi nối Google OAuth và Google Sheets, toàn bộ thao tác sẽ lưu trực tiếp lên dữ liệu thật.
               </p>
             )}
           </div>
         </aside>
 
-        <div className="flex min-h-screen flex-1 flex-col">
-          <header className="sticky top-0 z-20 border-b border-white/70 bg-white/70 px-4 py-4 backdrop-blur md:px-6 lg:px-8">
+        <div className="flex min-h-screen flex-1 flex-col pb-24 lg:pb-0">
+          <header className="sticky top-0 z-20 border-b border-white/70 bg-white/76 px-4 py-4 backdrop-blur md:px-6 lg:px-8">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
               <div className="space-y-3">
                 <div className="flex flex-wrap gap-2 lg:hidden">
@@ -148,8 +148,8 @@ export function AppShell({
                   ))}
                 </div>
                 <div>
-                  <p className="text-xs font-semibold text-teal-700">Bảng điều phối</p>
-                  <h2 className="mt-1 text-3xl font-semibold tracking-tight text-slate-950">{title}</h2>
+                  <p className="text-xs font-semibold uppercase tracking-[0.28em] text-teal-700">Bảng điều phối</p>
+                  <h2 className="mt-1 text-3xl font-semibold tracking-tight text-slate-950 md:text-[2.2rem]">{title}</h2>
                 </div>
                 <p className="max-w-3xl text-sm leading-6 text-slate-600">{description}</p>
               </div>
@@ -157,7 +157,7 @@ export function AppShell({
                 <Pill tone={authEnabled ? "teal" : "amber"}>
                   {authEnabled ? "Dữ liệu từ Google Sheets" : "Đang dùng dữ liệu mẫu"}
                 </Pill>
-                <Pill tone="slate">Mở rộng tính năng dễ dàng</Pill>
+                <Pill tone="slate">Sẵn sàng mở rộng</Pill>
               </div>
             </div>
             {message ? (
@@ -175,6 +175,27 @@ export function AppShell({
           <main className="flex-1 px-4 py-6 md:px-6 lg:px-8 lg:py-8">
             <div className="space-y-6">{children}</div>
           </main>
+
+          <nav className="fixed inset-x-3 bottom-3 z-30 rounded-[28px] border border-slate-900/10 bg-slate-950/96 px-2 py-2 shadow-[0_18px_40px_rgba(15,23,42,0.24)] backdrop-blur lg:hidden">
+            <div className="grid grid-cols-5 gap-1">
+              {navItems.map(({ href, shortLabel, icon: Icon }) => {
+                const active = currentPath === href;
+                return (
+                  <Link
+                    key={href}
+                    href={href}
+                    className={cn(
+                      "flex flex-col items-center gap-1 rounded-2xl px-2 py-2 text-[11px] font-medium transition",
+                      active ? "bg-white text-slate-950" : "text-slate-300 hover:bg-white/8 hover:text-white",
+                    )}
+                  >
+                    <Icon className="h-4 w-4" />
+                    <span>{shortLabel}</span>
+                  </Link>
+                );
+              })}
+            </div>
+          </nav>
         </div>
       </div>
     </div>

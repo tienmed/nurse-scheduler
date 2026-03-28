@@ -1,4 +1,5 @@
 ﻿import { AlertTriangle, CalendarClock, NotebookPen } from "lucide-react";
+import { EmptyState } from "@/components/empty-state";
 import { Pill } from "@/components/pill";
 import { ASSIGNMENT_STATUS_LABELS, LEAVE_REASON_LABELS } from "@/lib/constants";
 import { formatDate } from "@/lib/date";
@@ -28,17 +29,38 @@ interface BoardSlot {
 
 interface ScheduleBoardProps {
   board: BoardSlot[];
+  emptyTitle?: string;
+  emptyDescription?: string;
 }
 
-export function ScheduleBoard({ board }: ScheduleBoardProps) {
+export function ScheduleBoard({
+  board,
+  emptyTitle = "Chưa có khung lịch để hiển thị",
+  emptyDescription = "Hãy thêm vị trí và bật ít nhất một ca làm trong lịch nền để bắt đầu lập lịch tuần.",
+}: ScheduleBoardProps) {
+  if (board.length === 0) {
+    return (
+      <EmptyState
+        icon={CalendarClock}
+        title={emptyTitle}
+        description={emptyDescription}
+        tips={[
+          "Thêm vị trí làm việc ở trang Nhân sự.",
+          "Bật ca làm ở trang Lịch nền.",
+        ]}
+        tone="slate"
+      />
+    );
+  }
+
   return (
     <div className="space-y-5">
       {board.map((slot) => (
         <section key={`${slot.date}-${slot.shift}`} className="space-y-3">
-          <div className="flex flex-col gap-2 rounded-[24px] border border-white/80 bg-white/80 px-4 py-4 shadow-[0_14px_40px_rgba(15,23,42,0.05)] md:flex-row md:items-center md:justify-between">
+          <div className="flex flex-col gap-2 rounded-[26px] border border-slate-900/8 bg-[linear-gradient(135deg,rgba(15,23,42,0.96)_0%,rgba(30,41,59,0.92)_54%,rgba(13,148,136,0.82)_100%)] px-4 py-4 text-white shadow-[0_18px_50px_rgba(15,23,42,0.18)] md:flex-row md:items-center md:justify-between">
             <div>
-              <h3 className="text-lg font-semibold text-slate-950">{slot.title}</h3>
-              <p className="text-sm text-slate-500">{formatDate(slot.date, "dd/MM/yyyy")}</p>
+              <h3 className="text-lg font-semibold">{slot.title}</h3>
+              <p className="text-sm text-white/72">{formatDate(slot.date, "dd/MM/yyyy")}</p>
             </div>
             <Pill tone="teal">{slot.entries.filter((entry) => entry.assignment).length} vị trí đã gán</Pill>
           </div>
@@ -46,11 +68,11 @@ export function ScheduleBoard({ board }: ScheduleBoardProps) {
             {slot.entries.map((entry) => (
               <article
                 key={`${slot.date}-${slot.shift}-${entry.position.id}`}
-                className="rounded-[24px] border border-white/85 bg-white/92 p-4 shadow-[0_18px_48px_rgba(15,23,42,0.05)] transition hover:-translate-y-0.5 hover:shadow-[0_22px_55px_rgba(15,23,42,0.08)]"
+                className="rounded-[24px] border border-white/85 bg-white/94 p-4 shadow-[0_18px_48px_rgba(15,23,42,0.05)] transition hover:-translate-y-0.5 hover:shadow-[0_24px_60px_rgba(15,23,42,0.1)]"
               >
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <p className="text-xs font-semibold text-slate-500">{entry.position.area}</p>
+                    <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">{entry.position.area}</p>
                     <h4 className="mt-2 text-base font-semibold text-slate-950">{entry.position.name}</h4>
                   </div>
                   <Pill tone={entry.assignment ? getStatusTone(entry.assignment.status) : "slate"}>

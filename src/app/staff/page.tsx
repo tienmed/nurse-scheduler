@@ -1,5 +1,7 @@
-﻿import { saveLeaveAction, savePositionAction, saveStaffAction } from "@/app/actions";
+﻿import { FilePlus2, ShieldCheck, Stethoscope, Users } from "lucide-react";
+import { saveLeaveAction, savePositionAction, saveStaffAction } from "@/app/actions";
 import { AppShell } from "@/components/app-shell";
+import { EmptyState } from "@/components/empty-state";
 import { Pill } from "@/components/pill";
 import { SurfaceSection } from "@/components/surface-section";
 import {
@@ -39,32 +41,45 @@ export default async function StaffPage({ searchParams }: StaffPageProps) {
           title="Danh sách nhân sự"
           description="Nguồn dữ liệu để chọn khi lập lịch tuần và tổng hợp báo cáo tháng."
         >
-          <div className="overflow-hidden rounded-[24px] border border-slate-200/80">
-            <table className="min-w-full divide-y divide-slate-200 text-left text-sm">
-              <thead className="bg-slate-50 text-slate-500">
-                <tr>
-                  <th className="px-4 py-3 font-medium">Điều dưỡng</th>
-                  <th className="px-4 py-3 font-medium">Mã</th>
-                  <th className="px-4 py-3 font-medium">Nhóm</th>
-                  <th className="px-4 py-3 font-medium">Trạng thái</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-200 bg-white">
-                {data.staff.map((member) => (
-                  <tr key={member.id}>
-                    <td className="px-4 py-3 font-medium text-slate-900">{member.name}</td>
-                    <td className="px-4 py-3 text-slate-500">{member.code}</td>
-                    <td className="px-4 py-3 text-slate-500">{member.team}</td>
-                    <td className="px-4 py-3">
-                      <Pill tone={member.active ? "emerald" : "amber"}>
-                        {member.active ? "Sẵn sàng" : "Tạm nghỉ"}
-                      </Pill>
-                    </td>
+          {data.staff.length > 0 ? (
+            <div className="overflow-hidden rounded-[24px] border border-slate-200/80">
+              <table className="min-w-full divide-y divide-slate-200 text-left text-sm">
+                <thead className="bg-slate-50 text-slate-500">
+                  <tr>
+                    <th className="px-4 py-3 font-medium">Điều dưỡng</th>
+                    <th className="px-4 py-3 font-medium">Mã</th>
+                    <th className="px-4 py-3 font-medium">Nhóm</th>
+                    <th className="px-4 py-3 font-medium">Trạng thái</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-slate-200 bg-white">
+                  {data.staff.map((member) => (
+                    <tr key={member.id}>
+                      <td className="px-4 py-3 font-medium text-slate-900">{member.name}</td>
+                      <td className="px-4 py-3 text-slate-500">{member.code}</td>
+                      <td className="px-4 py-3 text-slate-500">{member.team}</td>
+                      <td className="px-4 py-3">
+                        <Pill tone={member.active ? "emerald" : "amber"}>
+                          {member.active ? "Sẵn sàng" : "Tạm nghỉ"}
+                        </Pill>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <EmptyState
+              icon={Users}
+              title="Chưa có điều dưỡng nào trong Google Sheet"
+              description="Thêm danh sách điều dưỡng trước để có thể gán người ở lịch nền, sinh lịch tuần và theo dõi báo cáo."
+              tips={[
+                "Nên nhập mã điều dưỡng để dễ lọc khi xuất Excel.",
+                "Nhóm hoặc khoa giúp bạn kiểm tra phân bổ nhân lực theo đơn vị.",
+              ]}
+              tone="teal"
+            />
+          )}
         </SurfaceSection>
 
         <SurfaceSection
@@ -132,22 +147,31 @@ export default async function StaffPage({ searchParams }: StaffPageProps) {
           title="Danh mục vị trí làm việc"
           description="Mỗi vị trí sẽ xuất hiện trong lịch nền, lịch tuần và báo cáo xoay vòng vị trí."
         >
-          <div className="space-y-3">
-            {data.positions.map((position) => (
-              <div
-                key={position.id}
-                className="rounded-[22px] border border-slate-200/80 bg-slate-50/80 px-4 py-4"
-              >
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <p className="font-medium text-slate-900">{position.name}</p>
-                    <p className="text-sm text-slate-500">{position.area}</p>
+          {data.positions.length > 0 ? (
+            <div className="space-y-3">
+              {data.positions.map((position) => (
+                <div
+                  key={position.id}
+                  className="rounded-[22px] border border-slate-200/80 bg-slate-50/80 px-4 py-4"
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="font-medium text-slate-900">{position.name}</p>
+                      <p className="text-sm text-slate-500">{position.area}</p>
+                    </div>
+                    <Pill tone="teal">{position.description ? "Đã có mô tả" : "Chưa ghi chú"}</Pill>
                   </div>
-                  <Pill tone="teal">{position.description ? "Đã có mô tả" : "Chưa ghi chú"}</Pill>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          ) : (
+            <EmptyState
+              icon={Stethoscope}
+              title="Chưa có vị trí làm việc"
+              description="Bạn nên thêm đủ vị trí vận hành như Đo sinh hiệu, ECG, Tiêm truyền để lịch nền có thể gán người đúng chỗ."
+              tone="amber"
+            />
+          )}
           <form action={savePositionAction} className="mt-5 grid gap-4 border-t border-slate-200 pt-5">
             <input type="hidden" name="returnTo" value="/staff" />
             <label className="space-y-2 text-sm text-slate-700">
@@ -201,7 +225,7 @@ export default async function StaffPage({ searchParams }: StaffPageProps) {
                 <select
                   name="staffId"
                   className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-teal-500"
-                  disabled={!editable}
+                  disabled={!editable || data.staff.length === 0}
                 >
                   {data.staff.map((member) => (
                     <option key={member.id} value={member.id}>
@@ -261,34 +285,43 @@ export default async function StaffPage({ searchParams }: StaffPageProps) {
               </label>
               <button
                 type="submit"
-                disabled={!editable}
+                disabled={!editable || data.staff.length === 0}
                 className="inline-flex items-center justify-center rounded-2xl bg-slate-950 px-4 py-3 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300"
               >
                 Lưu ca nghỉ
               </button>
             </form>
 
-            <div className="space-y-3">
-              {data.leaveRequests.map((leave) => {
-                const person = data.staff.find((member) => member.id === leave.staffId);
-                return (
-                  <div
-                    key={leave.id}
-                    className="rounded-[22px] border border-slate-200/80 bg-slate-50/80 px-4 py-4 text-sm"
-                  >
-                    <div className="flex items-center justify-between gap-3">
-                      <div>
-                        <p className="font-medium text-slate-900">{person?.name ?? leave.staffId}</p>
-                        <p className="text-slate-500">{leave.date}</p>
+            {data.leaveRequests.length > 0 ? (
+              <div className="space-y-3">
+                {data.leaveRequests.map((leave) => {
+                  const person = data.staff.find((member) => member.id === leave.staffId);
+                  return (
+                    <div
+                      key={leave.id}
+                      className="rounded-[22px] border border-slate-200/80 bg-slate-50/80 px-4 py-4 text-sm"
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <p className="font-medium text-slate-900">{person?.name ?? leave.staffId}</p>
+                          <p className="text-slate-500">{leave.date}</p>
+                        </div>
+                        <Pill tone="amber">{LEAVE_REASON_LABELS[leave.reason]}</Pill>
                       </div>
-                      <Pill tone="amber">{LEAVE_REASON_LABELS[leave.reason]}</Pill>
+                      <p className="mt-2 text-slate-500">{LEAVE_SHIFT_LABELS[leave.shift]}</p>
+                      {leave.note ? <p className="mt-2 text-slate-500">{leave.note}</p> : null}
                     </div>
-                    <p className="mt-2 text-slate-500">{LEAVE_SHIFT_LABELS[leave.shift]}</p>
-                    {leave.note ? <p className="mt-2 text-slate-500">{leave.note}</p> : null}
-                  </div>
-                );
-              })}
-            </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <EmptyState
+                icon={FilePlus2}
+                title="Chưa có phiếu nghỉ nào"
+                description="Khi có điều dưỡng xin nghỉ phép hoặc nghỉ ốm, hãy nhập vào đây để hệ thống tự cảnh báo xung đột khi sinh lịch tuần."
+                tone="slate"
+              />
+            )}
           </div>
         </SurfaceSection>
       </div>
@@ -298,28 +331,37 @@ export default async function StaffPage({ searchParams }: StaffPageProps) {
         title="Danh sách email được quyền truy cập"
         description="Quyền được đọc từ tab `access_control` trong Google Sheets hoặc từ allowlist môi trường."
       >
-        <div className="overflow-hidden rounded-[24px] border border-slate-200/80">
-          <table className="min-w-full divide-y divide-slate-200 text-left text-sm">
-            <thead className="bg-slate-50 text-slate-500">
-              <tr>
-                <th className="px-4 py-3 font-medium">Email</th>
-                <th className="px-4 py-3 font-medium">Hiển thị</th>
-                <th className="px-4 py-3 font-medium">Quyền</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-200 bg-white">
-              {data.accessControl.map((entry) => (
-                <tr key={entry.id}>
-                  <td className="px-4 py-3 font-medium text-slate-900">{entry.email}</td>
-                  <td className="px-4 py-3 text-slate-500">{entry.displayName ?? "-"}</td>
-                  <td className="px-4 py-3">
-                    <Pill tone="teal">{ROLE_LABELS[entry.role]}</Pill>
-                  </td>
+        {data.accessControl.length > 0 ? (
+          <div className="overflow-hidden rounded-[24px] border border-slate-200/80">
+            <table className="min-w-full divide-y divide-slate-200 text-left text-sm">
+              <thead className="bg-slate-50 text-slate-500">
+                <tr>
+                  <th className="px-4 py-3 font-medium">Email</th>
+                  <th className="px-4 py-3 font-medium">Hiển thị</th>
+                  <th className="px-4 py-3 font-medium">Quyền</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody className="divide-y divide-slate-200 bg-white">
+                {data.accessControl.map((entry) => (
+                  <tr key={entry.id}>
+                    <td className="px-4 py-3 font-medium text-slate-900">{entry.email}</td>
+                    <td className="px-4 py-3 text-slate-500">{entry.displayName ?? "-"}</td>
+                    <td className="px-4 py-3">
+                      <Pill tone="teal">{ROLE_LABELS[entry.role]}</Pill>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <EmptyState
+            icon={ShieldCheck}
+            title="Chưa có email phân quyền trong Sheet"
+            description="Nếu đang bật allowlist trong môi trường thì bạn vẫn có thể đăng nhập. Khi cần quản lý linh hoạt hơn, hãy thêm email vào tab access_control."
+            tone="amber"
+          />
+        )}
       </SurfaceSection>
     </AppShell>
   );

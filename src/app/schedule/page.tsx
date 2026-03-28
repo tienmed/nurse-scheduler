@@ -1,15 +1,27 @@
 ﻿import Link from "next/link";
-import { Download, RefreshCcw, SendHorizontal } from "lucide-react";
+import {
+  CalendarClock,
+  CheckCircle2,
+  Download,
+  RefreshCcw,
+  SendHorizontal,
+  Users,
+} from "lucide-react";
 import {
   generateWeekAction,
   publishWeekAction,
   saveWeeklyAssignmentAction,
 } from "@/app/actions";
 import { AppShell } from "@/components/app-shell";
+import { EmptyState } from "@/components/empty-state";
 import { Pill } from "@/components/pill";
 import { ScheduleBoard } from "@/components/schedule-board";
 import { SurfaceSection } from "@/components/surface-section";
-import { ASSIGNMENT_STATUS_LABELS, SHIFT_LABELS, WEEKDAY_LABELS } from "@/lib/constants";
+import {
+  ASSIGNMENT_STATUS_LABELS,
+  SHIFT_LABELS,
+  WEEKDAY_LABELS,
+} from "@/lib/constants";
 import { formatDate, getWeekDates, getWeekStartFromInput } from "@/lib/date";
 import { getAppData } from "@/lib/repository";
 import {
@@ -58,6 +70,9 @@ export default async function SchedulePage({ searchParams }: SchedulePageProps) 
   );
 
   const dayOptions = getWeekDates(weekStart);
+  const activeStaff = data.staff.filter((member) => member.active);
+  const readyForScheduling = activeStaff.length > 0 && data.positions.length > 0 && activeRules.length > 0;
+  const quickStatuses = ["draft", "adjusted", "published", "needs-review"] as const;
 
   return (
     <AppShell
@@ -120,109 +135,186 @@ export default async function SchedulePage({ searchParams }: SchedulePageProps) 
             {displayedAssignments.filter((item) => item.status === "needs-review").length} ca cần rà soát
           </Pill>
         </div>
-        <ScheduleBoard board={board} />
+        <ScheduleBoard
+          board={board}
+          emptyTitle="Tuần này chưa có ca nào để điều phối"
+          emptyDescription="Bạn cần ít nhất một vị trí, một điều dưỡng đang hoạt động và một ca làm đang bật để tạo lịch tuần."
+        />
       </SurfaceSection>
 
-      <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
+      <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
         <SurfaceSection
           eyebrow="Điều chỉnh đột xuất"
-          title="Cập nhật một ca cụ thể"
-          description="Dùng khi cần đổi người cho tuần đang vận hành hoặc tuần đã submit. Dữ liệu sẽ ghi đè lên vị trí, ngày và ca tương ứng."
+          title="Cập nhật một ca thật nhanh"
+          description="Form này ưu tiên thao tác nhanh: chạm để chọn ngày, ca và trạng thái; chỉ giữ dropdown cho vị trí và nhân sự."
         >
-          <form action={saveWeeklyAssignmentAction} className="grid gap-4 md:grid-cols-2">
-            <input type="hidden" name="returnTo" value={returnTo} />
-            <input type="hidden" name="weekStart" value={weekStart} />
-            <label className="space-y-2 text-sm text-slate-700">
-              <span className="font-medium">Ngày làm</span>
-              <select
-                name="date"
-                className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-teal-500"
-                defaultValue={dayOptions[0]?.date}
-                disabled={!editable}
-              >
-                {dayOptions.map((day) => (
-                  <option key={day.date} value={day.date}>
-                    {WEEKDAY_LABELS[day.weekday]} - {day.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="space-y-2 text-sm text-slate-700">
-              <span className="font-medium">Ca</span>
-              <select
-                name="shift"
-                className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-teal-500"
-                defaultValue="morning"
-                disabled={!editable}
-              >
-                {Object.entries(SHIFT_LABELS).map(([value, label]) => (
-                  <option key={value} value={value}>
-                    {label}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="space-y-2 text-sm text-slate-700">
-              <span className="font-medium">Vị trí</span>
-              <select
-                name="positionId"
-                className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-teal-500"
-                disabled={!editable}
-              >
-                {data.positions.map((position) => (
-                  <option key={position.id} value={position.id}>
-                    {position.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="space-y-2 text-sm text-slate-700">
-              <span className="font-medium">Nhân sự</span>
-              <select
-                name="staffId"
-                className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-teal-500"
-                disabled={!editable}
-              >
-                {data.staff.filter((member) => member.active).map((member) => (
-                  <option key={member.id} value={member.id}>
-                    {member.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="space-y-2 text-sm text-slate-700 md:col-span-2">
-              <span className="font-medium">Trạng thái</span>
-              <select
-                name="status"
-                className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-teal-500"
-                defaultValue="adjusted"
-                disabled={!editable}
-              >
-                {Object.entries(ASSIGNMENT_STATUS_LABELS).map(([value, label]) => (
-                  <option key={value} value={value}>
-                    {label}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="space-y-2 text-sm text-slate-700 md:col-span-2">
-              <span className="font-medium">Ghi chú</span>
-              <textarea
-                name="note"
-                rows={4}
-                className="w-full rounded-3xl border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-teal-500"
-                placeholder="Ví dụ: đổi trực do nghỉ ốm đột xuất"
-                disabled={!editable}
-              />
-            </label>
-            <button
-              type="submit"
-              disabled={!editable}
-              className="inline-flex items-center justify-center rounded-2xl bg-slate-950 px-4 py-3 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300"
-            >
-              Lưu điều chỉnh
-            </button>
-          </form>
+          {readyForScheduling ? (
+            <form action={saveWeeklyAssignmentAction} className="space-y-5">
+              <input type="hidden" name="returnTo" value={returnTo} />
+              <input type="hidden" name="weekStart" value={weekStart} />
+
+              <div className="grid gap-5 xl:grid-cols-[1.05fr_0.95fr]">
+                <div className="space-y-5">
+                  <fieldset className="space-y-3">
+                    <legend className="text-sm font-semibold text-slate-900">Chọn ngày</legend>
+                    <div className="grid gap-2 sm:grid-cols-3">
+                      {dayOptions.map((day, index) => {
+                        const id = `date-${day.date}`;
+                        return (
+                          <label key={day.date} htmlFor={id} className="cursor-pointer">
+                            <input
+                              id={id}
+                              type="radio"
+                              name="date"
+                              value={day.date}
+                              defaultChecked={index === 0}
+                              className="peer sr-only"
+                              disabled={!editable}
+                            />
+                            <span className="flex rounded-[22px] border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-700 transition peer-checked:border-slate-950 peer-checked:bg-slate-950 peer-checked:text-white peer-disabled:cursor-not-allowed peer-disabled:bg-slate-100">
+                              {WEEKDAY_LABELS[day.weekday]} · {day.label}
+                            </span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </fieldset>
+
+                  <fieldset className="space-y-3">
+                    <legend className="text-sm font-semibold text-slate-900">Chọn ca</legend>
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      {Object.entries(SHIFT_LABELS).map(([value, label], index) => {
+                        const id = `shift-${value}`;
+                        return (
+                          <label key={value} htmlFor={id} className="cursor-pointer">
+                            <input
+                              id={id}
+                              type="radio"
+                              name="shift"
+                              value={value}
+                              defaultChecked={index === 0}
+                              className="peer sr-only"
+                              disabled={!editable}
+                            />
+                            <span className="flex rounded-[22px] border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-700 transition peer-checked:border-slate-950 peer-checked:bg-slate-950 peer-checked:text-white peer-disabled:cursor-not-allowed peer-disabled:bg-slate-100">
+                              {label}
+                            </span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </fieldset>
+
+                  <fieldset className="space-y-3">
+                    <legend className="text-sm font-semibold text-slate-900">Trạng thái</legend>
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      {quickStatuses.map((status, index) => {
+                        const id = `status-${status}`;
+                        return (
+                          <label key={status} htmlFor={id} className="cursor-pointer">
+                            <input
+                              id={id}
+                              type="radio"
+                              name="status"
+                              value={status}
+                              defaultChecked={status === "adjusted" || (index === 0 && false)}
+                              className="peer sr-only"
+                              disabled={!editable}
+                            />
+                            <span className="flex rounded-[22px] border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-700 transition peer-checked:border-teal-600 peer-checked:bg-teal-600 peer-checked:text-white peer-disabled:cursor-not-allowed peer-disabled:bg-slate-100">
+                              {ASSIGNMENT_STATUS_LABELS[status]}
+                            </span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </fieldset>
+                </div>
+
+                <div className="space-y-4 rounded-[28px] border border-slate-200/80 bg-slate-50/85 p-4">
+                  <div className="grid gap-4">
+                    <label className="space-y-2 text-sm text-slate-700">
+                      <span className="font-medium">Vị trí</span>
+                      <select
+                        name="positionId"
+                        className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-teal-500"
+                        disabled={!editable}
+                      >
+                        {data.positions.map((position) => (
+                          <option key={position.id} value={position.id}>
+                            {position.name}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="space-y-2 text-sm text-slate-700">
+                      <span className="font-medium">Nhân sự</span>
+                      <select
+                        name="staffId"
+                        className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-teal-500"
+                        disabled={!editable}
+                      >
+                        {activeStaff.map((member) => (
+                          <option key={member.id} value={member.id}>
+                            {member.name}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="space-y-2 text-sm text-slate-700">
+                      <span className="font-medium">Ghi chú nhanh</span>
+                      <textarea
+                        name="note"
+                        rows={4}
+                        className="w-full rounded-3xl border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-teal-500"
+                        placeholder="Ví dụ: đổi trực do nghỉ ốm đột xuất"
+                        disabled={!editable}
+                      />
+                    </label>
+                  </div>
+                  <div className="grid gap-2 text-sm text-slate-600 sm:grid-cols-2">
+                    <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
+                      Ưu tiên dùng khi đổi người trong tuần đang vận hành.
+                    </div>
+                    <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
+                      Nếu ca chưa chốt, bạn có thể để trạng thái là Dự thảo.
+                    </div>
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={!editable}
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-950 px-4 py-3 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300"
+                  >
+                    <CheckCircle2 className="h-4 w-4" />
+                    Lưu điều chỉnh
+                  </button>
+                </div>
+              </div>
+            </form>
+          ) : (
+            <EmptyState
+              icon={Users}
+              title="Chưa đủ dữ liệu để điều chỉnh tuần"
+              description="Bạn cần ít nhất một điều dưỡng đang hoạt động, một vị trí làm việc và một ca đang bật trong lịch nền để dùng form điều phối nhanh."
+              action={
+                <div className="flex flex-wrap gap-3">
+                  <Link
+                    href="/staff"
+                    className="inline-flex items-center rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-100"
+                  >
+                    Thêm nhân sự hoặc vị trí
+                  </Link>
+                  <Link
+                    href="/template"
+                    className="inline-flex items-center rounded-2xl border border-white/14 bg-white/8 px-4 py-3 text-sm font-medium text-white transition hover:bg-white/12"
+                  >
+                    Bật ca ở lịch nền
+                  </Link>
+                </div>
+              }
+              tone="teal"
+            />
+          )}
         </SurfaceSection>
 
         <SurfaceSection
@@ -230,20 +322,37 @@ export default async function SchedulePage({ searchParams }: SchedulePageProps) 
           title="Quy tắc đang áp dụng"
           description="Trang Lịch nền cho phép bật hoặc tắt từng ca. Bảng này giúp bạn nhìn nhanh tuần đang sinh theo cấu hình nào."
         >
-          <div className="space-y-3">
-            {activeRules.map((slot) => (
-              <div
-                key={`${slot.dayOfWeek}-${slot.shift}`}
-                className="flex items-center justify-between rounded-[22px] border border-slate-200/80 bg-slate-50/80 px-4 py-4 text-sm"
-              >
-                <div>
-                  <p className="font-medium text-slate-900">{WEEKDAY_LABELS[slot.dayOfWeek]}</p>
-                  <p className="text-slate-500">{SHIFT_LABELS[slot.shift]}</p>
+          {activeRules.length > 0 ? (
+            <div className="space-y-3">
+              {activeRules.map((slot) => (
+                <div
+                  key={`${slot.dayOfWeek}-${slot.shift}`}
+                  className="flex items-center justify-between rounded-[22px] border border-slate-200/80 bg-slate-50/80 px-4 py-4 text-sm"
+                >
+                  <div>
+                    <p className="font-medium text-slate-900">{WEEKDAY_LABELS[slot.dayOfWeek]}</p>
+                    <p className="text-slate-500">{SHIFT_LABELS[slot.shift]}</p>
+                  </div>
+                  <Pill tone="slate">{data.positions.length} vị trí</Pill>
                 </div>
-                <Pill tone="slate">{data.positions.length} vị trí</Pill>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          ) : (
+            <EmptyState
+              icon={CalendarClock}
+              title="Chưa bật ca làm nào"
+              description="Bật ít nhất một ca trong trang Lịch nền để hệ thống có thể sinh lịch và cho phép điều chỉnh tuần."
+              action={
+                <Link
+                  href="/template"
+                  className="inline-flex items-center rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-100"
+                >
+                  Mở lịch nền
+                </Link>
+              }
+              tone="amber"
+            />
+          )}
         </SurfaceSection>
       </div>
     </AppShell>

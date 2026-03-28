@@ -1,20 +1,17 @@
-# NurseFlow
+﻿# NurseFlow
 
-Ứng dụng web phân công lịch làm việc cho điều dưỡng theo tuần, có thể triển khai từ GitHub và mở rộng dần theo nhu cầu vận hành thực tế.
+Ứng dụng web phân công lịch làm việc cho điều dưỡng, thiết kế để triển khai từ GitHub, lưu dữ liệu trên Google Sheets và mở rộng dần theo nhu cầu vận hành thực tế.
 
-## Tính năng hiện có
+## Tính năng chính
 
-- Lịch nền với 3 chiều dữ liệu: nhân sự, thời gian, vị trí.
+- Lịch nền theo 3 chiều dữ liệu: nhân sự, thời gian, vị trí.
 - Sinh lịch tuần từ lịch nền.
-- Chỉnh lịch đột xuất cho tuần đang vận hành hoặc tuần đã submit.
-- Quản lý nhân sự, vị trí và nhập nghỉ phép / nghỉ ốm.
-- Xuất lịch tuần ra file Excel.
+- Chỉnh lịch đột xuất cho tuần đang chạy hoặc tuần đã submit.
+- Quản lý điều dưỡng, vị trí làm việc và nghỉ phép hoặc nghỉ ốm.
+- Xuất lịch tuần ra Excel.
 - Báo cáo tháng theo số ngày làm, số lượt nghỉ và phạm vi vị trí đã phụ trách.
-- Đăng nhập Google OAuth theo allowlist / tab `access_control`.
-- Quy tắc ca làm cấu hình được qua tab `schedule_rules`.
-- Nguồn dữ liệu có thể chạy ở:
-  - `demo mode`: dùng dữ liệu mẫu để xem luồng.
-  - `live mode`: đọc ghi trực tiếp trên Google Sheets.
+- Đăng nhập Google OAuth theo phân quyền.
+- Dùng được với dữ liệu mẫu hoặc dữ liệu thật trên Google Sheets.
 
 ## Stack kỹ thuật
 
@@ -25,20 +22,16 @@
 - Google Sheets API (`googleapis`)
 - ExcelJS để xuất `.xlsx`
 
-## Quy tắc nghiệp vụ hiện tại
+## Quy tắc ca làm mặc định
 
-App đang dùng `schedule_rules` để xác định những ca nào thật sự tồn tại trong tuần.
-
-Mặc định đang bật:
-
+Đang bật:
 - Thứ 2 đến Thứ 6: `Sáng`, `Chiều`
 - Thứ 7: `Sáng`
 
-Mặc định đang tắt:
+Đang tắt:
+- `Chiều Thứ 7`
 
-- `Chiều thứ 7`
-
-Bạn có thể bật / tắt trực tiếp trong UI ở trang [src/app/template/page.tsx](C:/Users/Thinkpad X280/Documents/Quản lý lịch điều dưỡng/src/app/template/page.tsx) hoặc sửa dữ liệu trong tab `schedule_rules` trên Google Sheets.
+Các quy tắc này có thể chỉnh trong tab `schedule_rules` của Google Sheets hoặc trong giao diện `Lịch nền`.
 
 ## Chạy local
 
@@ -51,25 +44,22 @@ Mở [http://localhost:3000](http://localhost:3000).
 
 ## Cấu hình môi trường
 
-Tạo file `.env.local` từ `.env.example`.
+Tạo `.env.local` từ `.env.example`.
 
 ### Google OAuth
 
 Cần các biến:
-
 - `AUTH_SECRET`
 - `AUTH_GOOGLE_ID`
 - `AUTH_GOOGLE_SECRET`
 
-Redirect URI khi cấu hình OAuth nên bao gồm:
-
+Redirect URI:
 - local: `http://localhost:3000/api/auth/callback/google`
 - production: `https://your-domain.com/api/auth/callback/google`
 
 ### Google Sheets
 
 Cần các biến:
-
 - `GOOGLE_SHEET_ID`
 - `GOOGLE_SERVICE_ACCOUNT_EMAIL`
 - `GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY`
@@ -82,8 +72,7 @@ Khởi tạo các tab cần thiết:
 npm run setup:sheet
 ```
 
-Script này sẽ tạo hoặc chuẩn hóa các tab:
-
+Script sẽ tạo hoặc chuẩn hóa các tab:
 - `staff`
 - `positions`
 - `schedule_rules`
@@ -92,58 +81,51 @@ Script này sẽ tạo hoặc chuẩn hóa các tab:
 - `leave_requests`
 - `access_control`
 
-## Cách phân quyền
+## Phân quyền
 
 App xác định quyền theo thứ tự:
-
 1. `AUTHORIZED_ADMIN_EMAILS`
 2. `AUTHORIZED_COORDINATOR_EMAILS`
 3. `AUTHORIZED_VIEWER_EMAILS`
 4. Tab `access_control` trong Google Sheets
 
 Các quyền hiện có:
-
 - `admin`: quản trị toàn bộ
 - `coordinator`: điều phối lịch, cập nhật dữ liệu vận hành
 - `viewer`: chỉ xem
 
-## GitHub và deploy
+## Kiểm tra chất lượng
 
-### 1. Tạo branch làm việc
+```bash
+npm run lint
+npm run typecheck
+npm run build
+```
 
-Khuyến nghị dùng branch có prefix `codex/`.
+## Deploy lên Vercel
 
-### 2. CI sẵn sàng
+1. Import repo GitHub vào Vercel.
+2. Khai báo toàn bộ biến môi trường giống `.env.local`.
+3. Đảm bảo redirect URI production đã thêm vào Google OAuth.
+4. Deploy.
 
-Repo đã có workflow [ci.yml](C:/Users/Thinkpad X280/Documents/Quản lý lịch điều dưỡng/.github/workflows/ci.yml) để chạy:
-
-- `npm ci`
-- `npm run lint`
-- `npm run typecheck`
-- `npm run build`
-
-### 3. Deploy
-
-Phù hợp nhất là Vercel vì dự án đang là Next.js.
-
-Thiết lập biến môi trường trên Vercel giống `.env.local`.
+Nếu dùng domain riêng, cập nhật lại redirect URI production theo domain đó.
 
 ## Cấu trúc chính
 
-- [src/app/page.tsx](C:/Users/Thinkpad X280/Documents/Quản lý lịch điều dưỡng/src/app/page.tsx): dashboard tổng quan
-- [src/app/schedule/page.tsx](C:/Users/Thinkpad X280/Documents/Quản lý lịch điều dưỡng/src/app/schedule/page.tsx): lịch tuần
-- [src/app/template/page.tsx](C:/Users/Thinkpad X280/Documents/Quản lý lịch điều dưỡng/src/app/template/page.tsx): lịch nền và quy tắc ca làm
-- [src/app/staff/page.tsx](C:/Users/Thinkpad X280/Documents/Quản lý lịch điều dưỡng/src/app/staff/page.tsx): nhân sự, vị trí, nghỉ phép
-- [src/app/reports/page.tsx](C:/Users/Thinkpad X280/Documents/Quản lý lịch điều dưỡng/src/app/reports/page.tsx): báo cáo tháng
-- [src/auth.ts](C:/Users/Thinkpad X280/Documents/Quản lý lịch điều dưỡng/src/auth.ts): cấu hình Auth.js
-- [src/lib/google-sheets.ts](C:/Users/Thinkpad X280/Documents/Quản lý lịch điều dưỡng/src/lib/google-sheets.ts): adapter dữ liệu Google Sheets
-- [scripts/setup-google-sheet.mjs](C:/Users/Thinkpad X280/Documents/Quản lý lịch điều dưỡng/scripts/setup-google-sheet.mjs): script khởi tạo Sheet
+- `src/app/page.tsx`: tổng quan vận hành
+- `src/app/schedule/page.tsx`: lịch tuần
+- `src/app/template/page.tsx`: lịch nền và quy tắc ca làm
+- `src/app/staff/page.tsx`: nhân sự, vị trí, nghỉ phép
+- `src/app/reports/page.tsx`: báo cáo tháng
+- `src/auth.ts`: cấu hình Auth.js
+- `src/lib/google-sheets.ts`: adapter Google Sheets
+- `scripts/setup-google-sheet.mjs`: script khởi tạo Google Sheet
 
 ## Hướng mở rộng tiếp theo
 
-- CRUD đầy đủ cho xóa / chỉnh sửa trực tiếp từng bản ghi.
-- Role management ngay trên UI thay vì đọc tab `access_control`.
-- Bộ lọc theo khoa / nhóm điều dưỡng.
-- Tự động phát hiện quá tải ca liên tiếp.
-- Thống kê xoay vòng vị trí theo khoảng liên tục thay vì tổng hợp toàn lịch sử.
-- In mẫu biểu Excel theo layout của bệnh viện.
+- CRUD đầy đủ cho sửa và xóa trực tiếp từng bản ghi.
+- Quản lý role ngay trên UI.
+- Bộ lọc theo khoa hoặc nhóm điều dưỡng.
+- Cảnh báo quá tải hoặc ca liên tiếp.
+- Báo cáo xoay vòng vị trí theo khoảng liên tục.
