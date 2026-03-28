@@ -1,4 +1,4 @@
-import { saveLeaveAction, savePositionAction, saveStaffAction } from "@/app/actions";
+﻿import { saveLeaveAction, savePositionAction, saveStaffAction } from "@/app/actions";
 import { AppShell } from "@/components/app-shell";
 import { Pill } from "@/components/pill";
 import { SurfaceSection } from "@/components/surface-section";
@@ -26,8 +26,8 @@ export default async function StaffPage({ searchParams }: StaffPageProps) {
   return (
     <AppShell
       currentPath="/staff"
-      title="NhÃƒÂ¢n s? vÃƒÂ  ngh? phÃƒÂ©p"
-      description="Qu?n lÃƒÂ½ danh sÃƒÂ¡ch di?u du?ng, v? trÃƒÂ­ v?n hÃƒÂ nh, thÃƒÂ´ng tin ngh? phÃƒÂ©p/?m vÃƒÂ  b?ng phÃƒÂ¢n quy?n email cho dang nh?p Google."
+      title="Nhân sự và nghỉ phép"
+      description="Quản lý danh sách điều dưỡng, vị trí làm việc, thông tin nghỉ phép và danh sách email được phép đăng nhập."
       authEnabled={authEnabled}
       user={user}
       message={message}
@@ -35,18 +35,18 @@ export default async function StaffPage({ searchParams }: StaffPageProps) {
     >
       <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
         <SurfaceSection
-          eyebrow="ÃƒÂi?u du?ng"
-          title="Danh sÃƒÂ¡ch nhÃƒÂ¢n s?"
-          description="ThÃƒÂ´ng tin n?n d? ch?n khi l?p l?ch tu?n vÃƒÂ  t?ng h?p bÃƒÂ¡o cÃƒÂ¡o thÃƒÂ¡ng."
+          eyebrow="Điều dưỡng"
+          title="Danh sách nhân sự"
+          description="Nguồn dữ liệu để chọn khi lập lịch tuần và tổng hợp báo cáo tháng."
         >
           <div className="overflow-hidden rounded-[24px] border border-slate-200/80">
             <table className="min-w-full divide-y divide-slate-200 text-left text-sm">
               <thead className="bg-slate-50 text-slate-500">
                 <tr>
-                  <th className="px-4 py-3 font-medium">ÃƒÂi?u du?ng</th>
-                  <th className="px-4 py-3 font-medium">MÃƒÂ£</th>
-                  <th className="px-4 py-3 font-medium">NhÃƒÂ³m</th>
-                  <th className="px-4 py-3 font-medium">Tr?ng thÃƒÂ¡i</th>
+                  <th className="px-4 py-3 font-medium">Điều dưỡng</th>
+                  <th className="px-4 py-3 font-medium">Mã</th>
+                  <th className="px-4 py-3 font-medium">Nhóm</th>
+                  <th className="px-4 py-3 font-medium">Trạng thái</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200 bg-white">
@@ -57,7 +57,7 @@ export default async function StaffPage({ searchParams }: StaffPageProps) {
                     <td className="px-4 py-3 text-slate-500">{member.team}</td>
                     <td className="px-4 py-3">
                       <Pill tone={member.active ? "emerald" : "amber"}>
-                        {member.active ? "S?n sÃƒÂ ng" : "T?m ngh?"}
+                        {member.active ? "Sẵn sàng" : "Tạm nghỉ"}
                       </Pill>
                     </td>
                   </tr>
@@ -68,23 +68,23 @@ export default async function StaffPage({ searchParams }: StaffPageProps) {
         </SurfaceSection>
 
         <SurfaceSection
-          eyebrow="ThÃƒÂªm m?i"
-          title="C?p nh?t di?u du?ng"
-          description="ThÃƒÂªm ho?c c?p nh?t nhÃƒÂ¢n s? d? dÃƒÂ¹ng ngay cho l?ch n?n vÃƒÂ  l?ch tu?n."
+          eyebrow="Thêm mới"
+          title="Cập nhật điều dưỡng"
+          description="Thêm hoặc chỉnh thông tin nhân sự để dùng ngay cho lịch nền và lịch tuần."
         >
           <form action={saveStaffAction} className="grid gap-4">
             <input type="hidden" name="returnTo" value="/staff" />
             <label className="space-y-2 text-sm text-slate-700">
-              <span className="font-medium">H? vÃƒÂ  tÃƒÂªn</span>
+              <span className="font-medium">Họ và tên</span>
               <input
                 name="name"
                 className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-teal-500"
-                placeholder="Nguy?n Th? A"
+                placeholder="Nguyễn Thị A"
                 disabled={!editable}
               />
             </label>
             <label className="space-y-2 text-sm text-slate-700">
-              <span className="font-medium">MÃƒÂ£ di?u du?ng</span>
+              <span className="font-medium">Mã điều dưỡng</span>
               <input
                 name="code"
                 className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-teal-500"
@@ -93,34 +93,34 @@ export default async function StaffPage({ searchParams }: StaffPageProps) {
               />
             </label>
             <label className="space-y-2 text-sm text-slate-700">
-              <span className="font-medium">NhÃƒÂ³m / khoa</span>
+              <span className="font-medium">Nhóm hoặc khoa</span>
               <input
                 name="team"
                 className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-teal-500"
-                placeholder="KhÃƒÂ¡m t?ng quÃƒÂ¡t"
+                placeholder="Khám tổng quát"
                 disabled={!editable}
               />
             </label>
             <label className="space-y-2 text-sm text-slate-700">
-              <span className="font-medium">Ghi chÃƒÂº</span>
+              <span className="font-medium">Ghi chú</span>
               <textarea
                 name="notes"
                 rows={3}
                 className="w-full rounded-3xl border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-teal-500"
-                placeholder="VÃƒÂ­ d?: uu tiÃƒÂªn ca sÃƒÂ¡ng"
+                placeholder="Ví dụ: ưu tiên ca sáng"
                 disabled={!editable}
               />
             </label>
             <label className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
               <input type="checkbox" name="active" defaultChecked disabled={!editable} />
-              ÃƒÂang ho?t d?ng
+              Đang hoạt động
             </label>
             <button
               type="submit"
               disabled={!editable}
               className="inline-flex items-center justify-center rounded-2xl bg-slate-950 px-4 py-3 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300"
             >
-              Luu di?u du?ng
+              Lưu điều dưỡng
             </button>
           </form>
         </SurfaceSection>
@@ -128,9 +128,9 @@ export default async function StaffPage({ searchParams }: StaffPageProps) {
 
       <div className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
         <SurfaceSection
-          eyebrow="V? trÃƒÂ­"
-          title="Danh m?c v? trÃƒÂ­ lÃƒÂ m vi?c"
-          description="M?i v? trÃƒÂ­ s? xu?t hi?n trong l?ch n?n vÃƒÂ  bÃƒÂ¡o cÃƒÂ¡o xoay vÃƒÂ²ng v? trÃƒÂ­."
+          eyebrow="Vị trí"
+          title="Danh mục vị trí làm việc"
+          description="Mỗi vị trí sẽ xuất hiện trong lịch nền, lịch tuần và báo cáo xoay vòng vị trí."
         >
           <div className="space-y-3">
             {data.positions.map((position) => (
@@ -143,7 +143,7 @@ export default async function StaffPage({ searchParams }: StaffPageProps) {
                     <p className="font-medium text-slate-900">{position.name}</p>
                     <p className="text-sm text-slate-500">{position.area}</p>
                   </div>
-                  <Pill tone="teal">{position.description ? "MÃƒÂ´ t? s?n" : "Chua ghi chÃƒÂº"}</Pill>
+                  <Pill tone="teal">{position.description ? "Đã có mô tả" : "Chưa ghi chú"}</Pill>
                 </div>
               </div>
             ))}
@@ -151,30 +151,30 @@ export default async function StaffPage({ searchParams }: StaffPageProps) {
           <form action={savePositionAction} className="mt-5 grid gap-4 border-t border-slate-200 pt-5">
             <input type="hidden" name="returnTo" value="/staff" />
             <label className="space-y-2 text-sm text-slate-700">
-              <span className="font-medium">TÃƒÂªn v? trÃƒÂ­</span>
+              <span className="font-medium">Tên vị trí</span>
               <input
                 name="name"
                 className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-teal-500"
-                placeholder="PhÃƒÂ²ng ECG"
+                placeholder="Phòng ECG"
                 disabled={!editable}
               />
             </label>
             <label className="space-y-2 text-sm text-slate-700">
-              <span className="font-medium">Khu v?c</span>
+              <span className="font-medium">Khu vực</span>
               <input
                 name="area"
                 className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-teal-500"
-                placeholder="C?n lÃƒÂ¢m sÃƒÂ ng"
+                placeholder="Cận lâm sàng"
                 disabled={!editable}
               />
             </label>
             <label className="space-y-2 text-sm text-slate-700">
-              <span className="font-medium">MÃƒÂ´ t?</span>
+              <span className="font-medium">Mô tả</span>
               <textarea
                 name="description"
                 rows={3}
                 className="w-full rounded-3xl border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-teal-500"
-                placeholder="MÃƒÂ´ t? ng?n v? ph?m vi v? trÃƒÂ­"
+                placeholder="Mô tả ngắn về phạm vi vị trí"
                 disabled={!editable}
               />
             </label>
@@ -183,21 +183,21 @@ export default async function StaffPage({ searchParams }: StaffPageProps) {
               disabled={!editable}
               className="inline-flex items-center justify-center rounded-2xl border border-slate-200 px-4 py-3 text-sm font-medium text-slate-700 transition hover:border-slate-300 hover:bg-slate-100 disabled:cursor-not-allowed disabled:bg-slate-100"
             >
-              Luu v? trÃƒÂ­
+              Lưu vị trí
             </button>
           </form>
         </SurfaceSection>
 
         <SurfaceSection
-          eyebrow="Ngh? phÃƒÂ©p"
-          title="Nh?p ca ngh?"
-          description="ThÃƒÂ´ng tin ngh? phÃƒÂ©p ho?c ngh? ?m s? du?c dÃƒÂ¹ng d? c?nh bÃƒÂ¡o khi t?o l?ch tu?n m?i t? l?ch n?n."
+          eyebrow="Nghỉ phép"
+          title="Nhập ca nghỉ"
+          description="Thông tin nghỉ phép hoặc nghỉ ốm sẽ được dùng để cảnh báo khi sinh lịch tuần mới từ lịch nền."
         >
           <div className="grid gap-5 lg:grid-cols-[0.96fr_1.04fr]">
             <form action={saveLeaveAction} className="grid gap-4">
               <input type="hidden" name="returnTo" value="/staff" />
               <label className="space-y-2 text-sm text-slate-700">
-                <span className="font-medium">NhÃƒÂ¢n s?</span>
+                <span className="font-medium">Nhân sự</span>
                 <select
                   name="staffId"
                   className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-teal-500"
@@ -211,7 +211,7 @@ export default async function StaffPage({ searchParams }: StaffPageProps) {
                 </select>
               </label>
               <label className="space-y-2 text-sm text-slate-700">
-                <span className="font-medium">NgÃƒÂ y ngh?</span>
+                <span className="font-medium">Ngày nghỉ</span>
                 <input
                   type="date"
                   name="date"
@@ -220,7 +220,7 @@ export default async function StaffPage({ searchParams }: StaffPageProps) {
                 />
               </label>
               <label className="space-y-2 text-sm text-slate-700">
-                <span className="font-medium">Ca ngh?</span>
+                <span className="font-medium">Ca nghỉ</span>
                 <select
                   name="shift"
                   className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-teal-500"
@@ -235,7 +235,7 @@ export default async function StaffPage({ searchParams }: StaffPageProps) {
                 </select>
               </label>
               <label className="space-y-2 text-sm text-slate-700">
-                <span className="font-medium">LÃƒÂ½ do</span>
+                <span className="font-medium">Lý do</span>
                 <select
                   name="reason"
                   className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-teal-500"
@@ -250,12 +250,12 @@ export default async function StaffPage({ searchParams }: StaffPageProps) {
                 </select>
               </label>
               <label className="space-y-2 text-sm text-slate-700">
-                <span className="font-medium">Ghi chÃƒÂº</span>
+                <span className="font-medium">Ghi chú</span>
                 <textarea
                   name="note"
                   rows={3}
                   className="w-full rounded-3xl border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-teal-500"
-                  placeholder="VÃƒÂ­ d?: ngh? phÃƒÂ©p dÃƒÂ£ duy?t"
+                  placeholder="Ví dụ: nghỉ phép đã duyệt"
                   disabled={!editable}
                 />
               </label>
@@ -264,7 +264,7 @@ export default async function StaffPage({ searchParams }: StaffPageProps) {
                 disabled={!editable}
                 className="inline-flex items-center justify-center rounded-2xl bg-slate-950 px-4 py-3 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300"
               >
-                Luu ca ngh?
+                Lưu ca nghỉ
               </button>
             </form>
 
@@ -294,17 +294,17 @@ export default async function StaffPage({ searchParams }: StaffPageProps) {
       </div>
 
       <SurfaceSection
-        eyebrow="PhÃƒÂ¢n quy?n"
-        title="Danh sÃƒÂ¡ch email du?c quy?n truy c?p"
-        description="? b?n hi?n t?i, quy?n du?c d?c t? tab `access_control` trong Google Sheets ho?c t? bi?n mÃƒÂ´i tru?ng allowlist."
+        eyebrow="Phân quyền"
+        title="Danh sách email được quyền truy cập"
+        description="Quyền được đọc từ tab `access_control` trong Google Sheets hoặc từ allowlist môi trường."
       >
         <div className="overflow-hidden rounded-[24px] border border-slate-200/80">
           <table className="min-w-full divide-y divide-slate-200 text-left text-sm">
             <thead className="bg-slate-50 text-slate-500">
               <tr>
                 <th className="px-4 py-3 font-medium">Email</th>
-                <th className="px-4 py-3 font-medium">Hi?n th?</th>
-                <th className="px-4 py-3 font-medium">Quy?n</th>
+                <th className="px-4 py-3 font-medium">Hiển thị</th>
+                <th className="px-4 py-3 font-medium">Quyền</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200 bg-white">
@@ -324,4 +324,3 @@ export default async function StaffPage({ searchParams }: StaffPageProps) {
     </AppShell>
   );
 }
-

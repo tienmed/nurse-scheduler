@@ -1,10 +1,11 @@
-import type { Metadata } from "next";
-import { IBM_Plex_Mono, Manrope } from "next/font/google";
+﻿import type { Metadata } from "next";
+import { Be_Vietnam_Pro, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
 
-const manrope = Manrope({
-  variable: "--font-manrope",
+const beVietnamPro = Be_Vietnam_Pro({
+  variable: "--font-be-vietnam-pro",
   subsets: ["latin", "vietnamese"],
+  weight: ["400", "500", "600", "700"],
 });
 
 const plexMono = IBM_Plex_Mono({
@@ -14,9 +15,9 @@ const plexMono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "NurseFlow | PhÃƒÂ¢n cÃƒÂ´ng l?ch di?u du?ng",
+  title: "NurseFlow | Phân công lịch điều dưỡng",
   description:
-    "?ng d?ng l?p l?ch di?u du?ng theo tu?n v?i Google OAuth, Google Sheets vÃƒÂ  xu?t Excel.",
+    "Ứng dụng lập lịch điều dưỡng theo tuần với Google OAuth, Google Sheets và xuất Excel.",
 };
 
 export default function RootLayout({
@@ -25,9 +26,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="vi" className={`${manrope.variable} ${plexMono.variable} h-full antialiased`}>
+    <html lang="vi" className={`${beVietnamPro.variable} ${plexMono.variable} h-full antialiased`}>
       <body className="min-h-full font-sans text-slate-900">{children}</body>
     </html>
   );
 }
-

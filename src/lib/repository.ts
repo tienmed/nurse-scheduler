@@ -1,4 +1,4 @@
-import { DEMO_ACCESS_CONTROL } from "@/lib/constants";
+﻿import { DEMO_ACCESS_CONTROL } from "@/lib/constants";
 import { isSheetsConfigured } from "@/lib/env";
 import { readAppDataFromSheets, writeAppDataToSheets } from "@/lib/google-sheets";
 import { mockAppData } from "@/lib/mock-data";
@@ -32,7 +32,7 @@ export async function getAppData(): Promise<AppData> {
 async function persistData(data: AppData) {
   if (!isSheetsConfigured()) {
     throw new Error(
-      "á»¨ng dá»¥ng Ä‘ang á»Ÿ cháº¿ Ä‘á»™ demo. HÃ£y cáº¥u hÃ¬nh Google Sheets Ä‘á»ƒ lÆ°u thay Ä‘á»•i.",
+      "Ứng dụng đang ở chế độ demo. Hãy cấu hình Google Sheets để lưu thay đổi.",
     );
   }
 

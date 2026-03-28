@@ -1,4 +1,4 @@
-import { cn } from "@/lib/cn";
+﻿import { cn } from "@/lib/cn";
 
 interface PillProps {
   children: React.ReactNode;
@@ -17,7 +17,7 @@ export function Pill({ children, tone = "slate" }: PillProps) {
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold tracking-[0.16em] uppercase",
+        "inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold",
         toneClasses[tone],
       )}
     >
@@ -25,4 +25,3 @@ export function Pill({ children, tone = "slate" }: PillProps) {
     </span>
   );
 }
-

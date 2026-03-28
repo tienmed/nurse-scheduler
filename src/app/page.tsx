@@ -1,8 +1,9 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 import { ArrowRight, CalendarRange, Database, FileSpreadsheet, UserRoundCheck } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { Pill } from "@/components/pill";
 import { SurfaceSection } from "@/components/surface-section";
+import { LEAVE_REASON_LABELS, LEAVE_SHIFT_LABELS } from "@/lib/constants";
 import { getMonthKey, getNextWeekStart } from "@/lib/date";
 import { isSheetsConfigured } from "@/lib/env";
 import { getAppData } from "@/lib/repository";
@@ -51,45 +52,44 @@ export default async function HomePage({ searchParams }: HomePageProps) {
 
   const monthlyWorkload = calculateMonthlyWorkload(data.weeklySchedule, currentMonth);
   const monthlyLeaves = calculateMonthlyLeaves(data.leaveRequests, currentMonth);
+  const pendingConflicts = nextWeekView.filter((item) => item.status === "needs-review");
 
   const kpis = [
     {
-      label: "Äiá»u dÆ°á»¡ng hoáº¡t Ä‘á»™ng",
+      label: "Điều dưỡng đang hoạt động",
       value: `${data.staff.filter((item) => item.active).length}`,
-      detail: "NhÃ¢n sá»± Ä‘ang á»Ÿ tráº¡ng thÃ¡i sáºµn sÃ ng phÃ¢n cÃ´ng",
+      detail: "Nhân sự sẵn sàng để xếp lịch trong tuần tới.",
       icon: UserRoundCheck,
     },
     {
-      label: "Vá»‹ trÃ­ váº­n hÃ nh",
+      label: "Vị trí vận hành",
       value: `${data.positions.length}`,
-      detail: "Danh má»¥c vá»‹ trÃ­ cÃ³ thá»ƒ phÃ¢n cÃ´ng trong lá»‹ch ná»n",
+      detail: "Danh mục vị trí có thể gán trong lịch nền và lịch tuần.",
       icon: CalendarRange,
     },
     {
-      label: "Ca tuáº§n tá»›i",
+      label: "Ca của tuần tới",
       value: `${nextWeekView.length}`,
       detail: nextWeekAssignments.length
-        ? "ÄÃ£ cÃ³ lá»‹ch dá»± tháº£o/chÃ­nh thá»©c cho tuáº§n káº¿ tiáº¿p"
-        : "Äang hiá»ƒn thá»‹ preview sinh tá»« lá»‹ch ná»n",
+        ? "Tuần tới đã có dữ liệu lưu chính thức hoặc dự thảo."
+        : "Đang xem bản xem trước sinh từ lịch nền.",
       icon: FileSpreadsheet,
     },
     {
-      label: "Nguá»“n dá»¯ liá»‡u",
+      label: "Nguồn dữ liệu",
       value: isSheetsConfigured() ? "Live" : "Demo",
       detail: isSheetsConfigured()
-        ? "Äang Ä‘á»c vÃ  ghi trá»±c tiáº¿p trÃªn Google Sheets"
-        : "ChÆ°a ná»‘i Google Sheets, Ä‘ang dÃ¹ng dá»¯ liá»‡u máº«u",
+        ? "Đọc và ghi trực tiếp trên Google Sheets."
+        : "Chưa nối dữ liệu thật, đang dùng dữ liệu mẫu.",
       icon: Database,
     },
   ];
 
-  const pendingConflicts = nextWeekView.filter((item) => item.status === "needs-review");
-
   return (
     <AppShell
       currentPath="/"
-      title="Tá»•ng quan váº­n hÃ nh"
-      description="Theo dÃµi lá»‹ch ná»n, tuáº§n Ä‘ang cháº¡y, tuáº§n káº¿ tiáº¿p vÃ  tráº¡ng thÃ¡i Ä‘á»“ng bá»™ trÆ°á»›c khi chá»‘t lá»‹ch chÃ­nh thá»©c."
+      title="Tổng quan vận hành"
+      description="Theo dõi nhanh tuần đang chạy, tuần kế tiếp, tình trạng nghỉ phép và khối lượng công việc trong tháng."
       authEnabled={authEnabled}
       user={user}
       message={message}
@@ -115,15 +115,15 @@ export default async function HomePage({ searchParams }: HomePageProps) {
 
       <div className="grid gap-6 2xl:grid-cols-[1.45fr_0.95fr]">
         <SurfaceSection
-          eyebrow="Tuáº§n káº¿ tiáº¿p"
-          title="Lá»‹ch tuáº§n sau Ä‘á»ƒ rÃ  soÃ¡t cuá»‘i tuáº§n"
-          description="Náº¿u tuáº§n sau chÆ°a cÃ³ lá»‹ch chÃ­nh thá»©c, app sáº½ láº¥y lá»‹ch ná»n Ä‘á»ƒ preview. Khi ná»‘i Google Sheets, báº¡n cÃ³ thá»ƒ sinh dá»± tháº£o rá»“i chá»‰nh tiáº¿p trÆ°á»›c khi chá»‘t."
+          eyebrow="Tuần kế tiếp"
+          title="Lịch chờ rà soát cuối tuần"
+          description="Nếu tuần sau chưa có dữ liệu chính thức, hệ thống sẽ hiển thị bản xem trước từ lịch nền để bạn kiểm tra và chỉnh lại trước khi chốt."
           action={
             <Link
               href={`/schedule?week=${nextWeekStart}`}
               className="inline-flex items-center gap-2 rounded-2xl bg-slate-950 px-4 py-3 text-sm font-medium text-white transition hover:bg-slate-800"
             >
-              Má»Ÿ lá»‹ch tuáº§n tá»›i
+              Mở lịch tuần tới
               <ArrowRight className="h-4 w-4" />
             </Link>
           }
@@ -131,12 +131,12 @@ export default async function HomePage({ searchParams }: HomePageProps) {
           <div className="space-y-4">
             <div className="flex flex-wrap gap-2">
               <Pill tone={nextWeekAssignments.length > 0 ? "teal" : "amber"}>
-                {nextWeekAssignments.length > 0 ? "ÄÃ£ cÃ³ dá»¯ liá»‡u tuáº§n tá»›i" : "Äang preview tá»« lá»‹ch ná»n"}
+                {nextWeekAssignments.length > 0 ? "Đã có dữ liệu tuần tới" : "Đang xem trước từ lịch nền"}
               </Pill>
               <Pill tone={pendingConflicts.length > 0 ? "rose" : "emerald"}>
                 {pendingConflicts.length > 0
-                  ? `${pendingConflicts.length} vá»‹ trÃ­ cáº§n rÃ  soÃ¡t nghá»‰ phÃ©p`
-                  : "KhÃ´ng cÃ³ xung Ä‘á»™t nghá»‰ phÃ©p"}
+                  ? `${pendingConflicts.length} vị trí cần rà soát nghỉ phép`
+                  : "Không có xung đột nghỉ phép"}
               </Pill>
             </div>
             <div className="space-y-4">
@@ -150,7 +150,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                       <p className="text-sm font-semibold text-slate-950">{slot.title}</p>
                       <p className="text-sm text-slate-500">{slot.date}</p>
                     </div>
-                    <Pill tone="slate">{slot.entries.length} vá»‹ trÃ­</Pill>
+                    <Pill tone="slate">{slot.entries.length} vị trí</Pill>
                   </div>
                   <div className="mt-4 grid gap-3 md:grid-cols-2">
                     {slot.entries.slice(0, 4).map((entry) => (
@@ -160,7 +160,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                       >
                         <p className="font-medium text-slate-900">{entry.position.name}</p>
                         <p className="mt-1 text-slate-500">
-                          {entry.person?.name ?? "ChÆ°a phÃ¢n cÃ´ng"}
+                          {entry.person?.name ?? "Chưa phân công"}
                         </p>
                       </div>
                     ))}
@@ -173,36 +173,36 @@ export default async function HomePage({ searchParams }: HomePageProps) {
 
         <div className="space-y-6">
           <SurfaceSection
-            eyebrow="RÃ  soÃ¡t"
-            title="Nhá»¯ng Ä‘iá»ƒm cáº§n nhÃ¬n ngay"
-            description="CÃ¡c chá»‰ bÃ¡o ngáº¯n Ä‘á»ƒ Ä‘iá»u phá»‘i biáº¿t tuáº§n nÃ o cáº§n chá»‘t láº¡i nhÃ¢n sá»±, tuáº§n nÃ o Ä‘Ã£ á»•n."
+            eyebrow="Rà soát nhanh"
+            title="Những điểm cần nhìn ngay"
+            description="Tóm tắt các cảnh báo quan trọng để biết tuần nào cần điều chỉnh thêm trước khi chốt lịch."
           >
             <div className="space-y-4">
               <div className="rounded-[24px] border border-rose-200 bg-rose-50 p-4">
-                <p className="text-sm font-semibold text-rose-700">Xung Ä‘á»™t nghá»‰ phÃ©p</p>
+                <p className="text-sm font-semibold text-rose-700">Xung đột nghỉ phép</p>
                 <p className="mt-2 text-3xl font-semibold tracking-tight text-rose-950">
                   {pendingConflicts.length}
                 </p>
                 <p className="mt-2 text-sm leading-6 text-rose-700">
-                  Nhá»¯ng ca nÃ y Ä‘ang trÃ¹ng vá»›i thÃ´ng tin nghá»‰ Ä‘Ã£ nháº­p vÃ  nÃªn Ä‘á»•i ngÆ°á»i trÆ°á»›c khi submit.
+                  Đây là các ca đang trùng với thông tin nghỉ đã nhập và nên đổi người trước khi submit.
                 </p>
               </div>
               <div className="rounded-[24px] border border-teal-200 bg-teal-50 p-4">
-                <p className="text-sm font-semibold text-teal-700">CÃ´ng suáº¥t phÃ¢n cÃ´ng thÃ¡ng nÃ y</p>
+                <p className="text-sm font-semibold text-teal-700">Khối lượng tháng này</p>
                 <p className="mt-2 text-3xl font-semibold tracking-tight text-teal-950">
                   {monthlyWorkload.reduce((sum, item) => sum + item.shifts, 0)} ca
                 </p>
                 <p className="mt-2 text-sm leading-6 text-teal-700">
-                  Tá»•ng ca Ä‘Ã£ phÃ¢n cÃ´ng trong thÃ¡ng Ä‘ang chá»n Ä‘á»ƒ lÃ m cÆ¡ sá»Ÿ cÃ¢n báº±ng táº£i.
+                  Tổng số ca đã phân công trong tháng để hỗ trợ cân bằng tải giữa các điều dưỡng.
                 </p>
               </div>
             </div>
           </SurfaceSection>
 
           <SurfaceSection
-            eyebrow="Nghá»‰ phÃ©p"
-            title="Danh sÃ¡ch nghá»‰ gáº§n nháº¥t"
-            description="Theo dÃµi nhanh cÃ¡c ca nghá»‰ Ä‘Ã£ nháº­p Ä‘á»ƒ trÃ¡nh trÃ¹ng lá»‹ch khi sinh tuáº§n má»›i tá»« lá»‹ch ná»n."
+            eyebrow="Nghỉ phép"
+            title="Danh sách nghỉ gần nhất"
+            description="Theo dõi nhanh các ca nghỉ đã nhập để tránh trùng lịch khi sinh tuần mới từ lịch nền."
           >
             <div className="space-y-3">
               {data.leaveRequests.slice(0, 6).map((leave) => {
@@ -217,8 +217,8 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                       <p className="text-sm text-slate-500">{leave.date}</p>
                     </div>
                     <div className="flex flex-wrap gap-2">
-                      <Pill tone="amber">{leave.reason}</Pill>
-                      <Pill tone="slate">{leave.shift}</Pill>
+                      <Pill tone="amber">{LEAVE_REASON_LABELS[leave.reason]}</Pill>
+                      <Pill tone="slate">{LEAVE_SHIFT_LABELS[leave.shift]}</Pill>
                     </div>
                   </div>
                 );
@@ -229,22 +229,22 @@ export default async function HomePage({ searchParams }: HomePageProps) {
       </div>
 
       <SurfaceSection
-        eyebrow="PhÃ¢n tÃ­ch nhanh"
-        title="Chá»‰ sá»‘ thÃ¡ng hiá»‡n táº¡i"
-        description="Báº£n tÃ³m táº¯t Ä‘á»ƒ nhÃ¬n nhanh má»©c phÃ¢n cÃ´ng vÃ  nghá»‰ phÃ©p trÆ°á»›c khi sang trang bÃ¡o cÃ¡o chi tiáº¿t."
+        eyebrow="Phân tích tháng"
+        title="Chỉ số tháng hiện tại"
+        description="Bản tóm tắt để nhìn nhanh nhân sự có nhiều ca và các trường hợp nghỉ trong tháng trước khi vào báo cáo chi tiết."
         action={
           <Link
             href={`/reports?month=${currentMonth}`}
             className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 px-4 py-3 text-sm font-medium text-slate-700 transition hover:border-slate-300 hover:bg-slate-100"
           >
-            Má»Ÿ bÃ¡o cÃ¡o thÃ¡ng
+            Mở báo cáo tháng
             <ArrowRight className="h-4 w-4" />
           </Link>
         }
       >
         <div className="grid gap-4 lg:grid-cols-2">
           <div className="rounded-[24px] border border-slate-200/80 bg-slate-50/80 p-4">
-            <p className="text-sm font-semibold text-slate-950">Top nhÃ¢n sá»± cÃ³ nhiá»u ca nháº¥t</p>
+            <p className="text-sm font-semibold text-slate-950">Nhân sự có nhiều ca nhất</p>
             <div className="mt-4 space-y-3">
               {monthlyWorkload
                 .sort((left, right) => right.shifts - left.shifts)
@@ -255,7 +255,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                     <div key={item.staffId} className="flex items-center justify-between gap-3 text-sm">
                       <div>
                         <p className="font-medium text-slate-900">{person?.name ?? item.staffId}</p>
-                        <p className="text-slate-500">{item.workDays} ngÃ y lÃ m</p>
+                        <p className="text-slate-500">{item.workDays} ngày làm</p>
                       </div>
                       <Pill tone="teal">{item.shifts} ca</Pill>
                     </div>
@@ -264,7 +264,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
             </div>
           </div>
           <div className="rounded-[24px] border border-slate-200/80 bg-slate-50/80 p-4">
-            <p className="text-sm font-semibold text-slate-950">NhÃ¢n sá»± cÃ³ nghá»‰ trong thÃ¡ng</p>
+            <p className="text-sm font-semibold text-slate-950">Nhân sự có nghỉ trong tháng</p>
             <div className="mt-4 space-y-3">
               {monthlyLeaves.slice(0, 5).map((item) => {
                 const person = data.staff.find((staff) => staff.id === item.staffId);
@@ -272,9 +272,9 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                   <div key={item.staffId} className="flex items-center justify-between gap-3 text-sm">
                     <div>
                       <p className="font-medium text-slate-900">{person?.name ?? item.staffId}</p>
-                      <p className="text-slate-500">{item.days} ngÃ y nghá»‰ quy Ä‘á»•i</p>
+                      <p className="text-slate-500">{item.days} ngày nghỉ quy đổi</p>
                     </div>
-                    <Pill tone="amber">{item.phep + item.om + item.khac} lÆ°á»£t</Pill>
+                    <Pill tone="amber">{item.phep + item.om + item.khac} lượt</Pill>
                   </div>
                 );
               })}

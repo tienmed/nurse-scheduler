@@ -1,4 +1,4 @@
-import { addDays, compareAsc, differenceInCalendarDays, format, parseISO } from "date-fns";
+﻿import { addDays, compareAsc, differenceInCalendarDays, format, parseISO } from "date-fns";
 import {
   DEFAULT_SCHEDULE_RULES,
   LEAVE_REASON_LABELS,
@@ -107,7 +107,7 @@ export function buildAssignmentsFromTemplate(
           source: "template" as const,
           status: leave ? ("needs-review" as const) : ("draft" as const),
           note: leave
-            ? `TrÃ¹ng lá»‹ch nghá»‰ ${LEAVE_REASON_LABELS[leave.reason].toLowerCase()}`
+            ? `Trùng lịch nghỉ ${LEAVE_REASON_LABELS[leave.reason].toLowerCase()}`
             : assignment.note ?? "",
         };
       }),
@@ -144,7 +144,7 @@ export function getWeekBoard(
       date,
       dayOfWeek: slot.dayOfWeek,
       shift: slot.shift,
-      title: `${WEEKDAY_LABELS[slot.dayOfWeek]} Â· ${SHIFT_LABELS[slot.shift]}`,
+      title: `${WEEKDAY_LABELS[slot.dayOfWeek]} · ${SHIFT_LABELS[slot.shift]}`,
       entries: positions.map((position) => {
         const assignment = assignments.find(
           (item) =>

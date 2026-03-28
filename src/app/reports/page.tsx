@@ -1,4 +1,4 @@
-import { AppShell } from "@/components/app-shell";
+﻿import { AppShell } from "@/components/app-shell";
 import { Pill } from "@/components/pill";
 import { SurfaceSection } from "@/components/surface-section";
 import { getMonthKey } from "@/lib/date";
@@ -35,17 +35,17 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
   return (
     <AppShell
       currentPath="/reports"
-      title="BÃƒÂ¡o cÃƒÂ¡o thÃƒÂ¡ng"
-      description="Th?ng kÃƒÂª s? ngÃƒÂ y lÃƒÂ m, s? lu?t ngh? vÃƒÂ  ph?m vi v? trÃƒÂ­ dÃƒÂ£ ph? trÃƒÂ¡ch d? h? tr? cÃƒÂ¢n b?ng t?i vÃƒÂ  xoay vÃƒÂ²ng nhÃƒÂ¢n s?."
+      title="Báo cáo tháng"
+      description="Thống kê số ngày làm, số lượt nghỉ và phạm vi vị trí đã phụ trách để hỗ trợ cân bằng tải và xoay vòng nhân sự."
       authEnabled={authEnabled}
       user={user}
       message={message}
       error={error}
     >
       <SurfaceSection
-        eyebrow="B? l?c"
-        title="ThÃƒÂ¡ng bÃƒÂ¡o cÃƒÂ¡o"
-        description="BÃƒÂ¡o cÃƒÂ¡o nÃƒÂ y t?ng h?p t? toÃƒÂ n b? l?ch tu?n dÃƒÂ£ luu vÃƒÂ  danh sÃƒÂ¡ch ngh? phÃƒÂ©p trong thÃƒÂ¡ng dang ch?n."
+        eyebrow="Bộ lọc"
+        title="Tháng báo cáo"
+        description="Báo cáo này tổng hợp từ toàn bộ lịch tuần đã lưu và danh sách nghỉ phép trong tháng đang chọn."
       >
         <form action="/reports" className="flex flex-col gap-3 md:max-w-xs">
           <input
@@ -58,26 +58,26 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
             type="submit"
             className="inline-flex items-center justify-center rounded-2xl bg-slate-950 px-4 py-3 text-sm font-medium text-white transition hover:bg-slate-800"
           >
-            Xem bÃƒÂ¡o cÃƒÂ¡o
+            Xem báo cáo
           </button>
         </form>
       </SurfaceSection>
 
       <div className="grid gap-6 xl:grid-cols-2">
         <SurfaceSection
-          eyebrow="Kh?i lu?ng cÃƒÂ´ng vi?c"
-          title="S? ngÃƒÂ y lÃƒÂ m theo nhÃƒÂ¢n s?"
-          description="TÃƒÂ­nh theo s? ngÃƒÂ y xu?t hi?n trÃƒÂªn l?ch vÃƒÂ  t?ng s? ca trong thÃƒÂ¡ng dang ch?n."
+          eyebrow="Khối lượng công việc"
+          title="Số ngày làm theo nhân sự"
+          description="Tính theo số ngày xuất hiện trên lịch và tổng số ca trong tháng đang chọn."
         >
           <div className="overflow-hidden rounded-[24px] border border-slate-200/80">
             <table className="min-w-full divide-y divide-slate-200 text-left text-sm">
               <thead className="bg-slate-50 text-slate-500">
                 <tr>
-                  <th className="px-4 py-3 font-medium">NhÃƒÂ¢n s?</th>
-                  <th className="px-4 py-3 font-medium">NgÃƒÂ y lÃƒÂ m</th>
-                  <th className="px-4 py-3 font-medium">Ca sÃƒÂ¡ng</th>
-                  <th className="px-4 py-3 font-medium">Ca chi?u</th>
-                  <th className="px-4 py-3 font-medium">T?ng ca</th>
+                  <th className="px-4 py-3 font-medium">Nhân sự</th>
+                  <th className="px-4 py-3 font-medium">Ngày làm</th>
+                  <th className="px-4 py-3 font-medium">Ca sáng</th>
+                  <th className="px-4 py-3 font-medium">Ca chiều</th>
+                  <th className="px-4 py-3 font-medium">Tổng ca</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200 bg-white">
@@ -101,19 +101,19 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
         </SurfaceSection>
 
         <SurfaceSection
-          eyebrow="Ngh? phÃƒÂ©p"
-          title="CÃƒÂ¡c ngÃƒÂ y ngh? theo nhÃƒÂ¢n s?"
-          description="T?ng h?p t? phi?u ngh? dÃƒÂ£ nh?p, quy d?i ca ngh? n?a ngÃƒÂ y thÃƒÂ nh 0.5 ngÃƒÂ y."
+          eyebrow="Nghỉ phép"
+          title="Các ngày nghỉ theo nhân sự"
+          description="Tổng hợp từ phiếu nghỉ đã nhập, quy đổi ca nghỉ nửa ngày thành 0.5 ngày."
         >
           <div className="overflow-hidden rounded-[24px] border border-slate-200/80">
             <table className="min-w-full divide-y divide-slate-200 text-left text-sm">
               <thead className="bg-slate-50 text-slate-500">
                 <tr>
-                  <th className="px-4 py-3 font-medium">NhÃƒÂ¢n s?</th>
-                  <th className="px-4 py-3 font-medium">NgÃƒÂ y ngh?</th>
-                  <th className="px-4 py-3 font-medium">PhÃƒÂ©p</th>
-                  <th className="px-4 py-3 font-medium">?m</th>
-                  <th className="px-4 py-3 font-medium">KhÃƒÂ¡c</th>
+                  <th className="px-4 py-3 font-medium">Nhân sự</th>
+                  <th className="px-4 py-3 font-medium">Ngày nghỉ</th>
+                  <th className="px-4 py-3 font-medium">Phép</th>
+                  <th className="px-4 py-3 font-medium">Ốm</th>
+                  <th className="px-4 py-3 font-medium">Khác</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200 bg-white">
@@ -136,19 +136,19 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
       </div>
 
       <SurfaceSection
-        eyebrow="Xoay vÃƒÂ²ng v? trÃƒÂ­"
-        title="Theo dÃƒÂµi ph?m vi v? trÃƒÂ­ dÃƒÂ£ ph? trÃƒÂ¡ch"
-        description="B?ng nÃƒÂ y t?ng h?p d? li?u dang cÃƒÂ³ d? bi?t m?i nhÃƒÂ¢n s? dÃƒÂ£ lÃƒÂ m ? v? trÃƒÂ­ nÃƒÂ o t? th?i di?m nÃƒÂ o d?n th?i di?m nÃƒÂ o trong l?ch s? luu tr? hi?n cÃƒÂ³."
+        eyebrow="Xoay vòng vị trí"
+        title="Theo dõi phạm vi vị trí đã phụ trách"
+        description="Bảng này giúp biết mỗi nhân sự đã làm ở vị trí nào từ thời điểm nào đến thời điểm nào trong dữ liệu đã lưu."
       >
         <div className="overflow-hidden rounded-[24px] border border-slate-200/80">
           <table className="min-w-full divide-y divide-slate-200 text-left text-sm">
             <thead className="bg-slate-50 text-slate-500">
               <tr>
-                <th className="px-4 py-3 font-medium">NhÃƒÂ¢n s?</th>
-                <th className="px-4 py-3 font-medium">V? trÃƒÂ­</th>
-                <th className="px-4 py-3 font-medium">T? ngÃƒÂ y</th>
-                <th className="px-4 py-3 font-medium">ÃƒÂ?n ngÃƒÂ y</th>
-                <th className="px-4 py-3 font-medium">S? ca</th>
+                <th className="px-4 py-3 font-medium">Nhân sự</th>
+                <th className="px-4 py-3 font-medium">Vị trí</th>
+                <th className="px-4 py-3 font-medium">Từ ngày</th>
+                <th className="px-4 py-3 font-medium">Đến ngày</th>
+                <th className="px-4 py-3 font-medium">Số ca</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200 bg-white">
@@ -174,4 +174,3 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
     </AppShell>
   );
 }
-

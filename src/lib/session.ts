@@ -1,4 +1,4 @@
-import { redirect } from "next/navigation";
+﻿import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { isAuthConfigured } from "@/lib/env";
 import type { Role, SessionUser } from "@/lib/types";
@@ -20,7 +20,7 @@ export async function getUserContext(options: { required?: boolean } = {}) {
     return {
       authEnabled: false,
       user: {
-        name: "ÃƒÂi?u ph?i demo",
+        name: "Điều phối demo",
         email: "admin@nurseflow.local",
         role: "admin" as Role,
         image: null,
@@ -42,7 +42,7 @@ export async function getUserContext(options: { required?: boolean } = {}) {
   }
 
   const user: SessionUser = {
-    name: session.user.name ?? session.user.email ?? "Ngu?i dÃƒÂ¹ng",
+    name: session.user.name ?? session.user.email ?? "Người dùng",
     email: session.user.email ?? "",
     role: session.user.role ?? "viewer",
     image: session.user.image,
@@ -58,4 +58,3 @@ export async function getUserContext(options: { required?: boolean } = {}) {
 export function canEdit(role: Role) {
   return role === "admin" || role === "coordinator";
 }
-

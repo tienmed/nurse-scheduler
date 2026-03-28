@@ -1,4 +1,4 @@
-import { addDays, format, parseISO } from "date-fns";
+﻿import { addDays, format, parseISO } from "date-fns";
 import { DEFAULT_SCHEDULE_RULES } from "@/lib/constants";
 import { getNextWeekStart, getWeekStart } from "@/lib/date";
 import { buildAssignmentsFromTemplate } from "@/lib/schedule";
@@ -12,23 +12,23 @@ import type {
 } from "@/lib/types";
 
 const staff: StaffMember[] = [
-  { id: "staff-01", name: "Nguyá»…n Thá»‹ An", code: "DD01", team: "Ná»™i tá»•ng quÃ¡t", active: true },
-  { id: "staff-02", name: "Tráº§n Thá»‹ BÃ¬nh", code: "DD02", team: "Tim máº¡ch", active: true },
-  { id: "staff-03", name: "LÃª Thu CÃºc", code: "DD03", team: "KhÃ¡m tá»•ng quÃ¡t", active: true },
-  { id: "staff-04", name: "Pháº¡m Diá»‡u Háº±ng", code: "DD04", team: "Ná»™i soi", active: true },
-  { id: "staff-05", name: "HoÃ ng Kim LiÃªn", code: "DD05", team: "Ngoáº¡i trÃº", active: true },
-  { id: "staff-06", name: "Äá»— Mai PhÆ°Æ¡ng", code: "DD06", team: "Cáº¥p cá»©u", active: true },
-  { id: "staff-07", name: "VÅ© NhÃ£ UyÃªn", code: "DD07", team: "KhÃ¡m dá»‹ch vá»¥", active: true },
-  { id: "staff-08", name: "BÃ¹i Thanh VÃ¢n", code: "DD08", team: "KhÃ¡m tá»•ng quÃ¡t", active: true },
+  { id: "staff-01", name: "Nguyễn Thị An", code: "DD01", team: "Nội tổng quát", active: true },
+  { id: "staff-02", name: "Trần Thị Bình", code: "DD02", team: "Tim mạch", active: true },
+  { id: "staff-03", name: "Lê Thu Cúc", code: "DD03", team: "Khám tổng quát", active: true },
+  { id: "staff-04", name: "Phạm Diệu Hằng", code: "DD04", team: "Nội soi", active: true },
+  { id: "staff-05", name: "Hoàng Kim Liên", code: "DD05", team: "Ngoại trú", active: true },
+  { id: "staff-06", name: "Đỗ Mai Phương", code: "DD06", team: "Cấp cứu", active: true },
+  { id: "staff-07", name: "Vũ Nhã Uyên", code: "DD07", team: "Khám dịch vụ", active: true },
+  { id: "staff-08", name: "Bùi Thanh Vân", code: "DD08", team: "Khám tổng quát", active: true },
 ];
 
 const positions: Position[] = [
-  { id: "position-vitals", name: "Äo sinh hiá»‡u", area: "Tiáº¿p nháº­n", description: "Äo máº¡ch, nhiá»‡t Ä‘á»™, huyáº¿t Ã¡p" },
-  { id: "position-ecg", name: "PhÃ²ng ECG", area: "Cáº­n lÃ¢m sÃ ng", description: "Há»— trá»£ Ä‘iá»‡n tim" },
-  { id: "position-injection", name: "TiÃªm truyá»n", area: "Thá»§ thuáº­t", description: "Theo dÃµi truyá»n dá»‹ch vÃ  tiÃªm thuá»‘c" },
-  { id: "position-consult", name: "Há»— trá»£ khÃ¡m", area: "KhÃ¡m bá»‡nh", description: "Äiá»u phá»‘i ngÆ°á»i bá»‡nh giá»¯a cÃ¡c phÃ²ng khÃ¡m" },
-  { id: "position-procedure", name: "Thá»§ thuáº­t", area: "Ngoáº¡i trÃº", description: "Chuáº©n bá»‹ vÃ  há»— trá»£ thá»§ thuáº­t" },
-  { id: "position-admin", name: "Há»“ sÆ¡ - BHYT", area: "HÃ nh chÃ­nh", description: "Äá»‘i soÃ¡t há»“ sÆ¡ vÃ  giáº¥y tá»" },
+  { id: "position-vitals", name: "Đo sinh hiệu", area: "Tiếp nhận", description: "Đo mạch, nhiệt độ và huyết áp" },
+  { id: "position-ecg", name: "Phòng ECG", area: "Cận lâm sàng", description: "Hỗ trợ điện tim" },
+  { id: "position-injection", name: "Tiêm truyền", area: "Thủ thuật", description: "Theo dõi truyền dịch và tiêm thuốc" },
+  { id: "position-consult", name: "Hỗ trợ khám", area: "Khám bệnh", description: "Điều phối người bệnh giữa các phòng khám" },
+  { id: "position-procedure", name: "Thủ thuật", area: "Ngoại trú", description: "Chuẩn bị và hỗ trợ thủ thuật" },
+  { id: "position-admin", name: "Hồ sơ - BHYT", area: "Hành chính", description: "Đối soát hồ sơ và giấy tờ" },
 ];
 
 const scheduleRules: ScheduleRule[] = DEFAULT_SCHEDULE_RULES;
@@ -47,7 +47,7 @@ const templateSchedule: TemplateAssignment[] = activeRules.flatMap(
         staffId: staff[staffIndex].id,
         note:
           shift === "afternoon" && positionIndex === 0
-            ? "Æ¯u tiÃªn nhÃ¢n sá»± Ä‘Ã£ hoÃ n táº¥t giao ban"
+            ? "Ưu tiên điều dưỡng đã hoàn tất giao ban"
             : "",
       };
     }),
@@ -60,7 +60,7 @@ const leaveRequests: LeaveRecord[] = [
     date: getNextWeekStart(),
     shift: "full-day",
     reason: "phep",
-    note: "Nghá»‰ phÃ©p gia Ä‘Ã¬nh",
+    note: "Nghỉ phép gia đình",
   },
   {
     id: "leave-staff-06-current-wed",
@@ -68,7 +68,7 @@ const leaveRequests: LeaveRecord[] = [
     date: format(addDays(parseISO(getWeekStart()), 2), "yyyy-MM-dd"),
     shift: "morning",
     reason: "om",
-    note: "KhÃ¡m sá»©c khá»e",
+    note: "Khám sức khỏe",
   },
 ];
 
@@ -100,19 +100,19 @@ export const mockAppData: AppData = {
       id: "access-01",
       email: "dieu-phoi@benhvien.vn",
       role: "admin",
-      displayName: "Äiá»u phá»‘i trÆ°á»Ÿng",
+      displayName: "Điều phối trưởng",
     },
     {
       id: "access-02",
       email: "truong-ca@benhvien.vn",
       role: "coordinator",
-      displayName: "TrÆ°á»Ÿng ca",
+      displayName: "Trưởng ca",
     },
     {
       id: "access-03",
       email: "xem-lich@benhvien.vn",
       role: "viewer",
-      displayName: "TÃ i khoáº£n xem lá»‹ch",
+      displayName: "Tài khoản xem lịch",
     },
   ],
 };

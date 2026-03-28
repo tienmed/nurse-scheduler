@@ -1,4 +1,4 @@
-interface SurfaceSectionProps {
+﻿interface SurfaceSectionProps {
   eyebrow?: string;
   title: string;
   description?: string;
@@ -14,15 +14,13 @@ export function SurfaceSection({
   children,
 }: SurfaceSectionProps) {
   return (
-    <section className="rounded-[28px] border border-white/80 bg-white/90 p-5 shadow-[0_18px_60px_rgba(15,23,42,0.06)] backdrop-blur xl:p-6">
+    <section className="rounded-[28px] border border-white/85 bg-white/90 p-5 shadow-[0_18px_60px_rgba(15,23,42,0.06)] backdrop-blur xl:p-6">
       <div className="flex flex-col gap-3 border-b border-slate-200/80 pb-4 md:flex-row md:items-end md:justify-between">
         <div className="space-y-2">
           {eyebrow ? (
-            <p className="text-xs font-semibold uppercase tracking-[0.28em] text-teal-700">
-              {eyebrow}
-            </p>
+            <p className="text-xs font-semibold text-teal-700">{eyebrow}</p>
           ) : null}
-          <div className="space-y-1">
+          <div className="space-y-1.5">
             <h2 className="text-xl font-semibold tracking-tight text-slate-950">
               {title}
             </h2>
@@ -39,4 +37,3 @@ export function SurfaceSection({
     </section>
   );
 }
-

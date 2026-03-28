@@ -1,17 +1,17 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 import {
   CalendarDays,
   ClipboardList,
   FileSpreadsheet,
   LayoutTemplate,
-  ShieldCheck,
+  LogOut,
   Users,
 } from "lucide-react";
 import { signOut } from "@/auth";
+import { Pill } from "@/components/pill";
 import { APP_NAME, APP_TAGLINE, ROLE_LABELS } from "@/lib/constants";
 import { cn } from "@/lib/cn";
 import type { SessionUser } from "@/lib/types";
-import { Pill } from "@/components/pill";
 
 interface AppShellProps {
   currentPath: string;
@@ -25,11 +25,11 @@ interface AppShellProps {
 }
 
 const navItems = [
-  { href: "/", label: "T?ng quan", icon: ClipboardList },
-  { href: "/schedule", label: "L?ch tu?n", icon: CalendarDays },
-  { href: "/template", label: "L?ch n?n", icon: LayoutTemplate },
-  { href: "/staff", label: "NhÃƒÂ¢n s?", icon: Users },
-  { href: "/reports", label: "BÃƒÂ¡o cÃƒÂ¡o", icon: FileSpreadsheet },
+  { href: "/", label: "Tổng quan", icon: ClipboardList },
+  { href: "/schedule", label: "Lịch tuần", icon: CalendarDays },
+  { href: "/template", label: "Lịch nền", icon: LayoutTemplate },
+  { href: "/staff", label: "Nhân sự", icon: Users },
+  { href: "/reports", label: "Báo cáo", icon: FileSpreadsheet },
 ];
 
 export function AppShell({
@@ -42,25 +42,26 @@ export function AppShell({
   message,
   error,
 }: AppShellProps) {
+  const userInitials = user.name
+    .split(" ")
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join("")
+    .toUpperCase();
+
   return (
     <div className="min-h-screen bg-[var(--canvas)] text-slate-900">
-      <div className="pointer-events-none fixed inset-0 -z-10 bg-[radial-gradient(circle_at_top_left,_rgba(13,148,136,0.16),_transparent_34%),radial-gradient(circle_at_top_right,_rgba(249,115,22,0.12),_transparent_30%),linear-gradient(180deg,_#f7fbfb_0%,_#f6f7f9_42%,_#f1f5f9_100%)]" />
+      <div className="pointer-events-none fixed inset-0 -z-10 bg-[radial-gradient(circle_at_top_left,_rgba(13,148,136,0.14),_transparent_34%),radial-gradient(circle_at_top_right,_rgba(249,115,22,0.1),_transparent_28%),linear-gradient(180deg,_#f8fbfb_0%,_#f4f7f7_45%,_#edf2f7_100%)]" />
       <div className="mx-auto flex min-h-screen w-full max-w-[1560px]">
-        <aside className="hidden w-[276px] shrink-0 flex-col justify-between border-r border-white/70 bg-white/55 px-6 py-7 backdrop-blur lg:flex">
+        <aside className="hidden w-[288px] shrink-0 flex-col justify-between border-r border-white/70 bg-white/60 px-6 py-7 backdrop-blur lg:flex">
           <div className="space-y-8">
             <div className="space-y-4">
-              <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-teal-700 text-lg font-bold text-white shadow-lg shadow-teal-900/20">
+              <div className="inline-flex h-14 w-14 items-center justify-center rounded-[22px] bg-teal-700 text-lg font-bold text-white shadow-lg shadow-teal-900/20">
                 NF
               </div>
               <div className="space-y-2">
-                <div>
-                  <p className="text-sm font-semibold uppercase tracking-[0.28em] text-teal-700">
-                    Nurse Scheduling
-                  </p>
-                  <h1 className="text-2xl font-semibold tracking-tight text-slate-950">
-                    {APP_NAME}
-                  </h1>
-                </div>
+                <p className="text-sm font-semibold text-teal-700">Lịch điều dưỡng</p>
+                <h1 className="text-3xl font-semibold tracking-tight text-slate-950">{APP_NAME}</h1>
                 <p className="text-sm leading-6 text-slate-600">{APP_TAGLINE}</p>
               </div>
             </div>
@@ -87,10 +88,10 @@ export function AppShell({
             </nav>
           </div>
 
-          <div className="space-y-4 rounded-[24px] border border-white/80 bg-white/85 p-4 shadow-[0_20px_50px_rgba(15,23,42,0.06)]">
+          <div className="space-y-4 rounded-[24px] border border-white/80 bg-white/88 p-4 shadow-[0_20px_50px_rgba(15,23,42,0.06)]">
             <div className="flex items-center gap-3">
               <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-950 text-sm font-semibold text-white">
-                {user.name.slice(0, 2).toUpperCase()}
+                {userInitials}
               </div>
               <div className="space-y-1 text-sm">
                 <p className="font-semibold text-slate-950">{user.name}</p>
@@ -99,7 +100,7 @@ export function AppShell({
             </div>
             <div className="flex flex-wrap gap-2">
               <Pill tone={authEnabled ? "teal" : "amber"}>
-                {authEnabled ? "OAuth Google" : "Demo local"}
+                {authEnabled ? "Đăng nhập Google" : "Chế độ demo"}
               </Pill>
               <Pill tone="slate">{ROLE_LABELS[user.role]}</Pill>
             </div>
@@ -114,20 +115,20 @@ export function AppShell({
                   type="submit"
                   className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-slate-200 px-4 py-3 text-sm font-medium text-slate-700 transition hover:border-slate-300 hover:bg-slate-100"
                 >
-                  <ShieldCheck className="h-4 w-4" />
-                  ÃƒÂang xu?t
+                  <LogOut className="h-4 w-4" />
+                  Đăng xuất
                 </button>
               </form>
             ) : (
               <p className="text-sm leading-6 text-slate-500">
-                Ch? d? demo cho phÃƒÂ©p xem toÃƒÂ n b? lu?ng tru?c khi n?i OAuth vÃƒÂ  Google Sheets th?t.
+                Bạn đang xem bản demo. Khi nối Google OAuth và Google Sheets, toàn bộ thao tác sẽ lưu trực tiếp lên dữ liệu thật.
               </p>
             )}
           </div>
         </aside>
 
         <div className="flex min-h-screen flex-1 flex-col">
-          <header className="sticky top-0 z-20 border-b border-white/70 bg-white/65 px-4 py-4 backdrop-blur md:px-6 lg:px-8">
+          <header className="sticky top-0 z-20 border-b border-white/70 bg-white/70 px-4 py-4 backdrop-blur md:px-6 lg:px-8">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
               <div className="space-y-3">
                 <div className="flex flex-wrap gap-2 lg:hidden">
@@ -147,22 +148,16 @@ export function AppShell({
                   ))}
                 </div>
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.26em] text-teal-700">
-                    B?ng di?u ph?i l?ch
-                  </p>
-                  <h2 className="mt-1 text-3xl font-semibold tracking-tight text-slate-950">
-                    {title}
-                  </h2>
+                  <p className="text-xs font-semibold text-teal-700">Bảng điều phối</p>
+                  <h2 className="mt-1 text-3xl font-semibold tracking-tight text-slate-950">{title}</h2>
                 </div>
-                <p className="max-w-3xl text-sm leading-6 text-slate-600">
-                  {description}
-                </p>
+                <p className="max-w-3xl text-sm leading-6 text-slate-600">{description}</p>
               </div>
               <div className="flex flex-wrap gap-2">
                 <Pill tone={authEnabled ? "teal" : "amber"}>
-                  {authEnabled ? "ÃƒÂang dÃƒÂ¹ng quy?n Google" : "ÃƒÂang xem b?ng d? li?u m?u"}
+                  {authEnabled ? "Dữ liệu từ Google Sheets" : "Đang dùng dữ liệu mẫu"}
                 </Pill>
-                <Pill tone="slate">M? r?ng theo Google Sheets</Pill>
+                <Pill tone="slate">Mở rộng tính năng dễ dàng</Pill>
               </div>
             </div>
             {message ? (
@@ -185,4 +180,3 @@ export function AppShell({
     </div>
   );
 }
-

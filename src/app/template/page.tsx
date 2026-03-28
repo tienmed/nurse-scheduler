@@ -1,4 +1,4 @@
-import { saveScheduleRuleAction, saveTemplateAssignmentAction } from "@/app/actions";
+﻿import { saveScheduleRuleAction, saveTemplateAssignmentAction } from "@/app/actions";
 import { AppShell } from "@/components/app-shell";
 import { Pill } from "@/components/pill";
 import { ScheduleBoard } from "@/components/schedule-board";
@@ -6,10 +6,7 @@ import { SurfaceSection } from "@/components/surface-section";
 import { DEFAULT_SCHEDULE_RULES, SHIFT_LABELS, WEEKDAY_LABELS } from "@/lib/constants";
 import { getNextWeekStart } from "@/lib/date";
 import { getAppData } from "@/lib/repository";
-import {
-  buildAssignmentsFromTemplate,
-  getWeekBoard,
-} from "@/lib/schedule";
+import { buildAssignmentsFromTemplate, getWeekBoard } from "@/lib/schedule";
 import { canEdit, getUserContext } from "@/lib/session";
 
 interface TemplatePageProps {
@@ -45,8 +42,8 @@ export default async function TemplatePage({ searchParams }: TemplatePageProps) 
   return (
     <AppShell
       currentPath="/template"
-      title="Lá»‹ch ná»n"
-      description="Thiáº¿t láº­p bá»™ khung phÃ¢n cÃ´ng máº·c Ä‘á»‹nh cho tá»«ng vá»‹ trÃ­ theo tá»«ng ca. Má»—i cuá»‘i tuáº§n chá»‰ cáº§n sinh dá»± tháº£o tá»« Ä‘Ã¢y rá»“i chá»‰nh láº¡i tuáº§n cá»¥ thá»ƒ."
+      title="Lịch nền"
+      description="Thiết lập khung phân công mặc định cho từng vị trí theo từng ca để làm điểm xuất phát khi lập lịch tuần mới."
       authEnabled={authEnabled}
       user={user}
       message={message}
@@ -54,22 +51,22 @@ export default async function TemplatePage({ searchParams }: TemplatePageProps) 
     >
       <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
         <SurfaceSection
-          eyebrow="Preview"
-          title="Xem trÆ°á»›c lá»‹ch ná»n cho tuáº§n káº¿ tiáº¿p"
-          description="Báº£ng nÃ y giÃºp báº¡n nhÃ¬n ngay lá»‹ch ná»n khi Ä‘Æ°á»£c Ã¡p vÃ o má»™t tuáº§n tháº­t, theo Ä‘Ãºng quy táº¯c ca lÃ m Ä‘ang báº­t hiá»‡n táº¡i."
+          eyebrow="Xem trước"
+          title="Lịch nền của tuần kế tiếp"
+          description="Bảng này cho bạn thấy lịch nền sẽ hiển thị ra sao khi áp vào một tuần thật theo đúng cấu hình ca làm hiện tại."
         >
           <div className="mb-5 flex flex-wrap gap-2">
-            <Pill tone="teal">Preview tuáº§n báº¯t Ä‘áº§u {previewWeekStart}</Pill>
-            <Pill tone="slate">{data.templateSchedule.length} dÃ²ng lá»‹ch ná»n</Pill>
+            <Pill tone="teal">Tuần xem trước bắt đầu {previewWeekStart}</Pill>
+            <Pill tone="slate">{data.templateSchedule.length} dòng lịch nền</Pill>
           </div>
           <ScheduleBoard board={board} />
         </SurfaceSection>
 
         <div className="space-y-6">
           <SurfaceSection
-            eyebrow="Quy táº¯c váº­n hÃ nh"
-            title="Báº­t / táº¯t ca lÃ m theo khoa"
-            description="ÄÃ¢y lÃ  nÆ¡i báº¡n chá»‰nh quy táº¯c thá»±c táº¿ cá»§a khoa/phÃ²ng. Khi má»™t ca bá»‹ táº¯t, app sáº½ khÃ´ng sinh ca Ä‘Ã³ cho tuáº§n má»›i."
+            eyebrow="Quy tắc vận hành"
+            title="Bật hoặc tắt ca làm"
+            description="Dùng phần này để mô tả thực tế của khoa hoặc phòng. Khi một ca bị tắt, hệ thống sẽ không sinh ca đó trong tuần mới."
           >
             <div className="space-y-3">
               {scheduleRules.map((rule) => (
@@ -79,12 +76,12 @@ export default async function TemplatePage({ searchParams }: TemplatePageProps) 
                 >
                   <div>
                     <p className="font-medium text-slate-900">
-                      {WEEKDAY_LABELS[rule.dayOfWeek]} Â· {SHIFT_LABELS[rule.shift]}
+                      {WEEKDAY_LABELS[rule.dayOfWeek]} · {SHIFT_LABELS[rule.shift]}
                     </p>
-                    <p className="text-slate-500">{rule.label || "Quy táº¯c máº·c Ä‘á»‹nh"}</p>
+                    <p className="text-slate-500">{rule.label || "Quy tắc mặc định"}</p>
                   </div>
                   <Pill tone={rule.active ? "emerald" : "amber"}>
-                    {rule.active ? "Äang báº­t" : "Äang táº¯t"}
+                    {rule.active ? "Đang bật" : "Đang tắt"}
                   </Pill>
                 </div>
               ))}
@@ -92,7 +89,7 @@ export default async function TemplatePage({ searchParams }: TemplatePageProps) 
             <form action={saveScheduleRuleAction} className="mt-5 grid gap-4 border-t border-slate-200 pt-5">
               <input type="hidden" name="returnTo" value="/template" />
               <label className="space-y-2 text-sm text-slate-700">
-                <span className="font-medium">NgÃ y trong tuáº§n</span>
+                <span className="font-medium">Ngày trong tuần</span>
                 <select
                   name="dayOfWeek"
                   className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-teal-500"
@@ -122,23 +119,23 @@ export default async function TemplatePage({ searchParams }: TemplatePageProps) 
                 </select>
               </label>
               <label className="space-y-2 text-sm text-slate-700">
-                <span className="font-medium">Tráº¡ng thÃ¡i</span>
+                <span className="font-medium">Trạng thái</span>
                 <select
                   name="active"
                   className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-teal-500"
                   defaultValue="true"
                   disabled={!editable}
                 >
-                  <option value="true">Báº­t</option>
-                  <option value="false">Táº¯t</option>
+                  <option value="true">Bật</option>
+                  <option value="false">Tắt</option>
                 </select>
               </label>
               <label className="space-y-2 text-sm text-slate-700">
-                <span className="font-medium">NhÃ£n hiá»ƒn thá»‹</span>
+                <span className="font-medium">Nhãn hiển thị</span>
                 <input
                   name="label"
                   className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-teal-500"
-                  placeholder="VÃ­ dá»¥: Chiá»u thá»© 7 chá»‰ má»Ÿ khi tÄƒng táº£i"
+                  placeholder="Ví dụ: chiều thứ 7 chỉ mở khi tăng tải"
                   disabled={!editable}
                 />
               </label>
@@ -147,20 +144,20 @@ export default async function TemplatePage({ searchParams }: TemplatePageProps) 
                 disabled={!editable}
                 className="inline-flex items-center justify-center rounded-2xl border border-slate-200 px-4 py-3 text-sm font-medium text-slate-700 transition hover:border-slate-300 hover:bg-slate-100 disabled:cursor-not-allowed disabled:bg-slate-100"
               >
-                LÆ°u quy táº¯c ca lÃ m
+                Lưu quy tắc ca làm
               </button>
             </form>
           </SurfaceSection>
 
           <SurfaceSection
-            eyebrow="Cáº­p nháº­t"
-            title="Sá»­a má»™t Ã´ trong lá»‹ch ná»n"
-            description="Má»—i Ã´ tÆ°Æ¡ng á»©ng má»™t tá»• há»£p ngÃ y - ca - vá»‹ trÃ­. Khi lÆ°u, app sáº½ dÃ¹ng nhÃ¢n sá»± nÃ y lÃ m máº·c Ä‘á»‹nh cho cÃ¡c tuáº§n má»›i."
+            eyebrow="Cập nhật"
+            title="Sửa một ô trong lịch nền"
+            description="Mỗi ô tương ứng với tổ hợp ngày, ca và vị trí. Dữ liệu lưu ở đây sẽ được dùng làm mặc định khi tạo tuần mới."
           >
             <form action={saveTemplateAssignmentAction} className="grid gap-4">
               <input type="hidden" name="returnTo" value="/template" />
               <label className="space-y-2 text-sm text-slate-700">
-                <span className="font-medium">NgÃ y trong tuáº§n</span>
+                <span className="font-medium">Ngày trong tuần</span>
                 <select
                   name="dayOfWeek"
                   className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-teal-500"
@@ -190,7 +187,7 @@ export default async function TemplatePage({ searchParams }: TemplatePageProps) 
                 </select>
               </label>
               <label className="space-y-2 text-sm text-slate-700">
-                <span className="font-medium">Vá»‹ trÃ­</span>
+                <span className="font-medium">Vị trí</span>
                 <select
                   name="positionId"
                   className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-teal-500"
@@ -204,7 +201,7 @@ export default async function TemplatePage({ searchParams }: TemplatePageProps) 
                 </select>
               </label>
               <label className="space-y-2 text-sm text-slate-700">
-                <span className="font-medium">NhÃ¢n sá»± máº·c Ä‘á»‹nh</span>
+                <span className="font-medium">Nhân sự mặc định</span>
                 <select
                   name="staffId"
                   className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-teal-500"
@@ -218,12 +215,12 @@ export default async function TemplatePage({ searchParams }: TemplatePageProps) 
                 </select>
               </label>
               <label className="space-y-2 text-sm text-slate-700">
-                <span className="font-medium">Ghi chÃº</span>
+                <span className="font-medium">Ghi chú</span>
                 <textarea
                   name="note"
                   rows={4}
                   className="w-full rounded-3xl border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-teal-500"
-                  placeholder="VÃ­ dá»¥: Æ°u tiÃªn Ä‘iá»u dÆ°á»¡ng Ä‘Ã£ quen vá»‹ trÃ­ nÃ y"
+                  placeholder="Ví dụ: ưu tiên điều dưỡng đã quen vị trí này"
                   disabled={!editable}
                 />
               </label>
@@ -232,7 +229,7 @@ export default async function TemplatePage({ searchParams }: TemplatePageProps) 
                 disabled={!editable}
                 className="inline-flex items-center justify-center rounded-2xl bg-slate-950 px-4 py-3 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300"
               >
-                LÆ°u lá»‹ch ná»n
+                Lưu lịch nền
               </button>
             </form>
           </SurfaceSection>

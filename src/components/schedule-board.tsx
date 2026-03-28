@@ -1,5 +1,6 @@
-import { AlertTriangle, CalendarClock, NotebookPen } from "lucide-react";
-import { LEAVE_REASON_LABELS } from "@/lib/constants";
+﻿import { AlertTriangle, CalendarClock, NotebookPen } from "lucide-react";
+import { Pill } from "@/components/pill";
+import { ASSIGNMENT_STATUS_LABELS, LEAVE_REASON_LABELS } from "@/lib/constants";
 import { formatDate } from "@/lib/date";
 import { getStatusTone } from "@/lib/schedule";
 import type {
@@ -9,7 +10,6 @@ import type {
   StaffMember,
   WeeklyAssignment,
 } from "@/lib/types";
-import { Pill } from "@/components/pill";
 
 interface BoardEntry {
   position: Position;
@@ -40,7 +40,7 @@ export function ScheduleBoard({ board }: ScheduleBoardProps) {
               <h3 className="text-lg font-semibold text-slate-950">{slot.title}</h3>
               <p className="text-sm text-slate-500">{formatDate(slot.date, "dd/MM/yyyy")}</p>
             </div>
-            <Pill tone="teal">{slot.entries.filter((entry) => entry.assignment).length} v? trÃƒÂ­ dÃƒÂ£ gÃƒÂ¡n</Pill>
+            <Pill tone="teal">{slot.entries.filter((entry) => entry.assignment).length} vị trí đã gán</Pill>
           </div>
           <div className="grid gap-3 md:grid-cols-2 2xl:grid-cols-3">
             {slot.entries.map((entry) => (
@@ -50,15 +50,11 @@ export function ScheduleBoard({ board }: ScheduleBoardProps) {
               >
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">
-                      {entry.position.area}
-                    </p>
-                    <h4 className="mt-2 text-base font-semibold text-slate-950">
-                      {entry.position.name}
-                    </h4>
+                    <p className="text-xs font-semibold text-slate-500">{entry.position.area}</p>
+                    <h4 className="mt-2 text-base font-semibold text-slate-950">{entry.position.name}</h4>
                   </div>
                   <Pill tone={entry.assignment ? getStatusTone(entry.assignment.status) : "slate"}>
-                    {entry.assignment ? entry.assignment.status : "tr?ng"}
+                    {entry.assignment ? ASSIGNMENT_STATUS_LABELS[entry.assignment.status] : "Trống"}
                   </Pill>
                 </div>
 
@@ -69,12 +65,12 @@ export function ScheduleBoard({ board }: ScheduleBoardProps) {
                       <p className="font-medium">{entry.person.name}</p>
                     </div>
                     <p className="text-sm text-slate-500">
-                      {entry.person.code} Ã‚Â· {entry.person.team}
+                      {entry.person.code} · {entry.person.team}
                     </p>
                   </div>
                 ) : (
                   <div className="mt-4 rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-3 py-4 text-sm text-slate-500">
-                    Chua cÃƒÂ³ nhÃƒÂ¢n s? cho v? trÃƒÂ­ nÃƒÂ y.
+                    Chưa có nhân sự cho vị trí này.
                   </div>
                 )}
 
@@ -89,7 +85,7 @@ export function ScheduleBoard({ board }: ScheduleBoardProps) {
                   <div className="mt-4 flex items-start gap-2 rounded-2xl border border-rose-200 bg-rose-50 px-3 py-3 text-sm text-rose-700">
                     <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
                     <p>
-                      NhÃƒÂ¢n s? dang dang kÃƒÂ½ ngh? {LEAVE_REASON_LABELS[entry.leave.reason].toLowerCase()}.
+                      Nhân sự đã đăng ký nghỉ {LEAVE_REASON_LABELS[entry.leave.reason].toLowerCase()}.
                     </p>
                   </div>
                 ) : null}
@@ -101,4 +97,3 @@ export function ScheduleBoard({ board }: ScheduleBoardProps) {
     </div>
   );
 }
-

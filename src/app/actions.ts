@@ -1,4 +1,4 @@
-"use server";
+﻿"use server";
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -32,7 +32,7 @@ function redirectWithState(returnTo: string, params: Record<string, string>) {
 async function assertEditor() {
   const { user } = await getUserContext();
   if (!canEdit(user.role)) {
-    throw new Error("TÃ i khoáº£n hiá»‡n táº¡i chá»‰ cÃ³ quyá»n xem lá»‹ch.");
+    throw new Error("Tài khoản hiện tại chỉ có quyền xem lịch.");
   }
 }
 
@@ -56,10 +56,10 @@ export async function saveStaffAction(formData: FormData) {
       notes: getValue(formData, "notes"),
     });
     revalidateWorkspace();
-    redirectWithState(returnTo, { message: "ÄÃ£ cáº­p nháº­t danh sÃ¡ch Ä‘iá»u dÆ°á»¡ng." });
+    redirectWithState(returnTo, { message: "Đã cập nhật danh sách điều dưỡng." });
   } catch (error) {
     redirectWithState(returnTo, {
-      error: error instanceof Error ? error.message : "KhÃ´ng thá»ƒ lÆ°u Ä‘iá»u dÆ°á»¡ng.",
+      error: error instanceof Error ? error.message : "Không thể lưu điều dưỡng.",
     });
   }
 }
@@ -76,10 +76,10 @@ export async function savePositionAction(formData: FormData) {
       description: getValue(formData, "description"),
     });
     revalidateWorkspace();
-    redirectWithState(returnTo, { message: "ÄÃ£ cáº­p nháº­t danh má»¥c vá»‹ trÃ­." });
+    redirectWithState(returnTo, { message: "Đã cập nhật danh mục vị trí." });
   } catch (error) {
     redirectWithState(returnTo, {
-      error: error instanceof Error ? error.message : "KhÃ´ng thá»ƒ lÆ°u vá»‹ trÃ­.",
+      error: error instanceof Error ? error.message : "Không thể lưu vị trí.",
     });
   }
 }
@@ -97,10 +97,10 @@ export async function saveScheduleRuleAction(formData: FormData) {
       label: getValue(formData, "label"),
     });
     revalidateWorkspace();
-    redirectWithState(returnTo, { message: "ÄÃ£ cáº­p nháº­t quy táº¯c ca lÃ m." });
+    redirectWithState(returnTo, { message: "Đã cập nhật quy tắc ca làm." });
   } catch (error) {
     redirectWithState(returnTo, {
-      error: error instanceof Error ? error.message : "KhÃ´ng thá»ƒ lÆ°u quy táº¯c ca lÃ m.",
+      error: error instanceof Error ? error.message : "Không thể lưu quy tắc ca làm.",
     });
   }
 }
@@ -119,10 +119,10 @@ export async function saveTemplateAssignmentAction(formData: FormData) {
       note: getValue(formData, "note"),
     });
     revalidateWorkspace();
-    redirectWithState(returnTo, { message: "ÄÃ£ cáº­p nháº­t lá»‹ch ná»n." });
+    redirectWithState(returnTo, { message: "Đã cập nhật lịch nền." });
   } catch (error) {
     redirectWithState(returnTo, {
-      error: error instanceof Error ? error.message : "KhÃ´ng thá»ƒ lÆ°u lá»‹ch ná»n.",
+      error: error instanceof Error ? error.message : "Không thể lưu lịch nền.",
     });
   }
 }
@@ -148,10 +148,10 @@ export async function saveWeeklyAssignmentAction(formData: FormData) {
       source: "manual",
     });
     revalidateWorkspace();
-    redirectWithState(returnTo, { message: "ÄÃ£ cáº­p nháº­t lá»‹ch tuáº§n." });
+    redirectWithState(returnTo, { message: "Đã cập nhật lịch tuần." });
   } catch (error) {
     redirectWithState(returnTo, {
-      error: error instanceof Error ? error.message : "KhÃ´ng thá»ƒ lÆ°u lá»‹ch tuáº§n.",
+      error: error instanceof Error ? error.message : "Không thể lưu lịch tuần.",
     });
   }
 }
@@ -170,10 +170,10 @@ export async function saveLeaveAction(formData: FormData) {
       note: getValue(formData, "note"),
     });
     revalidateWorkspace();
-    redirectWithState(returnTo, { message: "ÄÃ£ cáº­p nháº­t lá»‹ch nghá»‰." });
+    redirectWithState(returnTo, { message: "Đã cập nhật lịch nghỉ." });
   } catch (error) {
     redirectWithState(returnTo, {
-      error: error instanceof Error ? error.message : "KhÃ´ng thá»ƒ lÆ°u lá»‹ch nghá»‰.",
+      error: error instanceof Error ? error.message : "Không thể lưu lịch nghỉ.",
     });
   }
 }
@@ -186,10 +186,10 @@ export async function generateWeekAction(formData: FormData) {
     const weekStart = getValue(formData, "weekStart");
     await generateWeekFromTemplate(weekStart);
     revalidateWorkspace();
-    redirectWithState(returnTo, { message: "ÄÃ£ táº¡o lá»‹ch dá»± tháº£o tá»« lá»‹ch ná»n." });
+    redirectWithState(returnTo, { message: "Đã tạo lịch dự thảo từ lịch nền." });
   } catch (error) {
     redirectWithState(returnTo, {
-      error: error instanceof Error ? error.message : "KhÃ´ng thá»ƒ táº¡o lá»‹ch tuáº§n.",
+      error: error instanceof Error ? error.message : "Không thể tạo lịch tuần.",
     });
   }
 }
@@ -201,10 +201,10 @@ export async function publishWeekAction(formData: FormData) {
     await assertEditor();
     await publishWeek(getValue(formData, "weekStart"));
     revalidateWorkspace();
-    redirectWithState(returnTo, { message: "ÄÃ£ chá»‘t lá»‹ch tuáº§n chÃ­nh thá»©c." });
+    redirectWithState(returnTo, { message: "Đã chốt lịch tuần chính thức." });
   } catch (error) {
     redirectWithState(returnTo, {
-      error: error instanceof Error ? error.message : "KhÃ´ng thá»ƒ chá»‘t lá»‹ch tuáº§n.",
+      error: error instanceof Error ? error.message : "Không thể chốt lịch tuần.",
     });
   }
 }

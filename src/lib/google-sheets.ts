@@ -1,4 +1,4 @@
-import { google } from "googleapis";
+﻿import { google } from "googleapis";
 import { SHEET_HEADERS, SHEET_NAMES } from "@/lib/constants";
 import { env, getServiceAccountPrivateKey, isSheetsConfigured } from "@/lib/env";
 import type { AppData } from "@/lib/types";
@@ -67,7 +67,7 @@ function asBoolean(value: string) {
 
 export async function readAppDataFromSheets(): Promise<AppData> {
   if (!isSheetsConfigured()) {
-    throw new Error("Google Sheets chÆ°a Ä‘Æ°á»£c cáº¥u hÃ¬nh.");
+    throw new Error("Google Sheets chưa được cấu hình.");
   }
 
   const [
@@ -152,7 +152,7 @@ export async function readAppDataFromSheets(): Promise<AppData> {
 
 export async function writeAppDataToSheets(data: AppData) {
   if (!isSheetsConfigured()) {
-    throw new Error("Google Sheets chÆ°a Ä‘Æ°á»£c cáº¥u hÃ¬nh.");
+    throw new Error("Google Sheets chưa được cấu hình.");
   }
 
   await Promise.all([
