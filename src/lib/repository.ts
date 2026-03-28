@@ -1,6 +1,6 @@
 ﻿import { DEMO_ACCESS_CONTROL } from "@/lib/constants";
 import { isSheetsConfigured } from "@/lib/env";
-import { readAppDataFromSheets, writeAppDataToSheets } from "@/lib/google-sheets";
+import { readAppDataFromSheets, writeAppDataKeysToSheets } from "@/lib/google-sheets";
 import { mockAppData } from "@/lib/mock-data";
 import { buildAssignmentsFromTemplate } from "@/lib/schedule";
 import type {
@@ -29,14 +29,14 @@ export async function getAppData(): Promise<AppData> {
   return data;
 }
 
-async function persistData(data: AppData) {
+async function persistData(data: AppData, keys: (keyof AppData)[]) {
   if (!isSheetsConfigured()) {
     throw new Error(
       "Ứng dụng đang ở chế độ demo. Hãy cấu hình Google Sheets để lưu thay đổi.",
     );
   }
 
-  await writeAppDataToSheets(data);
+  await writeAppDataKeysToSheets(data, keys);
 }
 
 function sortByName<T extends { name: string }>(items: T[]) {
@@ -53,7 +53,7 @@ export async function upsertStaff(input: Omit<StaffMember, "id"> & { id?: string
   const nextItems = data.staff.filter((item) => item.id !== entry.id);
   nextItems.push(entry);
   data.staff = sortByName(nextItems);
-  await persistData(data);
+  await persistData(data, ["staff"]);
   return entry;
 }
 
@@ -67,7 +67,7 @@ export async function upsertPosition(input: Omit<Position, "id"> & { id?: string
   const nextItems = data.positions.filter((item) => item.id !== entry.id);
   nextItems.push(entry);
   data.positions = sortByName(nextItems);
-  await persistData(data);
+  await persistData(data, ["positions"]);
   return entry;
 }
 
@@ -86,7 +86,7 @@ export async function upsertScheduleRule(
 
   data.scheduleRules = data.scheduleRules.filter((item) => item.id !== entry.id);
   data.scheduleRules.push(entry);
-  await persistData(data);
+  await persistData(data, ["scheduleRules"]);
   return entry;
 }
 
@@ -108,7 +108,7 @@ export async function upsertTemplateAssignment(
 
   data.templateSchedule = data.templateSchedule.filter((item) => item.id !== entry.id);
   data.templateSchedule.push(entry);
-  await persistData(data);
+  await persistData(data, ["templateSchedule"]);
   return entry;
 }
 
@@ -134,7 +134,7 @@ export async function upsertWeeklyAssignment(
 
   data.weeklySchedule = data.weeklySchedule.filter((item) => item.id !== entry.id);
   data.weeklySchedule.push(entry);
-  await persistData(data);
+  await persistData(data, ["weeklySchedule"]);
   return entry;
 }
 
@@ -156,7 +156,7 @@ export async function upsertLeaveRequest(
 
   data.leaveRequests = data.leaveRequests.filter((item) => item.id !== entry.id);
   data.leaveRequests.push(entry);
-  await persistData(data);
+  await persistData(data, ["leaveRequests"]);
   return entry;
 }
 
@@ -171,7 +171,7 @@ export async function generateWeekFromTemplate(weekStart: string) {
 
   const remaining = data.weeklySchedule.filter((item) => item.weekStart !== weekStart);
   data.weeklySchedule = [...remaining, ...generated];
-  await persistData(data);
+  await persistData(data, ["weeklySchedule"]);
   return generated;
 }
 
@@ -183,5 +183,5 @@ export async function publishWeek(weekStart: string) {
       : item,
   );
 
-  await persistData(data);
+  await persistData(data, ["weeklySchedule"]);
 }

@@ -5,6 +5,81 @@ import type { AppData } from "@/lib/types";
 
 type SheetName = keyof typeof SHEET_NAMES;
 type SheetRow = Record<string, string>;
+type AppDataKey = keyof AppData;
+
+const APP_DATA_TO_SHEET: Record<AppDataKey, SheetName> = {
+  staff: "staff",
+  positions: "positions",
+  scheduleRules: "scheduleRules",
+  templateSchedule: "templateSchedule",
+  weeklySchedule: "weeklySchedule",
+  leaveRequests: "leaveRequests",
+  accessControl: "accessControl",
+};
+
+const sheetSerializers: Record<AppDataKey, (data: AppData) => SheetRow[]> = {
+  staff: (data) =>
+    data.staff.map((row) => ({
+      id: row.id,
+      name: row.name,
+      code: row.code,
+      team: row.team,
+      active: `${row.active}`,
+      notes: row.notes ?? "",
+    })),
+  positions: (data) =>
+    data.positions.map((row) => ({
+      id: row.id,
+      name: row.name,
+      area: row.area,
+      description: row.description ?? "",
+    })),
+  scheduleRules: (data) =>
+    data.scheduleRules.map((row) => ({
+      id: row.id,
+      dayOfWeek: `${row.dayOfWeek}`,
+      shift: row.shift,
+      active: `${row.active}`,
+      label: row.label ?? "",
+    })),
+  templateSchedule: (data) =>
+    data.templateSchedule.map((row) => ({
+      id: row.id,
+      dayOfWeek: `${row.dayOfWeek}`,
+      shift: row.shift,
+      positionId: row.positionId,
+      staffId: row.staffId,
+      note: row.note ?? "",
+    })),
+  weeklySchedule: (data) =>
+    data.weeklySchedule.map((row) => ({
+      id: row.id,
+      weekStart: row.weekStart,
+      date: row.date,
+      shift: row.shift,
+      positionId: row.positionId,
+      staffId: row.staffId,
+      source: row.source,
+      status: row.status,
+      note: row.note ?? "",
+    })),
+  leaveRequests: (data) =>
+    data.leaveRequests.map((row) => ({
+      id: row.id,
+      staffId: row.staffId,
+      date: row.date,
+      shift: row.shift,
+      reason: row.reason,
+      note: row.note ?? "",
+    })),
+  accessControl: (data) =>
+    data.accessControl.map((row) => ({
+      id: row.id,
+      email: row.email,
+      role: row.role,
+      displayName: row.displayName ?? "",
+    })),
+};
 
 function createSheetsClient() {
   const auth = new google.auth.JWT({
@@ -34,31 +109,8 @@ async function readRows(sheetName: SheetName): Promise<SheetRow[]> {
   return rows
     .filter((row) => row.some((cell) => `${cell}`.trim()))
     .map((row) =>
-      Object.fromEntries(
-        headers.map((header, index) => [header, `${row[index] ?? ""}`]),
-      ),
+      Object.fromEntries(headers.map((header, index) => [header, `${row[index] ?? ""}`])),
     );
-}
-
-async function writeRows(sheetName: SheetName, rows: SheetRow[]) {
-  const sheets = createSheetsClient();
-  const headers = [...SHEET_HEADERS[sheetName]];
-  const values = [
-    headers,
-    ...rows.map((row) => headers.map((header) => row[header] ?? "")),
-  ];
-
-  await sheets.spreadsheets.values.clear({
-    spreadsheetId: env.GOOGLE_SHEET_ID,
-    range: `${SHEET_NAMES[sheetName]}!A:Z`,
-  });
-
-  await sheets.spreadsheets.values.update({
-    spreadsheetId: env.GOOGLE_SHEET_ID,
-    range: `${SHEET_NAMES[sheetName]}!A1`,
-    valueInputOption: "USER_ENTERED",
-    requestBody: { values },
-  });
 }
 
 function asBoolean(value: string) {
@@ -126,11 +178,7 @@ export async function readAppDataFromSheets(): Promise<AppData> {
       positionId: row.positionId,
       staffId: row.staffId,
       source: row.source as "template" | "manual",
-      status: row.status as
-        | "draft"
-        | "published"
-        | "adjusted"
-        | "needs-review",
+      status: row.status as "draft" | "published" | "adjusted" | "needs-review",
       note: row.note,
     })),
     leaveRequests: leaveRows.map((row) => ({
@@ -151,85 +199,41 @@ export async function readAppDataFromSheets(): Promise<AppData> {
 }
 
 export async function writeAppDataToSheets(data: AppData) {
+  await writeAppDataKeysToSheets(data, Object.keys(APP_DATA_TO_SHEET) as AppDataKey[]);
+}
+
+export async function writeAppDataKeysToSheets(data: AppData, keys: AppDataKey[]) {
   if (!isSheetsConfigured()) {
     throw new Error("Google Sheets chưa được cấu hình.");
   }
 
-  await Promise.all([
-    writeRows(
-      "staff",
-      data.staff.map((row) => ({
-        id: row.id,
-        name: row.name,
-        code: row.code,
-        team: row.team,
-        active: `${row.active}`,
-        notes: row.notes ?? "",
-      })),
-    ),
-    writeRows(
-      "positions",
-      data.positions.map((row) => ({
-        id: row.id,
-        name: row.name,
-        area: row.area,
-        description: row.description ?? "",
-      })),
-    ),
-    writeRows(
-      "scheduleRules",
-      data.scheduleRules.map((row) => ({
-        id: row.id,
-        dayOfWeek: `${row.dayOfWeek}`,
-        shift: row.shift,
-        active: `${row.active}`,
-        label: row.label ?? "",
-      })),
-    ),
-    writeRows(
-      "templateSchedule",
-      data.templateSchedule.map((row) => ({
-        id: row.id,
-        dayOfWeek: `${row.dayOfWeek}`,
-        shift: row.shift,
-        positionId: row.positionId,
-        staffId: row.staffId,
-        note: row.note ?? "",
-      })),
-    ),
-    writeRows(
-      "weeklySchedule",
-      data.weeklySchedule.map((row) => ({
-        id: row.id,
-        weekStart: row.weekStart,
-        date: row.date,
-        shift: row.shift,
-        positionId: row.positionId,
-        staffId: row.staffId,
-        source: row.source,
-        status: row.status,
-        note: row.note ?? "",
-      })),
-    ),
-    writeRows(
-      "leaveRequests",
-      data.leaveRequests.map((row) => ({
-        id: row.id,
-        staffId: row.staffId,
-        date: row.date,
-        shift: row.shift,
-        reason: row.reason,
-        note: row.note ?? "",
-      })),
-    ),
-    writeRows(
-      "accessControl",
-      data.accessControl.map((row) => ({
-        id: row.id,
-        email: row.email,
-        role: row.role,
-        displayName: row.displayName ?? "",
-      })),
-    ),
-  ]);
+  const uniqueKeys = [...new Set(keys)];
+  if (uniqueKeys.length === 0) {
+    return;
+  }
+
+  const sheets = createSheetsClient();
+  const clearRanges = uniqueKeys.map((key) => `${SHEET_NAMES[APP_DATA_TO_SHEET[key]]}!A:Z`);
+  const updateData = uniqueKeys.map((key) => {
+    const sheetName = APP_DATA_TO_SHEET[key];
+    const headers = [...SHEET_HEADERS[sheetName]];
+    const rows = sheetSerializers[key](data);
+    return {
+      range: `${SHEET_NAMES[sheetName]}!A1`,
+      values: [headers, ...rows.map((row) => headers.map((header) => row[header] ?? ""))],
+    };
+  });
+
+  await sheets.spreadsheets.values.batchClear({
+    spreadsheetId: env.GOOGLE_SHEET_ID,
+    requestBody: { ranges: clearRanges },
+  });
+
+  await sheets.spreadsheets.values.batchUpdate({
+    spreadsheetId: env.GOOGLE_SHEET_ID,
+    requestBody: {
+      valueInputOption: "USER_ENTERED",
+      data: updateData,
+    },
+  });
 }
