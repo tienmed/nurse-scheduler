@@ -1,18 +1,10 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import { ShieldCheck } from "lucide-react";
 import { signIn } from "@/auth";
 import { APP_NAME } from "@/lib/constants";
 import { isAuthConfigured, isSheetsConfigured } from "@/lib/env";
-import { getUserContext } from "@/lib/session";
 
 export default async function SignInPage() {
-  const { authEnabled, user } = await getUserContext({ required: false });
-
-  if (authEnabled && user) {
-    redirect("/");
-  }
-
   const oauthReady = isAuthConfigured();
   const sheetsReady = isSheetsConfigured();
 
