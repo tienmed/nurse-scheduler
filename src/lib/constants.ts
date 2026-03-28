@@ -79,7 +79,7 @@ export const SHEET_NAMES = {
 } as const;
 
 export const SHEET_HEADERS = {
-  staff: ["id", "name", "code", "team", "active", "notes"],
+  staff: ["id", "name", "code", "email", "role", "positionId", "active", "notes"],
   positions: ["id", "name", "area", "description"],
   scheduleRules: ["id", "dayOfWeek", "shift", "active", "label"],
   templateSchedule: ["id", "dayOfWeek", "shift", "positionId", "staffId", "note"],

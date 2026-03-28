@@ -87,7 +87,7 @@ export function ScheduleBoard({
                       <p className="font-medium">{entry.person.name}</p>
                     </div>
                     <p className="text-sm text-slate-500">
-                      {entry.person.code} · {entry.person.team}
+                      {entry.person.code}
                     </p>
                   </div>
                 ) : (

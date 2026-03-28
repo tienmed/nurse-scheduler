@@ -18,7 +18,9 @@ export interface StaffMember {
   id: string;
   name: string;
   code: string;
-  team: string;
+  email: string;
+  role: Role;
+  positionId: string;
   active: boolean;
   notes?: string;
 }

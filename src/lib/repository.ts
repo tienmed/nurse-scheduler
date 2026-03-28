@@ -45,6 +45,7 @@ function sortByName<T extends { name: string }>(items: T[]) {
 
 export async function upsertStaff(input: Omit<StaffMember, "id"> & { id?: string }) {
   const data = await getAppData();
+  const existing = input.id ? data.staff.find((item) => item.id === input.id) : undefined;
   const entry = {
     id: input.id || `staff-${Date.now()}`,
     ...input,
@@ -53,7 +54,31 @@ export async function upsertStaff(input: Omit<StaffMember, "id"> & { id?: string
   const nextItems = data.staff.filter((item) => item.id !== entry.id);
   nextItems.push(entry);
   data.staff = sortByName(nextItems);
-  await persistData(data, ["staff"]);
+
+  const normalizedEmail = entry.email.trim().toLowerCase();
+  const previousEmail = existing?.email?.trim().toLowerCase();
+
+  if (previousEmail && previousEmail !== normalizedEmail) {
+    data.accessControl = data.accessControl.filter(
+      (item) => item.email.toLowerCase() !== previousEmail,
+    );
+  }
+
+  if (normalizedEmail) {
+    const accessEntry = {
+      id: existing ? `access-${entry.id}` : `access-${entry.id}`,
+      email: normalizedEmail,
+      role: entry.role,
+      displayName: entry.name,
+    };
+
+    data.accessControl = data.accessControl.filter(
+      (item) => item.email.toLowerCase() !== normalizedEmail,
+    );
+    data.accessControl.push(accessEntry);
+  }
+
+  await persistData(data, normalizedEmail || previousEmail ? ["staff", "accessControl"] : ["staff"]);
   return entry;
 }
 

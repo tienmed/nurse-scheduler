@@ -65,23 +65,31 @@ export default async function StaffPage({ searchParams }: StaffPageProps) {
                   <tr>
                     <th className="px-4 py-3 font-medium">Điều dưỡng</th>
                     <th className="px-4 py-3 font-medium">Mã</th>
-                    <th className="px-4 py-3 font-medium">Nhóm</th>
+                    <th className="px-4 py-3 font-medium">Email</th>
+                    <th className="px-4 py-3 font-medium">Phân quyền</th>
+                    <th className="px-4 py-3 font-medium">Vị trí việc làm</th>
                     <th className="px-4 py-3 font-medium">Trạng thái</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 bg-white">
-                  {data.staff.map((member) => (
+                  {data.staff.map((member) => {
+                    const jobPosition = data.positions.find((position) => position.id === member.positionId);
+                    return (
                     <tr key={member.id}>
                       <td className="px-4 py-3 font-medium text-slate-900">{member.name}</td>
                       <td className="px-4 py-3 text-slate-500">{member.code}</td>
-                      <td className="px-4 py-3 text-slate-500">{member.team}</td>
+                      <td className="px-4 py-3 text-slate-500">{member.email || "-"}</td>
+                      <td className="px-4 py-3">
+                        <Pill tone="teal">{ROLE_LABELS[member.role]}</Pill>
+                      </td>
+                      <td className="px-4 py-3 text-slate-500">{jobPosition?.name ?? "Chưa chọn"}</td>
                       <td className="px-4 py-3">
                         <Pill tone={member.active ? "emerald" : "amber"}>
                           {member.active ? "Sẵn sàng" : "Tạm nghỉ"}
                         </Pill>
                       </td>
                     </tr>
-                  ))}
+                  )})}
                 </tbody>
               </table>
             </div>
@@ -92,7 +100,7 @@ export default async function StaffPage({ searchParams }: StaffPageProps) {
               description="Thêm danh sách điều dưỡng trước để có thể gán người ở lịch nền, sinh lịch tuần và theo dõi báo cáo."
               tips={[
                 "Nên nhập mã điều dưỡng để dễ lọc khi xuất Excel.",
-                "Nhóm hoặc khoa giúp bạn kiểm tra phân bổ nhân lực theo đơn vị.",
+                "Gắn email và phân quyền ngay từ đây để người dùng có thể đăng nhập đúng quyền.",
               ]}
               tone="teal"
             />
@@ -125,13 +133,44 @@ export default async function StaffPage({ searchParams }: StaffPageProps) {
               />
             </label>
             <label className="space-y-2 text-sm text-slate-700">
-              <span className="font-medium">Nhóm hoặc khoa</span>
+              <span className="font-medium">Email</span>
               <input
-                name="team"
+                type="email"
+                name="email"
                 className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-teal-500"
-                placeholder="Khám tổng quát"
+                placeholder="dieu.duong@benhvien.vn"
                 disabled={!editable}
               />
+            </label>
+            <label className="space-y-2 text-sm text-slate-700">
+              <span className="font-medium">Phân quyền</span>
+              <select
+                name="role"
+                className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-teal-500"
+                defaultValue="viewer"
+                disabled={!editable}
+              >
+                {Object.entries(ROLE_LABELS).map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="space-y-2 text-sm text-slate-700">
+              <span className="font-medium">Vị trí việc làm</span>
+              <select
+                name="positionId"
+                className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-teal-500"
+                disabled={!editable}
+              >
+                <option value="">Chưa gắn vị trí</option>
+                {data.positions.map((position) => (
+                  <option key={position.id} value={position.id}>
+                    {position.name}
+                  </option>
+                ))}
+              </select>
             </label>
             <label className="space-y-2 text-sm text-slate-700">
               <span className="font-medium">Ghi chú</span>

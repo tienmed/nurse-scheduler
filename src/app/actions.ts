@@ -55,7 +55,9 @@ export async function saveStaffAction(formData: FormData) {
       id: getValue(formData, "id") || undefined,
       name: getValue(formData, "name"),
       code: getValue(formData, "code"),
-      team: getValue(formData, "team"),
+      email: getValue(formData, "email"),
+      role: (getValue(formData, "role") as "admin" | "coordinator" | "viewer") || "viewer",
+      positionId: getValue(formData, "positionId"),
       active: formData.get("active") === "on",
       notes: getValue(formData, "notes"),
     });
