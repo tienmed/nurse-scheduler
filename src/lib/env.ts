@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 const envSchema = z.object({
+  AUTH_URL: z.string().url().optional(),
   AUTH_SECRET: z.string().optional(),
   AUTH_GOOGLE_ID: z.string().optional(),
   AUTH_GOOGLE_SECRET: z.string().optional(),
@@ -17,6 +18,7 @@ const envSchema = z.object({
 });
 
 const parsed = envSchema.parse({
+  AUTH_URL: process.env.AUTH_URL,
   AUTH_SECRET: process.env.AUTH_SECRET,
   AUTH_GOOGLE_ID: process.env.AUTH_GOOGLE_ID,
   AUTH_GOOGLE_SECRET: process.env.AUTH_GOOGLE_SECRET,
@@ -47,6 +49,10 @@ export const env = {
 
 export function isAuthConfigured() {
   return Boolean(env.AUTH_GOOGLE_ID && env.AUTH_GOOGLE_SECRET);
+}
+
+export function getCanonicalAuthUrl() {
+  return env.AUTH_URL?.replace(/\/$/, "");
 }
 
 export function isSheetsConfigured() {

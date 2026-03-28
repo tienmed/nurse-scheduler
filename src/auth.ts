@@ -1,8 +1,33 @@
 import NextAuth from "next-auth";
 import Google from "next-auth/providers/google";
-import { env, isAuthConfigured } from "@/lib/env";
+import { env, getCanonicalAuthUrl, isAuthConfigured } from "@/lib/env";
 import { getAppData } from "@/lib/repository";
 import type { Role } from "@/lib/types";
+
+const SESSION_MAX_AGE = 60 * 60 * 24 * 30;
+const SESSION_UPDATE_AGE = 60 * 60 * 24;
+const canonicalAuthUrl = getCanonicalAuthUrl();
+
+function resolveRedirectUrl(url: string, baseUrl: string) {
+  const targetBaseUrl = canonicalAuthUrl || baseUrl;
+
+  if (url.startsWith("/")) {
+    return `${targetBaseUrl}${url}`;
+  }
+
+  try {
+    const parsedUrl = new URL(url);
+    const allowedOrigins = [baseUrl, canonicalAuthUrl].filter(Boolean);
+
+    if (allowedOrigins.includes(parsedUrl.origin)) {
+      return `${targetBaseUrl}${parsedUrl.pathname}${parsedUrl.search}${parsedUrl.hash}`;
+    }
+  } catch {
+    return targetBaseUrl;
+  }
+
+  return targetBaseUrl;
+}
 
 function resolveRoleFromEnv(email: string): Role | null {
   if (env.AUTHORIZED_ADMIN_EMAILS.includes(email)) {
@@ -44,7 +69,14 @@ const providers = isAuthConfigured()
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   trustHost: true,
-  session: { strategy: "jwt" },
+  session: {
+    strategy: "jwt",
+    maxAge: SESSION_MAX_AGE,
+    updateAge: SESSION_UPDATE_AGE,
+  },
+  jwt: {
+    maxAge: SESSION_MAX_AGE,
+  },
   providers,
   callbacks: {
     async signIn({ profile }) {
@@ -77,6 +109,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         session.user.role = (token.role as Role | undefined) ?? "viewer";
       }
       return session;
+    },
+    async redirect({ url, baseUrl }) {
+      return resolveRedirectUrl(url, baseUrl);
     },
   },
 });
