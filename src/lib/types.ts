@@ -4,7 +4,7 @@ export type ShiftType = "morning" | "afternoon";
 
 export type LeaveShift = ShiftType | "full-day";
 
-export type LeaveReason = "phep" | "om" | "khac";
+export type LeaveReason = "phep" | "om" | "dihoc" | "khac";
 
 export type AssignmentSource = "template" | "manual";
 
@@ -20,8 +20,9 @@ export interface StaffMember {
   code: string;
   email: string;
   role: Role;
-  positionId: string;
+  positionIds: string[];
   active: boolean;
+  prefersOvertime: boolean;
   notes?: string;
 }
 
@@ -30,6 +31,8 @@ export interface Position {
   name: string;
   area: string;
   description?: string;
+  quota?: number;
+  staffOrder?: string[];
 }
 
 export interface ScheduleRule {
@@ -40,12 +43,21 @@ export interface ScheduleRule {
   label?: string;
 }
 
+export interface PositionRule {
+  id: string;
+  positionId: string;
+  dayOfWeek: number;
+  shift: ShiftType;
+  active: boolean;
+}
+
 export interface TemplateAssignment {
   id: string;
   dayOfWeek: number;
   shift: ShiftType;
   positionId: string;
   staffId: string;
+  slotIndex?: number;
   note?: string;
 }
 
@@ -56,6 +68,7 @@ export interface WeeklyAssignment {
   shift: ShiftType;
   positionId: string;
   staffId: string;
+  slotIndex?: number;
   source: AssignmentSource;
   status: AssignmentStatus;
   note?: string;
@@ -84,6 +97,7 @@ export interface AppData {
   templateSchedule: TemplateAssignment[];
   weeklySchedule: WeeklyAssignment[];
   leaveRequests: LeaveRecord[];
+  positionRules: PositionRule[];
   accessControl: AccessControlEntry[];
 }
 
@@ -101,6 +115,8 @@ export interface WorkloadSummary {
   shifts: number;
   morningShifts: number;
   afternoonShifts: number;
+  overtimeShifts: number;
+  positionsCovered: number;
 }
 
 export interface LeaveSummary {
@@ -108,6 +124,7 @@ export interface LeaveSummary {
   days: number;
   phep: number;
   om: number;
+  dihoc: number;
   khac: number;
 }
 

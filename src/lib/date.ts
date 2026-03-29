@@ -21,12 +21,15 @@ export function getNextWeekStart(date = new Date()) {
 
 export function getWeekStartFromInput(value?: string | null) {
   if (!value) {
-    return getWeekStart();
+    const today = new Date();
+    // Chủ nhật (getDay()===0) → hiển thị tuần kế tiếp
+    return today.getDay() === 0 ? getNextWeekStart(today) : getWeekStart(today);
   }
 
   const parsed = parseISO(value);
   if (!isValid(parsed)) {
-    return getWeekStart();
+    const today = new Date();
+    return today.getDay() === 0 ? getNextWeekStart(today) : getWeekStart(today);
   }
 
   return format(startOfWeek(parsed, { weekStartsOn: 1 }), "yyyy-MM-dd");

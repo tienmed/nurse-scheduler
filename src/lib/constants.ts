@@ -1,4 +1,4 @@
-﻿import type {
+import type {
   AccessControlEntry,
   AssignmentStatus,
   LeaveReason,
@@ -33,6 +33,7 @@ export const LEAVE_SHIFT_LABELS: Record<LeaveShift, string> = {
 export const LEAVE_REASON_LABELS: Record<LeaveReason, string> = {
   phep: "Phép",
   om: "Ốm",
+  dihoc: "Đi học",
   khac: "Khác",
 };
 
@@ -75,14 +76,15 @@ export const SHEET_NAMES = {
   templateSchedule: "template_schedule",
   weeklySchedule: "weekly_schedule",
   leaveRequests: "leave_requests",
+  positionRules: "position_rules",
   accessControl: "access_control",
 } as const;
 
 export const SHEET_HEADERS = {
-  staff: ["id", "name", "code", "email", "role", "positionId", "active", "notes"],
-  positions: ["id", "name", "area", "description"],
+  staff: ["id", "name", "code", "email", "role", "positionIds", "active", "prefersOvertime", "notes"],
+  positions: ["id", "name", "area", "description", "quota", "staffOrder"],
   scheduleRules: ["id", "dayOfWeek", "shift", "active", "label"],
-  templateSchedule: ["id", "dayOfWeek", "shift", "positionId", "staffId", "note"],
+  templateSchedule: ["id", "dayOfWeek", "shift", "positionId", "staffId", "slotIndex", "note"],
   weeklySchedule: [
     "id",
     "weekStart",
@@ -90,11 +92,13 @@ export const SHEET_HEADERS = {
     "shift",
     "positionId",
     "staffId",
+    "slotIndex",
     "source",
     "status",
     "note",
   ],
   leaveRequests: ["id", "staffId", "date", "shift", "reason", "note"],
+  positionRules: ["id", "positionId", "dayOfWeek", "shift", "active"],
   accessControl: ["id", "email", "role", "displayName"],
 } as const;
 

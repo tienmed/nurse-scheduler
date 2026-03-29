@@ -1,4 +1,4 @@
-﻿import { BarChart3, CalendarSearch, RefreshCcwDot } from "lucide-react";
+import { BarChart3, CalendarSearch, Download, RefreshCcwDot } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { AuthRequiredState } from "@/components/auth-required-state";
 import { EmptyState } from "@/components/empty-state";
@@ -65,19 +65,28 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
         title="Tháng báo cáo"
         description="Báo cáo này tổng hợp từ toàn bộ lịch tuần đã lưu và danh sách nghỉ phép trong tháng đang chọn."
       >
-        <form action="/reports" className="flex flex-col gap-3 md:max-w-xs">
+        <form action="/reports" className="flex flex-col gap-4 md:max-w-md">
           <input
             type="month"
             name="month"
             defaultValue={monthKey}
             className="rounded-2xl border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-teal-500"
           />
-          <button
-            type="submit"
-            className="inline-flex items-center justify-center rounded-2xl bg-slate-950 px-4 py-3 text-sm font-medium text-white transition hover:bg-slate-800"
-          >
-            Xem báo cáo
-          </button>
+          <div className="flex flex-wrap gap-3">
+            <button
+              type="submit"
+              className="inline-flex items-center justify-center rounded-2xl bg-slate-950 px-6 py-3 text-sm font-medium text-white transition hover:bg-slate-800"
+            >
+              Xem báo cáo
+            </button>
+            <a
+              href={`/api/export/monthly?month=${monthKey}`}
+              className="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-6 py-3 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+            >
+              <Download className="h-4 w-4" />
+              Xuất Excel
+            </a>
+          </div>
         </form>
       </SurfaceSection>
 
@@ -96,6 +105,8 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
                     <th className="px-4 py-3 font-medium">Ngày làm</th>
                     <th className="px-4 py-3 font-medium">Ca sáng</th>
                     <th className="px-4 py-3 font-medium">Ca chiều</th>
+                    <th className="px-4 py-3 font-medium">Tăng ca</th>
+                    <th className="px-4 py-3 font-medium">Vị trí</th>
                     <th className="px-4 py-3 font-medium">Tổng ca</th>
                   </tr>
                 </thead>
@@ -108,6 +119,10 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
                         <td className="px-4 py-3 text-slate-500">{item.workDays}</td>
                         <td className="px-4 py-3 text-slate-500">{item.morningShifts}</td>
                         <td className="px-4 py-3 text-slate-500">{item.afternoonShifts}</td>
+                        <td className="px-4 py-3">
+                          <Pill tone={item.overtimeShifts > 0 ? "amber" : "slate"}>{item.overtimeShifts} ca</Pill>
+                        </td>
+                        <td className="px-4 py-3 text-slate-500">{item.positionsCovered}</td>
                         <td className="px-4 py-3">
                           <Pill tone="teal">{item.shifts} ca</Pill>
                         </td>

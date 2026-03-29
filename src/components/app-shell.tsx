@@ -1,10 +1,13 @@
-﻿import Link from "next/link";
+import Link from "next/link";
 import {
+  AlertCircle,
   CalendarDays,
+  CheckCircle2,
   ClipboardList,
   FileSpreadsheet,
   LayoutTemplate,
   LogOut,
+  MapPin,
   Users,
 } from "lucide-react";
 import { signOut } from "@/auth";
@@ -28,6 +31,7 @@ const navItems = [
   { href: "/", label: "Tổng quan", shortLabel: "Tổng quan", icon: ClipboardList },
   { href: "/schedule", label: "Lịch tuần", shortLabel: "Tuần", icon: CalendarDays },
   { href: "/template", label: "Lịch nền", shortLabel: "Nền", icon: LayoutTemplate },
+  { href: "/areas", label: "Khu vực", shortLabel: "Khu vực", icon: MapPin },
   { href: "/staff", label: "Nhân sự", shortLabel: "Nhân sự", icon: Users },
   { href: "/reports", label: "Báo cáo", shortLabel: "Báo cáo", icon: FileSpreadsheet },
 ];
@@ -55,7 +59,7 @@ export function AppShell({
     <div className="min-h-screen bg-[var(--canvas)] text-slate-900">
       <div className="pointer-events-none fixed inset-0 -z-10 bg-[radial-gradient(circle_at_top_left,_rgba(13,148,136,0.18),_transparent_32%),radial-gradient(circle_at_85%_15%,_rgba(249,115,22,0.14),_transparent_24%),linear-gradient(180deg,_#f8fbfb_0%,_#edf3f3_44%,_#e8edf5_100%)]" />
       <div className="mx-auto flex min-h-screen w-full max-w-[1600px]">
-        <aside className="hidden w-[300px] shrink-0 flex-col justify-between border-r border-slate-900/70 bg-[linear-gradient(180deg,#020617_0%,#0f172a_52%,#111827_100%)] px-6 py-7 text-white lg:flex">
+        <aside className="sticky top-0 h-screen hidden w-[300px] shrink-0 flex-col justify-between border-r border-slate-900/70 bg-[linear-gradient(180deg,#020617_0%,#0f172a_52%,#111827_100%)] px-6 py-7 text-white lg:flex">
           <div className="space-y-8">
             <div className="space-y-4">
               <div className="inline-flex h-14 w-14 items-center justify-center rounded-[22px] bg-[linear-gradient(135deg,#14b8a6_0%,#f97316_100%)] text-lg font-bold text-white shadow-lg shadow-teal-950/30">
@@ -183,12 +187,14 @@ export function AppShell({
               </div>
             </div>
             {message ? (
-              <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+              <div className="mt-4 flex animate-in slide-in-from-top-2 items-center gap-3 rounded-2xl border border-teal-200 bg-teal-50 px-4 py-3 text-sm font-medium text-teal-800 shadow-sm">
+                <CheckCircle2 className="h-5 w-5 text-teal-600" />
                 {message}
               </div>
             ) : null}
             {error ? (
-              <div className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+              <div className="mt-4 flex animate-in slide-in-from-top-2 items-center gap-3 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-800 shadow-sm">
+                <AlertCircle className="h-5 w-5 text-rose-600" />
                 {error}
               </div>
             ) : null}
@@ -199,7 +205,7 @@ export function AppShell({
           </main>
 
           <nav className="fixed inset-x-3 bottom-3 z-30 rounded-[28px] border border-slate-900/10 bg-slate-950/96 px-2 py-2 shadow-[0_18px_40px_rgba(15,23,42,0.24)] backdrop-blur lg:hidden">
-            <div className="grid grid-cols-5 gap-1">
+            <div className="grid grid-cols-6 gap-1">
               {navItems.map(({ href, shortLabel, icon: Icon }) => {
                 const active = currentPath === href;
                 return (

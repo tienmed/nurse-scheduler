@@ -1,4 +1,4 @@
-﻿import { addDays, format, parseISO } from "date-fns";
+import { addDays, format, parseISO } from "date-fns";
 import { DEFAULT_SCHEDULE_RULES } from "@/lib/constants";
 import { getNextWeekStart, getWeekStart } from "@/lib/date";
 import { buildAssignmentsFromTemplate } from "@/lib/schedule";
@@ -18,8 +18,9 @@ const staff: StaffMember[] = [
     code: "DD01",
     email: "nguyenthia@benhvien.vn",
     role: "coordinator",
-    positionId: "position-vitals",
+    positionIds: ["position-vitals", "position-consult"],
     active: true,
+    prefersOvertime: true,
   },
   {
     id: "staff-02",
@@ -27,8 +28,9 @@ const staff: StaffMember[] = [
     code: "DD02",
     email: "tranthib@benhvien.vn",
     role: "viewer",
-    positionId: "position-ecg",
+    positionIds: ["position-ecg"],
     active: true,
+    prefersOvertime: false,
   },
   {
     id: "staff-03",
@@ -36,8 +38,9 @@ const staff: StaffMember[] = [
     code: "DD03",
     email: "lethucuc@benhvien.vn",
     role: "viewer",
-    positionId: "position-consult",
+    positionIds: ["position-consult", "position-vitals"],
     active: true,
+    prefersOvertime: true,
   },
   {
     id: "staff-04",
@@ -45,8 +48,9 @@ const staff: StaffMember[] = [
     code: "DD04",
     email: "phamdieuh@benhvien.vn",
     role: "viewer",
-    positionId: "position-procedure",
+    positionIds: ["position-procedure"],
     active: true,
+    prefersOvertime: false,
   },
   {
     id: "staff-05",
@@ -54,8 +58,9 @@ const staff: StaffMember[] = [
     code: "DD05",
     email: "hoangkiml@benhvien.vn",
     role: "viewer",
-    positionId: "position-admin",
+    positionIds: ["position-admin"],
     active: true,
+    prefersOvertime: true,
   },
   {
     id: "staff-06",
@@ -63,8 +68,9 @@ const staff: StaffMember[] = [
     code: "DD06",
     email: "domaip@benhvien.vn",
     role: "viewer",
-    positionId: "position-injection",
+    positionIds: ["position-injection", "position-procedure"],
     active: true,
+    prefersOvertime: true,
   },
   {
     id: "staff-07",
@@ -72,8 +78,9 @@ const staff: StaffMember[] = [
     code: "DD07",
     email: "vunhau@benhvien.vn",
     role: "viewer",
-    positionId: "position-consult",
+    positionIds: ["position-consult"],
     active: true,
+    prefersOvertime: false,
   },
   {
     id: "staff-08",
@@ -81,8 +88,9 @@ const staff: StaffMember[] = [
     code: "DD08",
     email: "buithanhv@benhvien.vn",
     role: "viewer",
-    positionId: "position-vitals",
+    positionIds: ["position-vitals", "position-ecg"],
     active: true,
+    prefersOvertime: true,
   },
 ];
 
@@ -126,45 +134,22 @@ const leaveRequests: LeaveRecord[] = [
     reason: "phep",
     note: "Nghỉ phép gia đình",
   },
-  {
-    id: "leave-staff-06-current-wed",
-    staffId: "staff-06",
-    date: format(addDays(parseISO(getWeekStart()), 2), "yyyy-MM-dd"),
-    shift: "morning",
-    reason: "om",
-    note: "Khám sức khỏe",
-  },
 ];
 
-export const mockAppData: AppData = {
+export const MOCK_DATA: AppData = {
   staff,
   positions,
   scheduleRules,
   templateSchedule,
-  weeklySchedule: [
-    ...buildAssignmentsFromTemplate(
-      templateSchedule,
-      getWeekStart(),
-      leaveRequests,
-      scheduleRules,
-    ),
-    ...buildAssignmentsFromTemplate(
-      templateSchedule,
-      getNextWeekStart(),
-      leaveRequests,
-      scheduleRules,
-    ),
-  ].map((assignment, index) => ({
-    ...assignment,
-    status: index % 4 === 0 ? "published" : assignment.status,
-  })),
+  weeklySchedule: [],
   leaveRequests,
+  positionRules: [],
   accessControl: [
     {
       id: "access-01",
-      email: "dieu-phoi@benhvien.vn",
+      email: "admin@benhvien.vn",
       role: "admin",
-      displayName: "Điều phối trưởng",
+      displayName: "Quản trị viên",
     },
     {
       id: "access-02",

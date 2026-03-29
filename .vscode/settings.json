@@ -1,0 +1,7 @@
+{
+  "codex-workspace.codexFolder": ".codex",
+  "codex-workspace.promptsFolder": "prompts",
+  "codex-workspace.skillsFolder": "skills",
+  "codex-workspace.agentFolder": "agents",
+  "codex-workspace.templatesFolder": "templates"
+}

@@ -1,0 +1,9 @@
+# Codex Workspace Configuration
+# See https://marketplace.visualstudio.com/items?itemName=Knworks.codex-workspace
+
+[sandbox_workspace_write]
+network_access = true
+approval_policy = "never"
+
+[mcp_servers]
+# Add your MCP servers here

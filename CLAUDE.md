@@ -1,2 +1,2 @@
-﻿@AGENTS.md
-
+@AGENTS.md
+@GEMINI.md
