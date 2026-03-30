@@ -7,6 +7,7 @@ import {
   getWeekBoard,
   getWeeklyAssignments,
 } from "@/lib/schedule";
+import Link from "next/link";
 import { WEEKDAY_LABELS } from "@/lib/constants";
 import type { Position } from "@/lib/types";
 
@@ -15,6 +16,7 @@ interface BoardPageProps {
     week?: string;
     day?: string;
     shift?: string;
+    view?: string;
   }>;
 }
 
@@ -64,7 +66,8 @@ function getDefaultDayAndShift(weekStart: string): { day: number; shift: "mornin
 }
 
 export default async function BoardPage({ searchParams }: BoardPageProps) {
-  const { week, day: dayParam, shift: shiftParam } = await searchParams;
+  const { week, day: dayParam, shift: shiftParam, view } = await searchParams;
+  const isPersonnelView = view === "personnel";
   const weekStart = getWeekStartFromInput(week);
   const data = await getAppData();
 
@@ -111,7 +114,7 @@ export default async function BoardPage({ searchParams }: BoardPageProps) {
       dayOfWeek: rule.dayOfWeek,
       shift: rule.shift,
       label: `${rule.shift === "morning" ? "S" : "C"} ${WEEKDAY_LABELS[rule.dayOfWeek].replace("Thứ ", "T")}`,
-      href: `/board?week=${weekStart}&day=${rule.dayOfWeek}&shift=${rule.shift}`,
+      href: `/board?week=${weekStart}&day=${rule.dayOfWeek}&shift=${rule.shift}${isPersonnelView ? '&view=personnel' : ''}`,
       isActive,
     };
   });
@@ -163,6 +166,30 @@ export default async function BoardPage({ searchParams }: BoardPageProps) {
     }
   }
 
+  // Gom nhóm Personnel
+  const personnelMap = new Map<string, { person: { id: string, name: string }, positions: Position[] }>();
+
+  if (currentSlot && isPersonnelView) {
+    for (const entry of currentSlot.entries) {
+      for (const subslot of entry.slots) {
+        if (subslot.person) {
+          let pData = personnelMap.get(subslot.person.id);
+          if (!pData) {
+            pData = { person: subslot.person, positions: [] };
+            personnelMap.set(subslot.person.id, pData);
+          }
+          if (!pData.positions.some((p) => p.id === entry.position.id)) {
+            pData.positions.push(entry.position);
+          }
+        }
+      }
+    }
+  }
+
+  const personnelList = Array.from(personnelMap.values()).sort((a, b) =>
+    a.person.name.localeCompare(b.person.name)
+  );
+
   // Sắp xếp areaGroups theo ưu tiên
   const sortedGroups = Array.from(areaMap.values()).sort((a, b) => {
     return getAreaPriority(a.area) - getAreaPriority(b.area);
@@ -195,6 +222,24 @@ export default async function BoardPage({ searchParams }: BoardPageProps) {
               <span className="rounded-full bg-teal-100 px-3 py-1.5 font-semibold text-teal-700">
                 {actualAssignments.length > 0 ? "Chính thức" : "Dự kiến"}
               </span>
+              <div className="flex h-8 items-center rounded-full bg-slate-200 p-1">
+                <Link
+                  href={`/board?week=${weekStart}&day=${selectedDay}&shift=${selectedShift}&view=calendar`}
+                  className={`flex h-full items-center rounded-full px-4 font-semibold transition-colors ${
+                    !isPersonnelView ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-900"
+                  }`}
+                >
+                  Lịch
+                </Link>
+                <Link
+                  href={`/board?week=${weekStart}&day=${selectedDay}&shift=${selectedShift}&view=personnel`}
+                  className={`flex h-full items-center rounded-full px-4 font-semibold transition-colors ${
+                    isPersonnelView ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-900"
+                  }`}
+                >
+                  Nhân sự
+                </Link>
+              </div>
             </div>
           </div>
         </div>
@@ -205,7 +250,7 @@ export default async function BoardPage({ searchParams }: BoardPageProps) {
         <div className="mx-auto max-w-7xl px-4 sm:px-6">
           <div className="flex gap-1 overflow-x-auto py-2.5 scrollbar-none">
             {slotTabs.map((tab) => (
-              <a
+              <Link
                 key={`${tab.dayOfWeek}-${tab.shift}`}
                 href={tab.href}
                 className={`shrink-0 rounded-full px-4 py-2 text-xs font-semibold transition-all ${
@@ -215,7 +260,7 @@ export default async function BoardPage({ searchParams }: BoardPageProps) {
                 }`}
               >
                 {tab.label}
-              </a>
+              </Link>
             ))}
           </div>
         </div>
@@ -223,7 +268,34 @@ export default async function BoardPage({ searchParams }: BoardPageProps) {
 
       {/* Content */}
       <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6">
-        {sortedGroups.length > 0 ? (
+        {isPersonnelView ? (
+          personnelList.length > 0 ? (
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {personnelList.map((data) => (
+                <div key={data.person.id} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm hover:shadow-md transition-all">
+                  <div className="flex items-center gap-3 border-b border-slate-100 pb-3 mb-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-teal-100 text-teal-700 font-bold">
+                      {data.person.name.charAt(0)}
+                    </div>
+                    <h3 className="font-bold text-slate-900 flex-1 leading-tight">{data.person.name}</h3>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {data.positions.map(pos => (
+                      <span key={pos.id} className="inline-flex items-center rounded-lg bg-teal-50 px-2.5 py-1 text-[11px] font-semibold text-teal-800 border border-teal-200">
+                        {pos.name}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center rounded-3xl border border-slate-200 bg-white p-16 text-center">
+              <p className="text-lg font-semibold text-slate-900">Không có nhân viên</p>
+              <p className="mt-2 text-sm text-slate-500">Buổi này chưa có nhân sự nào được xếp lịch.</p>
+            </div>
+          )
+        ) : sortedGroups.length > 0 ? (
           <div className="space-y-6">
             {sortedGroups.map((group) => {
               const colors = areaColors[group.area] || defaultColor;
