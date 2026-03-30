@@ -317,6 +317,56 @@ export async function saveLeaveAction(formData: FormData) {
       throw new Error("Khoảng ngày không hợp lệ (tối đa 90 ngày).");
     }
 
+    // --- Bắt đầu logic Check Quota Nghỉ Phép ---
+    const currentData = await getAppData();
+    const forceQuota = getValue(formData, "forceQuota") === "true";
+    let quotaExceededDate = "";
+
+    for (let i = 0; i < dayCount; i++) {
+      const date = format(addDays(start, i), "yyyy-MM-dd");
+      
+      const relevantLeaves = currentData.leaveRequests.filter(
+        (l) => l.date === date && l.reason !== "dihoc" && l.staffId !== staffId
+      );
+      
+      let morningCount = 0;
+      let afternoonCount = 0;
+      for (const l of relevantLeaves) {
+        if (l.shift === "full-day") {
+          morningCount++; afternoonCount++;
+        } else if (l.shift === "morning") {
+          morningCount++;
+        } else if (l.shift === "afternoon") {
+          afternoonCount++;
+        }
+      }
+
+      const isMorningExceeded = (shift === "full-day" || shift === "morning") && morningCount >= 2;
+      const isAfternoonExceeded = (shift === "full-day" || shift === "afternoon") && afternoonCount >= 2;
+
+      if (isMorningExceeded || isAfternoonExceeded) {
+        quotaExceededDate = format(parseISO(date), "dd/MM/yyyy");
+        break;
+      }
+    }
+
+    if (quotaExceededDate) {
+      if (!canEdit(user.role)) {
+         throw new Error(`Ngày ${quotaExceededDate} đã có đủ 2 nhân sự nghỉ. Hệ thống từ chối đăng ký thêm.`);
+      } else if (!forceQuota) {
+         redirectWithState(returnTo, {
+           confirmQuota: "true",
+           cfStaffId: staffId,
+           cfFromDate: fromDate,
+           cfToDate: toDate || "",
+           cfShift: shift,
+           cfReason: reason,
+           cfNote: note,
+         });
+      }
+    }
+    // --- Kết thúc logic Check Quota ---
+
     for (let i = 0; i < dayCount; i++) {
       const date = format(addDays(start, i), "yyyy-MM-dd");
       await upsertLeaveRequest({

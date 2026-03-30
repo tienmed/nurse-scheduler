@@ -70,8 +70,8 @@ export function AppShell({
     <div className="min-h-screen bg-[var(--canvas)] text-slate-900">
       <div className="pointer-events-none fixed inset-0 -z-10 bg-[radial-gradient(circle_at_top_left,_rgba(13,148,136,0.18),_transparent_32%),radial-gradient(circle_at_85%_15%,_rgba(249,115,22,0.14),_transparent_24%),linear-gradient(180deg,_#f8fbfb_0%,_#edf3f3_44%,_#e8edf5_100%)]" />
       <div className="mx-auto flex min-h-screen w-full max-w-[1600px]">
-        <aside className="sticky top-0 h-screen hidden w-[300px] shrink-0 flex-col justify-between border-r border-slate-900/70 bg-[linear-gradient(180deg,#020617_0%,#0f172a_52%,#111827_100%)] px-6 py-7 text-white lg:flex">
-          <div className="space-y-8">
+        <aside className="sticky top-0 h-screen hidden w-[300px] shrink-0 flex-col border-r border-slate-900/70 bg-[linear-gradient(180deg,#020617_0%,#0f172a_52%,#111827_100%)] text-white lg:flex">
+          <div className="flex-1 space-y-8 overflow-y-auto scrollbar-none px-6 pt-7 pb-4">
             <div className="space-y-4">
               <div className="inline-flex h-14 w-14 items-center justify-center rounded-[22px] bg-[linear-gradient(135deg,#14b8a6_0%,#f97316_100%)] text-lg font-bold text-white shadow-lg shadow-teal-950/30">
                 NF
@@ -105,58 +105,60 @@ export function AppShell({
             </nav>
           </div>
 
-          <div className="space-y-4 rounded-[28px] border border-white/10 bg-white/6 p-4 backdrop-blur">
-            <div className="flex items-center gap-3">
-              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white text-sm font-semibold text-slate-950">
-                {userInitials}
+          <div className="shrink-0 px-6 pb-7">
+            <div className="space-y-4 rounded-[28px] border border-white/10 bg-white/6 p-4 backdrop-blur">
+              <div className="flex items-center gap-3">
+                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white text-sm font-semibold text-slate-950">
+                  {userInitials}
+                </div>
+                <div className="space-y-1 text-sm">
+                  <p className="font-semibold text-white">
+                    {user?.name ?? "Chưa nhận diện phiên"}
+                  </p>
+                  <p className="text-slate-400">
+                    {user?.email ?? "Cần đăng nhập lại để tiếp tục"}
+                  </p>
+                </div>
               </div>
-              <div className="space-y-1 text-sm">
-                <p className="font-semibold text-white">
-                  {user?.name ?? "Chưa nhận diện phiên"}
-                </p>
-                <p className="text-slate-400">
-                  {user?.email ?? "Cần đăng nhập lại để tiếp tục"}
-                </p>
+              <div className="flex flex-wrap gap-2">
+                <Pill tone={!authEnabled ? "amber" : user ? "teal" : "rose"}>
+                  {!authEnabled
+                    ? "Chế độ demo"
+                    : user
+                      ? "Đăng nhập Google"
+                      : "Cần làm mới phiên"}
+                </Pill>
+                <Pill tone="slate">{ROLE_LABELS[user?.role ?? "viewer"]}</Pill>
               </div>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <Pill tone={!authEnabled ? "amber" : user ? "teal" : "rose"}>
-                {!authEnabled
-                  ? "Chế độ demo"
-                  : user
-                    ? "Đăng nhập Google"
-                    : "Cần làm mới phiên"}
-              </Pill>
-              <Pill tone="slate">{ROLE_LABELS[user?.role ?? "viewer"]}</Pill>
-            </div>
-            {authEnabled && user ? (
-              <form
-                action={async () => {
-                  "use server";
-                  await signOut({ redirectTo: "/sign-in" });
-                }}
-              >
-                <button
-                  type="submit"
+              {authEnabled && user ? (
+                <form
+                  action={async () => {
+                    "use server";
+                    await signOut({ redirectTo: "/sign-in" });
+                  }}
+                >
+                  <button
+                    type="submit"
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-white/14 bg-white/6 px-4 py-3 text-sm font-medium text-white transition hover:bg-white/12"
+                  >
+                    <LogOut className="h-4 w-4" />
+                    Đăng xuất
+                  </button>
+                </form>
+              ) : authEnabled ? (
+                <Link
+                  href="/sign-in"
                   className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-white/14 bg-white/6 px-4 py-3 text-sm font-medium text-white transition hover:bg-white/12"
                 >
                   <LogOut className="h-4 w-4" />
-                  Đăng xuất
-                </button>
-              </form>
-            ) : authEnabled ? (
-              <Link
-                href="/sign-in"
-                className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-white/14 bg-white/6 px-4 py-3 text-sm font-medium text-white transition hover:bg-white/12"
-              >
-                <LogOut className="h-4 w-4" />
-                Đăng nhập lại
-              </Link>
-            ) : (
-              <p className="text-sm leading-6 text-slate-400">
-                Bạn đang xem bản demo. Khi nối Google OAuth và Google Sheets, toàn bộ thao tác sẽ lưu trực tiếp lên dữ liệu thật.
-              </p>
-            )}
+                  Đăng nhập lại
+                </Link>
+              ) : (
+                <p className="text-sm leading-6 text-slate-400">
+                  Bạn đang xem bản demo. Khi nối Google OAuth và Google Sheets, toàn bộ thao tác sẽ lưu trực tiếp lên dữ liệu thật.
+                </p>
+              )}
+            </div>
           </div>
         </aside>
 

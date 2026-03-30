@@ -1,5 +1,6 @@
 import { addDays, format, isWithinInterval, parseISO, startOfToday } from "date-fns";
 import { vi } from "date-fns/locale";
+import Link from "next/link";
 import { FilePlus2 } from "lucide-react";
 import { saveLeaveAction } from "@/app/actions";
 import { AppShell } from "@/components/app-shell";
@@ -20,11 +21,18 @@ interface LeavePageProps {
     searchParams: Promise<{
         message?: string;
         error?: string;
+        confirmQuota?: string;
+        cfStaffId?: string;
+        cfFromDate?: string;
+        cfToDate?: string;
+        cfShift?: string;
+        cfReason?: string;
+        cfNote?: string;
     }>;
 }
 
 export default async function LeavePage({ searchParams }: LeavePageProps) {
-    const { message, error } = await searchParams;
+    const { message, error, confirmQuota, cfStaffId, cfFromDate, cfToDate, cfShift, cfReason, cfNote } = await searchParams;
     const { authEnabled, user } = await getUserContext({ required: false });
     if (authEnabled && !user) {
         return (
@@ -302,6 +310,49 @@ export default async function LeavePage({ searchParams }: LeavePageProps) {
             >
                 <LeaveCalendar leaveRequests={calendarLeaves} staff={calendarStaff} />
             </SurfaceSection>
+
+            {/* Popup Xác nhận Bypass Check Quota (chỉ Admin/Coordinator) */}
+            {confirmQuota === "true" && editable && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm px-4">
+                    <div className="w-full max-w-lg overflow-hidden rounded-3xl bg-white shadow-2xl ring-1 ring-slate-200">
+                        <div className="bg-amber-50 px-6 py-5 border-b border-amber-100 flex items-center gap-3">
+                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-600">
+                                <FilePlus2 className="h-5 w-5" />
+                            </div>
+                            <h2 className="text-xl font-bold text-amber-900">Xác nhận vượt giới hạn</h2>
+                        </div>
+                        <div className="px-6 py-6">
+                            <p className="text-[15px] text-slate-700 mb-8 leading-relaxed">
+                                Khoảng thời gian bạn chọn đã có đủ <strong>2 nhân sự</strong> đăng ký nghỉ (không tính đi học).
+                                <br /><br />
+                                Vì bạn có đặc quyền Quản trị viên/Điều phối, bạn có muốn <strong>bỏ qua cảnh báo</strong> này và ép buộc thêm lịch nghỉ không?
+                            </p>
+                            <form action={saveLeaveAction} className="flex flex-col-reverse sm:flex-row gap-3 sm:justify-end">
+                                <input type="hidden" name="forceQuota" value="true" />
+                                <input type="hidden" name="staffId" value={cfStaffId} />
+                                <input type="hidden" name="fromDate" value={cfFromDate} />
+                                <input type="hidden" name="toDate" value={cfToDate} />
+                                <input type="hidden" name="shift" value={cfShift} />
+                                <input type="hidden" name="reason" value={cfReason} />
+                                <input type="hidden" name="note" value={cfNote} />
+                                
+                                <Link 
+                                    href="/leave" 
+                                    className="inline-flex items-center justify-center rounded-2xl px-6 py-3 text-sm font-semibold text-slate-600 ring-1 ring-inset ring-slate-200 hover:bg-slate-50 transition"
+                                >
+                                    Từ chối
+                                </Link>
+                                <SubmitButton 
+                                    className="inline-flex items-center justify-center rounded-2xl bg-amber-600 px-6 py-3 text-sm font-semibold text-white shadow-sm hover:bg-amber-700 transition" 
+                                    pendingText="Đang ép lưu..."
+                                >
+                                    Đồng ý & Lưu
+                                </SubmitButton>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            )}
         </AppShell>
     );
 }
