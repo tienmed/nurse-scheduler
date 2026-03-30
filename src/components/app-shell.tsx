@@ -2,6 +2,7 @@ import Link from "next/link";
 import {
   AlertCircle,
   CalendarDays,
+  CalendarOff,
   CheckCircle2,
   ClipboardList,
   FileSpreadsheet,
@@ -14,6 +15,7 @@ import { signOut } from "@/auth";
 import { Pill } from "@/components/pill";
 import { APP_NAME, APP_TAGLINE, ROLE_LABELS } from "@/lib/constants";
 import { cn } from "@/lib/cn";
+import { canEdit } from "@/lib/session";
 import type { SessionUser } from "@/lib/types";
 
 interface AppShellProps {
@@ -33,6 +35,7 @@ const navItems = [
   { href: "/template", label: "Lịch nền", shortLabel: "Nền", icon: LayoutTemplate },
   { href: "/areas", label: "Khu vực", shortLabel: "Khu vực", icon: MapPin },
   { href: "/staff", label: "Nhân sự", shortLabel: "Nhân sự", icon: Users },
+  { href: "/leave", label: "Nghỉ Phép", shortLabel: "Nghỉ", icon: CalendarOff },
   { href: "/reports", label: "Báo cáo", shortLabel: "Báo cáo", icon: FileSpreadsheet },
 ];
 
@@ -46,13 +49,21 @@ export function AppShell({
   message,
   error,
 }: AppShellProps) {
+  const editable = user ? canEdit(user.role) : false;
+  const filteredNavItems = navItems.filter((item) => {
+    if (["/staff", "/areas", "/template"].includes(item.href)) {
+      return editable;
+    }
+    return true;
+  });
+
   const userInitials = user
     ? user.name
-        .split(" ")
-        .slice(0, 2)
-        .map((part) => part[0])
-        .join("")
-        .toUpperCase()
+      .split(" ")
+      .slice(0, 2)
+      .map((part) => part[0])
+      .join("")
+      .toUpperCase()
     : "??";
 
   return (
@@ -73,7 +84,7 @@ export function AppShell({
             </div>
 
             <nav className="space-y-2">
-              {navItems.map(({ href, label, icon: Icon }) => {
+              {filteredNavItems.map(({ href, label, icon: Icon }) => {
                 const active = currentPath === href;
                 return (
                   <Link
@@ -154,7 +165,7 @@ export function AppShell({
             <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
               <div className="space-y-3">
                 <div className="flex flex-wrap gap-2 lg:hidden">
-                  {navItems.map(({ href, label }) => (
+                  {filteredNavItems.map(({ href, label }) => (
                     <Link
                       key={href}
                       href={href}
@@ -205,8 +216,11 @@ export function AppShell({
           </main>
 
           <nav className="fixed inset-x-3 bottom-3 z-30 rounded-[28px] border border-slate-900/10 bg-slate-950/96 px-2 py-2 shadow-[0_18px_40px_rgba(15,23,42,0.24)] backdrop-blur lg:hidden">
-            <div className="grid grid-cols-6 gap-1">
-              {navItems.map(({ href, shortLabel, icon: Icon }) => {
+            <div className={cn(
+              "grid gap-1",
+              filteredNavItems.length === 7 ? "grid-cols-7" : "grid-cols-4"
+            )}>
+              {filteredNavItems.map(({ href, shortLabel, icon: Icon }) => {
                 const active = currentPath === href;
                 return (
                   <Link

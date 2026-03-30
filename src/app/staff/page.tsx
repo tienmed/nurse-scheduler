@@ -1,8 +1,8 @@
 import Link from "next/link";
-import { FilePlus2, PencilLine, ShieldCheck, Stethoscope, Users, X } from "lucide-react";
+import { redirect } from "next/navigation";
+import { PencilLine, ShieldCheck, Stethoscope, Users, X } from "lucide-react";
 import {
   saveAccessControlAction,
-  saveLeaveAction,
   savePositionAction,
   saveStaffAction,
 } from "@/app/actions";
@@ -14,8 +14,6 @@ import { Pill } from "@/components/pill";
 import { SubmitButton } from "@/components/submit-button";
 import { SurfaceSection } from "@/components/surface-section";
 import {
-  LEAVE_REASON_LABELS,
-  LEAVE_SHIFT_LABELS,
   ROLE_LABELS,
 } from "@/lib/constants";
 import { getAppData } from "@/lib/repository";
@@ -32,12 +30,13 @@ interface StaffPageProps {
 export default async function StaffPage({ searchParams }: StaffPageProps) {
   const { message, error, editStaff } = await searchParams;
   const { authEnabled, user } = await getUserContext({ required: false });
+
   if (authEnabled && !user) {
     return (
       <AppShell
         currentPath="/staff"
-        title="Nhân sự và nghỉ phép"
-        description="Quản lý danh sách điều dưỡng, vị trí làm việc, thông tin nghỉ phép và danh sách email được phép đăng nhập."
+        title="Nhân sự"
+        description="Quản lý danh sách điều dưỡng, vị trí làm việc và danh sách email được phép đăng nhập."
         authEnabled={authEnabled}
         user={user}
         message={message}
@@ -46,6 +45,10 @@ export default async function StaffPage({ searchParams }: StaffPageProps) {
         <AuthRequiredState returnTo="/staff" />
       </AppShell>
     );
+  }
+
+  if (!canEdit(user!.role)) {
+    redirect("/leave");
   }
 
   const currentUser = user!;
@@ -67,8 +70,8 @@ export default async function StaffPage({ searchParams }: StaffPageProps) {
   return (
     <AppShell
       currentPath="/staff"
-      title="Nhân sự và nghỉ phép"
-      description="Quản lý danh sách điều dưỡng, vị trí làm việc, thông tin nghỉ phép và danh sách email được phép đăng nhập."
+      title="Nhân sự"
+      description="Quản lý danh sách điều dưỡng, vị trí làm việc và danh sách email được phép đăng nhập."
       authEnabled={authEnabled}
       user={currentUser}
       message={message}
@@ -217,203 +220,75 @@ export default async function StaffPage({ searchParams }: StaffPageProps) {
         </SurfaceSection>
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
-        <SurfaceSection
-          eyebrow="Vị trí"
-          title="Danh mục vị trí làm việc"
-          description="Mỗi vị trí sẽ xuất hiện trong lịch nền, lịch tuần và báo cáo xoay vòng vị trí."
-        >
-          {data.positions.length > 0 ? (
-            <div className="space-y-3">
-              {data.positions.map((position) => (
-                <div
-                  key={position.id}
-                  className="rounded-[22px] border border-slate-200/80 bg-slate-50/80 px-4 py-4"
-                >
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <p className="font-medium text-slate-900">{position.name}</p>
-                      <p className="text-sm text-slate-500">{position.area}</p>
-                    </div>
-                    <Pill tone="teal">{position.description ? "Đã có mô tả" : "Chưa ghi chú"}</Pill>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <EmptyState
-              icon={Stethoscope}
-              title="Chưa có vị trí làm việc"
-              description="Bạn nên thêm đủ vị trí vận hành như Đo sinh hiệu, ECG, Tiêm truyền để lịch nền có thể gán người đúng chỗ."
-              tone="amber"
-            />
-          )}
-          <form action={savePositionAction} className="mt-5 grid gap-4 border-t border-slate-200 pt-5">
-            <input type="hidden" name="returnTo" value="/staff" />
-            <label className="space-y-2 text-sm text-slate-700">
-              <span className="font-medium">Tên vị trí</span>
-              <input
-                name="name"
-                className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-teal-500"
-                placeholder="Phòng ECG"
-                disabled={!editable}
-              />
-            </label>
-            <label className="space-y-2 text-sm text-slate-700">
-              <span className="font-medium">Khu vực</span>
-              <input
-                name="area"
-                className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-teal-500"
-                placeholder="Cận lâm sàng"
-                disabled={!editable}
-              />
-            </label>
-            <label className="space-y-2 text-sm text-slate-700">
-              <span className="font-medium">Mô tả</span>
-              <textarea
-                name="description"
-                rows={3}
-                className="w-full rounded-3xl border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-teal-500"
-                placeholder="Mô tả ngắn về phạm vi vị trí"
-                disabled={!editable}
-              />
-            </label>
-            <SubmitButton
-              disabled={!editable}
-              className="inline-flex items-center justify-center rounded-2xl border border-slate-200 px-4 py-3 text-sm font-medium text-slate-700 transition hover:border-slate-300 hover:bg-slate-100 disabled:cursor-not-allowed disabled:bg-slate-100"
-              pendingText="Đang lưu..."
-            >
-              Lưu vị trí
-            </SubmitButton>
-          </form>
-        </SurfaceSection>
-
-        <SurfaceSection
-          eyebrow="Nghỉ phép"
-          title="Nhập ca nghỉ"
-          description="Thông tin nghỉ phép hoặc nghỉ ốm sẽ được dùng để cảnh báo khi sinh lịch tuần mới từ lịch nền."
-        >
-          <div className="grid gap-5 lg:grid-cols-[0.96fr_1.04fr]">
-            <form action={saveLeaveAction} className="grid gap-4">
-              <input type="hidden" name="returnTo" value="/staff" />
-              <label className="space-y-2 text-sm text-slate-700">
-                <span className="font-medium">Nhân sự</span>
-                <select
-                  name="staffId"
-                  className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-teal-500"
-                  disabled={!editable || data.staff.length === 0}
-                >
-                  {data.staff.map((member) => (
-                    <option key={member.id} value={member.id}>
-                      {member.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <div className="grid grid-cols-2 gap-3">
-                <label className="space-y-2 text-sm text-slate-700">
-                  <span className="font-medium">Từ ngày</span>
-                  <input
-                    type="date"
-                    name="fromDate"
-                    className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-teal-500"
-                    disabled={!editable}
-                  />
-                </label>
-                <label className="space-y-2 text-sm text-slate-700">
-                  <span className="font-medium">Đến ngày</span>
-                  <input
-                    type="date"
-                    name="toDate"
-                    className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-teal-500"
-                    disabled={!editable}
-                  />
-                </label>
-              </div>
-              <label className="space-y-2 text-sm text-slate-700">
-                <span className="font-medium">Ca nghỉ</span>
-                <select
-                  name="shift"
-                  className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-teal-500"
-                  defaultValue="full-day"
-                  disabled={!editable}
-                >
-                  {Object.entries(LEAVE_SHIFT_LABELS).map(([value, label]) => (
-                    <option key={value} value={value}>
-                      {label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="space-y-2 text-sm text-slate-700">
-                <span className="font-medium">Lý do</span>
-                <select
-                  name="reason"
-                  className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-teal-500"
-                  defaultValue="phep"
-                  disabled={!editable}
-                >
-                  {Object.entries(LEAVE_REASON_LABELS).map(([value, label]) => (
-                    <option key={value} value={value}>
-                      {label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="space-y-2 text-sm text-slate-700">
-                <span className="font-medium">Ghi chú</span>
-                <textarea
-                  name="note"
-                  rows={3}
-                  className="w-full rounded-3xl border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-teal-500"
-                  placeholder="Ví dụ: nghỉ phép đã duyệt"
-                  disabled={!editable}
-                />
-              </label>
-              <SubmitButton
-                disabled={!editable || data.staff.length === 0}
-                className="inline-flex items-center justify-center rounded-2xl bg-slate-950 px-4 py-3 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300"
-                pendingText="Đang ghi nhận..."
+      <SurfaceSection
+        eyebrow="Vị trí"
+        title="Danh mục vị trí làm việc"
+        description="Mỗi vị trí sẽ xuất hiện trong lịch nền, lịch tuần và báo cáo xoay vòng vị trí."
+      >
+        {data.positions.length > 0 ? (
+          <div className="space-y-3">
+            {data.positions.map((position) => (
+              <div
+                key={position.id}
+                className="rounded-[22px] border border-slate-200/80 bg-slate-50/80 px-4 py-4"
               >
-                Lưu ca nghỉ
-              </SubmitButton>
-            </form>
-
-            {data.leaveRequests.length > 0 ? (
-              <div className="space-y-3">
-                {data.leaveRequests.map((leave) => {
-                  const person = data.staff.find((member) => member.id === leave.staffId);
-                  return (
-                    <div
-                      key={leave.id}
-                      className="rounded-[22px] border border-slate-200/80 bg-slate-50/80 px-4 py-4 text-sm"
-                    >
-                      <div className="flex items-center justify-between gap-3">
-                        <div>
-                          <p className="font-medium text-slate-900">{person?.name ?? leave.staffId}</p>
-                          <p className="text-slate-500">{leave.date}</p>
-                        </div>
-                        <Pill tone="amber">{LEAVE_REASON_LABELS[leave.reason]}</Pill>
-                      </div>
-                      <p className="mt-2 text-slate-500">{LEAVE_SHIFT_LABELS[leave.shift]}</p>
-                      {leave.note ? <p className="mt-2 text-slate-500">{leave.note}</p> : null}
-                    </div>
-                  );
-                })}
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="font-medium text-slate-900">{position.name}</p>
+                    <p className="text-sm text-slate-500">{position.area}</p>
+                  </div>
+                  <Pill tone="teal">{position.description ? "Đã có mô tả" : "Chưa ghi chú"}</Pill>
+                </div>
               </div>
-            ) : (
-              <EmptyState
-                icon={FilePlus2}
-                title="Chưa có phiếu nghỉ nào"
-                description="Khi có điều dưỡng xin nghỉ phép hoặc nghỉ ốm, hãy nhập vào đây để hệ thống tự cảnh báo xung đột khi sinh lịch tuần."
-                tone="slate"
-              />
-            )}
+            ))}
           </div>
-        </SurfaceSection>
-      </div>
-
-
+        ) : (
+          <EmptyState
+            icon={Stethoscope}
+            title="Chưa có vị trí làm việc"
+            description="Bạn nên thêm đủ vị trí vận hành như Đo sinh hiệu, ECG, Tiêm truyền để lịch nền có thể gán người đúng chỗ."
+            tone="amber"
+          />
+        )}
+        <form action={savePositionAction} className="mt-5 grid gap-4 border-t border-slate-200 pt-5">
+          <input type="hidden" name="returnTo" value="/staff" />
+          <label className="space-y-2 text-sm text-slate-700">
+            <span className="font-medium">Tên vị trí</span>
+            <input
+              name="name"
+              className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-teal-500"
+              placeholder="Phòng ECG"
+              disabled={!editable}
+            />
+          </label>
+          <label className="space-y-2 text-sm text-slate-700">
+            <span className="font-medium">Khu vực</span>
+            <input
+              name="area"
+              className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-teal-500"
+              placeholder="Cận lâm sàng"
+              disabled={!editable}
+            />
+          </label>
+          <label className="space-y-2 text-sm text-slate-700">
+            <span className="font-medium">Mô tả</span>
+            <textarea
+              name="description"
+              rows={3}
+              className="w-full rounded-3xl border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-teal-500"
+              placeholder="Mô tả ngắn về phạm vi vị trí"
+              disabled={!editable}
+            />
+          </label>
+          <SubmitButton
+            disabled={!editable}
+            className="inline-flex items-center justify-center rounded-2xl border border-slate-200 px-4 py-3 text-sm font-medium text-slate-700 transition hover:border-slate-300 hover:bg-slate-100 disabled:cursor-not-allowed disabled:bg-slate-100"
+            pendingText="Đang lưu..."
+          >
+            Lưu vị trí
+          </SubmitButton>
+        </form>
+      </SurfaceSection>
 
       {editingMember ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">

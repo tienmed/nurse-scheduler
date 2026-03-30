@@ -49,7 +49,7 @@ async function assertEditor() {
 }
 
 function revalidateWorkspace() {
-  ["/", "/schedule", "/template", "/staff", "/reports"].forEach((path) => {
+  ["/", "/schedule", "/template", "/staff", "/leave", "/reports"].forEach((path) => {
     revalidatePath(path);
   });
 }
@@ -160,7 +160,7 @@ export async function saveTemplateAssignmentAction(formData: FormData) {
 
   try {
     await assertEditor();
-    
+
     const dayOfWeeks = formData.getAll("dayOfWeek").map((v) => Number(v));
     const shifts = formData.getAll("shift") as ("morning" | "afternoon")[];
     const positionIds = formData.getAll("positionId").map((v) => String(v));
@@ -277,10 +277,14 @@ export async function saveWeeklyAssignmentAction(formData: FormData) {
 }
 
 export async function saveLeaveAction(formData: FormData) {
-  const returnTo = getValue(formData, "returnTo") || "/staff";
+  const returnTo = getValue(formData, "returnTo") || "/leave";
 
   try {
-    await assertEditor();
+    const { user } = await getUserContext({ required: false });
+    if (!user) {
+      throw new Error("Phiên đăng nhập đã hết hạn hoặc chưa sẵn sàng. Vui lòng đăng nhập lại rồi thử lại.");
+    }
+
     const staffId = getValue(formData, "staffId");
     const fromDate = getValue(formData, "fromDate");
     const toDate = getValue(formData, "toDate") || fromDate;
@@ -290,6 +294,17 @@ export async function saveLeaveAction(formData: FormData) {
 
     if (!staffId || !fromDate) {
       throw new Error("Vui lòng chọn nhân sự và ngày nghỉ.");
+    }
+
+    // Viewer chỉ được đăng ký cho bản thân
+    if (!canEdit(user.role)) {
+      const data = await getAppData();
+      const ownStaff = data.staff.find(
+        (s) => s.email.toLowerCase() === user.email.toLowerCase(),
+      );
+      if (!ownStaff || ownStaff.id !== staffId) {
+        throw new Error("Bạn chỉ có quyền đăng ký nghỉ phép cho bản thân.");
+      }
     }
 
     // Tạo danh sách ngày từ fromDate → toDate
@@ -328,6 +343,7 @@ export async function saveLeaveAction(formData: FormData) {
     });
   }
 }
+
 
 export async function generateWeekAction(formData: FormData) {
   const returnTo = getValue(formData, "returnTo") || "/schedule";
@@ -455,7 +471,7 @@ export async function savePositionRulesBatchAction(formData: FormData) {
   const returnTo = getValue(formData, "returnTo") || "/template";
   try {
     await assertEditor();
-    
+
     // Tìm tất cả các key
     const allSlots = formData.getAll("all_slots").map(s => String(s)); // format: posId|day|shift
     const checkedSlots = new Set(formData.getAll("active_slots").map(s => String(s)));
@@ -465,7 +481,7 @@ export async function savePositionRulesBatchAction(formData: FormData) {
       const [positionId, dayOfWeekStr, shift] = slot.split("|");
       const dayOfWeek = Number(dayOfWeekStr);
       const active = checkedSlots.has(slot);
-      
+
       rulesToSave.push({
         positionId,
         dayOfWeek,

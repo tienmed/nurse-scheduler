@@ -1,4 +1,5 @@
 import { Metadata } from "next";
+import { redirect } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
 import { AuthRequiredState } from "@/components/auth-required-state";
 import { EmptyState } from "@/components/empty-state";
@@ -64,6 +65,10 @@ export default async function AreasPage() {
     );
   }
 
+  if (!canEdit(user.role)) {
+    redirect("/leave");
+  }
+
   const data = await getAppData();
   const editable = canEdit(user.role);
   const areaGroups = groupPositionsByArea(data.positions);
@@ -98,7 +103,7 @@ export default async function AreasPage() {
               "bg-orange-50/70 border-orange-100"
             ];
             const themeBackground = areaName === "Khác" ? "bg-slate-50/80 border-slate-200" : themeColors[areaIndex % themeColors.length];
-            
+
             return (
               <SurfaceSection key={areaName} title={`${positions.length} vị trí`} eyebrow={areaName}>
                 <h2 className="mb-6 flex items-center gap-3 text-xl font-bold tracking-tight text-slate-800">

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { Settings2, Users } from "lucide-react";
 import { applyPrioritizedStaffToTemplateAction, saveScheduleRuleAction, saveTemplateAssignmentAction, savePositionRuleAction, savePositionRulesBatchAction } from "@/app/actions";
 import { AppShell } from "@/components/app-shell";
@@ -44,6 +45,11 @@ export default async function TemplatePage({ searchParams }: TemplatePageProps) 
       </AppShell>
     );
   }
+
+  if (!canEdit(user!.role)) {
+    redirect("/leave");
+  }
+
   const currentUser = user!;
   const data = await getAppData();
   const editable = canEdit(currentUser.role);
@@ -120,7 +126,7 @@ export default async function TemplatePage({ searchParams }: TemplatePageProps) 
           title="Ma trận Đóng/Mở vị trí"
           description="Tích chọn (check) để Mở vị trí, bỏ chọn để Đóng vị trí. Hệ thống sẽ không xếp lịch cho các vị trí bị đóng."
         >
-          <PositionMatrix 
+          <PositionMatrix
             positions={data.positions}
             scheduleRules={scheduleRules}
             positionRules={data.positionRules}
@@ -158,11 +164,10 @@ export default async function TemplatePage({ searchParams }: TemplatePageProps) 
               <Link
                 key={`${tab.dayOfWeek}-${tab.shift}`}
                 href={tab.href}
-                className={`rounded-full px-3.5 py-2 text-xs font-semibold transition ${
-                  tab.isActive
+                className={`rounded-full px-3.5 py-2 text-xs font-semibold transition ${tab.isActive
                     ? "bg-slate-950 text-white shadow-md"
                     : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                }`}
+                  }`}
               >
                 {tab.label}
               </Link>
