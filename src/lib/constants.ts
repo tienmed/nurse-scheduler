@@ -78,6 +78,7 @@ export const SHEET_NAMES = {
   leaveRequests: "leave_requests",
   positionRules: "position_rules",
   accessControl: "access_control",
+  leaveCancellations: "leave_cancellations",
 } as const;
 
 export const SHEET_HEADERS = {
@@ -100,6 +101,7 @@ export const SHEET_HEADERS = {
   leaveRequests: ["id", "staffId", "date", "shift", "reason", "note"],
   positionRules: ["id", "positionId", "dayOfWeek", "shift", "active"],
   accessControl: ["id", "email", "role", "displayName"],
+  leaveCancellations: ["id", "staffId", "date", "shift", "cancelledAt"],
 } as const;
 
 export const DEMO_ACCESS_CONTROL: AccessControlEntry[] = [

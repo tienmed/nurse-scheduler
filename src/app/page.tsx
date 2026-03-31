@@ -2,6 +2,7 @@ import Link from "next/link";
 import {
   AlertTriangle,
   ArrowRight,
+  Briefcase,
   CalendarRange,
   FileSpreadsheet,
   FolderPlus,
@@ -16,7 +17,7 @@ import { EmptyState } from "@/components/empty-state";
 import { Pill } from "@/components/pill";
 import { SurfaceSection } from "@/components/surface-section";
 import { LEAVE_REASON_LABELS, LEAVE_SHIFT_LABELS } from "@/lib/constants";
-import { getMonthKey, getNextWeekStart } from "@/lib/date";
+import { formatDate, getMonthKey, getNextWeekStart } from "@/lib/date";
 import { isSheetsConfigured } from "@/lib/env";
 import { getAppData } from "@/lib/repository";
 import {
@@ -66,13 +67,13 @@ export default async function HomePage({ searchParams }: HomePageProps) {
     nextWeekAssignments.length > 0
       ? nextWeekAssignments
       : buildAssignmentsFromTemplate(
-          data.templateSchedule,
-          data.positions,
-          nextWeekStart,
-          data.leaveRequests,
-          data.scheduleRules,
-          data.positionRules,
-        );
+        data.templateSchedule,
+        data.positions,
+        nextWeekStart,
+        data.leaveRequests,
+        data.scheduleRules,
+        data.positionRules,
+      );
 
   const monthlyWorkload = calculateMonthlyWorkload(data.weeklySchedule, currentMonth);
   const monthlyLeaves = calculateMonthlyLeaves(data.leaveRequests, currentMonth);
@@ -89,7 +90,15 @@ export default async function HomePage({ searchParams }: HomePageProps) {
     })
     .sort((a, b) => compareAsc(parseISO(a.date), parseISO(b.date)));
 
-  // Báo động rủi ro nhân sự (>1 vàng, >3 đỏ)
+  // Nhân sự huỷ phép (trống việc) trong 7 ngày gần nhất
+  const recentCancellations = data.leaveCancellations
+    .filter((c) => {
+      const cDate = parseISO(c.date);
+      return cDate >= today && cDate <= next7Days;
+    })
+    .sort((a, b) => compareAsc(parseISO(a.date), parseISO(b.date)));
+
+  // Báo động rủi ro nhân sự (3 mức Đỏ, Cam, Vàng)
   const groupedLeaves = new Map<string, typeof upcomingLeaves>();
   for (const leave of upcomingLeaves) {
     const key = `${leave.date}-${leave.shift}`;
@@ -99,18 +108,40 @@ export default async function HomePage({ searchParams }: HomePageProps) {
     groupedLeaves.get(key)!.push(leave);
   }
 
+  type AlertLevel = "red" | "orange" | "yellow";
   const criticalShortages = Array.from(groupedLeaves.entries())
-    .map(([, leaves]) => ({
-       date: leaves[0].date,
-       shift: leaves[0].shift,
-       count: leaves.length,
-       leaves
-    }))
-    .filter(g => g.count > 1) // Chỉ lấy các nhóm có từ 2 người trở lên
+    .map(([, leaves]) => {
+      const dihocLeavesCount = leaves.filter(l => l.reason === "dihoc").length;
+      const otherLeavesCount = leaves.length - dihocLeavesCount;
+
+      let alertLevel: AlertLevel | null = null;
+      if (otherLeavesCount > 1 && dihocLeavesCount > 0) {
+        alertLevel = "red";
+      } else if (otherLeavesCount > 1 && dihocLeavesCount === 0) {
+        alertLevel = "orange";
+      } else if (otherLeavesCount === 1 && dihocLeavesCount > 0) {
+        alertLevel = "orange";
+      } else if (otherLeavesCount === 1 && dihocLeavesCount === 0) {
+        alertLevel = "yellow";
+      }
+
+      return {
+        date: leaves[0].date,
+        shift: leaves[0].shift,
+        count: leaves.length,
+        leaves,
+        alertLevel
+      }
+    })
+    .filter(g => g.alertLevel !== null)
     .sort((a, b) => {
+      const levelRank = { red: 3, orange: 2, yellow: 1 };
+      const rankA = a.alertLevel ? levelRank[a.alertLevel] : 0;
+      const rankB = b.alertLevel ? levelRank[b.alertLevel] : 0;
+      if (rankB !== rankA) return rankB - rankA;
       if (b.count !== a.count) return b.count - a.count;
       return compareAsc(parseISO(a.date), parseISO(b.date));
-    }); // Nhiều người nghỉ nhất xếp trên
+    });
 
   const kpis = [
     {
@@ -216,57 +247,80 @@ export default async function HomePage({ searchParams }: HomePageProps) {
       <div className="grid gap-6 lg:grid-cols-2">
         <SurfaceSection
           eyebrow="Phòng ngừa"
-          title="Cảnh báo vỡ ca (7 ngày tới)"
-          description="Hệ thống quyét và phát hiện lượng nhân sự nghỉ tập trung tại cùng 1 ca làm kéo theo rủi ro sập dây chuyền."
+          title="Cảnh báo (7 ngày gần nhất)"
+          description="Hệ thống quyét và phát hiện lượng nhân sự nghỉ và đi học tập trung tại cùng 1 ca làm kéo theo rủi ro sập dây chuyền."
         >
           {criticalShortages.length > 0 ? (
             <div className="space-y-4">
               {criticalShortages.slice(0, 4).map((shortage, idx) => {
-                const isRedAlert = shortage.count > 3;
+                const isRedAlert = shortage.alertLevel === "red";
+                const isOrangeAlert = shortage.alertLevel === "orange";
+                const isYellowAlert = shortage.alertLevel === "yellow";
                 const Icon = isRedAlert ? Siren : AlertTriangle;
+
+                let cardClass = "";
+                let iconWrapperClass = "";
+                let titleClass = "";
+                let descClass = "";
+                let tagClass = "";
+                let labelColorClass = "";
+
+                if (isRedAlert) {
+                  cardClass = "bg-rose-50 border-rose-200/60 shadow-[0_12px_40px_rgba(225,29,72,0.06)]";
+                  iconWrapperClass = "bg-rose-100 text-rose-600";
+                  titleClass = "text-rose-950";
+                  descClass = "text-rose-700 font-medium";
+                  tagClass = "bg-white text-rose-800 border-rose-100";
+                  labelColorClass = "text-rose-400";
+                } else if (isOrangeAlert) {
+                  cardClass = "bg-orange-50 border-orange-200/60 shadow-[0_12px_40px_rgba(249,115,22,0.08)]";
+                  iconWrapperClass = "bg-orange-100 text-orange-600";
+                  titleClass = "text-orange-950";
+                  descClass = "text-orange-700 font-medium";
+                  tagClass = "bg-white text-orange-800 border-orange-100";
+                  labelColorClass = "text-orange-500";
+                } else {
+                  cardClass = "bg-amber-50 border-amber-200/60 shadow-[0_12px_40px_rgba(245,158,11,0.04)]";
+                  iconWrapperClass = "bg-amber-100 text-amber-600";
+                  titleClass = "text-amber-950";
+                  descClass = "text-amber-700 font-medium";
+                  tagClass = "bg-white text-amber-800 border-amber-100";
+                  labelColorClass = "text-amber-500 font-normal";
+                }
+
                 return (
                   <div
                     key={`${shortage.date}-${shortage.shift}-${idx}`}
-                    className={`rounded-[24px] border border-transparent p-5 text-sm transition-all ${
-                      isRedAlert
-                        ? "bg-rose-50 border-rose-200/60 shadow-[0_12px_40px_rgba(225,29,72,0.06)]"
-                        : "bg-amber-50 border-amber-200/60 shadow-[0_12px_40px_rgba(217,119,6,0.04)]"
-                    }`}
+                    className={`rounded-[24px] border border-transparent p-5 text-sm transition-all ${cardClass}`}
                   >
                     <div className="flex items-start gap-4">
                       <div
-                        className={`mt-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${
-                          isRedAlert ? "bg-rose-100 text-rose-600" : "bg-amber-100 text-amber-600"
-                        }`}
+                        className={`mt-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${iconWrapperClass}`}
                       >
                         <Icon className="h-5 w-5" />
                       </div>
                       <div className="flex-1 space-y-3">
                         <div>
                           <p
-                            className={`font-bold ${
-                              isRedAlert ? "text-rose-950" : "text-amber-950"
-                            }`}
+                            className={`font-bold ${titleClass}`}
                           >
                             Cảnh báo: Có {shortage.count} người cùng nghỉ vào ca {LEAVE_SHIFT_LABELS[shortage.shift]} ngày {shortage.date}
                           </p>
                           <p
-                            className={`mt-1 line-clamp-2 text-xs leading-5 ${
-                              isRedAlert ? "text-rose-700 font-medium" : "text-amber-700"
-                            }`}
+                            className={`mt-1 line-clamp-2 text-xs leading-5 ${descClass}`}
                           >
-                            {isRedAlert
-                              ? "Mức độ Báo Động: Nguy cơ cao trống vị trí trực và chậm luân chuyển bệnh nhân. Cần lập tức bố trí người làm bù hoặc kêu gọi Tăng ca."
-                              : "Mức độ Chú Ý: Vắng từ 2 người trở lên trong cùng 1 ca có thể gây áp lực lên các đội nhóm khác."}
+                            {isRedAlert && "Mức độ Báo Động (Đỏ): Nguy cơ cao trống vị trí trực do vắng nhiều người kèm nhân sự đi học."}
+                            {isOrangeAlert && "Mức độ Chú Ý (Cam): Rủi ro thiếu nhân sự vì vắng từ 2 người trở lên, hoặc 1 người nghỉ kèm người đi học."}
+                            {isYellowAlert && "Mức độ Nhắc Nhở (Vàng): Có 1 nhân sự đăng ký vắng mặt trong ca, có thể tự thu xếp điều phối cục bộ."}
                           </p>
                         </div>
                         <div className="flex flex-wrap gap-2">
                           {shortage.leaves.map((l) => {
                             const pName = data.staff.find(s => s.id === l.staffId)?.name || l.staffId;
                             return (
-                              <span key={l.id} className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold ${isRedAlert ? "bg-white text-rose-800 border-rose-100" : "bg-white text-amber-800 border-amber-100"} border shadow-sm`}>
+                              <span key={l.id} className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold ${tagClass} border shadow-sm`}>
                                 {pName}
-                                <span className={isRedAlert ? "text-rose-400" : "text-amber-500 font-normal"}>({LEAVE_REASON_LABELS[l.reason]})</span>
+                                <span className={labelColorClass}>({LEAVE_REASON_LABELS[l.reason]})</span>
                               </span>
                             );
                           })}
@@ -331,7 +385,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                   >
                     <div className="flex flex-col sm:flex-row sm:items-center gap-3">
                       <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white border border-slate-200 text-slate-500 shadow-sm text-xl font-bold">
-                        {leave.date.slice(8,10)}
+                        {leave.date.slice(8, 10)}
                       </div>
                       <div>
                         <p className="font-bold text-slate-900">{person?.name ?? leave.staffId}</p>
@@ -356,6 +410,49 @@ export default async function HomePage({ searchParams }: HomePageProps) {
           )}
         </SurfaceSection>
 
+        <SurfaceSection
+          eyebrow="Cập nhật"
+          title="Nhân sự trống việc (7 ngày tới)"
+          description="Các nhân sự đã huỷ đăng ký nghỉ phép và sẵn sàng quay lại làm việc."
+        >
+          {recentCancellations.length > 0 ? (
+            <div className="space-y-3">
+              {recentCancellations.map((cancel) => {
+                const person = data.staff.find((s) => s.id === cancel.staffId);
+                const cancelTime = cancel.cancelledAt ? formatDate(cancel.cancelledAt.slice(0, 10)) : "";
+                return (
+                  <div
+                    key={cancel.id}
+                    className="flex flex-col gap-3 rounded-[22px] border border-emerald-200/80 bg-emerald-50/60 px-4 py-4 md:flex-row md:items-center md:justify-between"
+                  >
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-100 border border-emerald-200 text-emerald-600 shadow-sm">
+                        <Briefcase className="h-4 w-4" />
+                      </div>
+                      <div>
+                        <p className="font-bold text-slate-900">{person?.name ?? cancel.staffId}</p>
+                        <p className="text-sm text-slate-500">
+                          Quay lại làm ngày {cancel.date} · {LEAVE_SHIFT_LABELS[cancel.shift]}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <Pill tone="teal">Sẵn sàng</Pill>
+                      {cancelTime && <Pill tone="slate">Huỷ lúc {cancelTime}</Pill>}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <EmptyState
+              icon={Briefcase}
+              title="Chưa có thay đổi"
+              description="Không có nhân sự nào huỷ nghỉ phép và quay lại làm trong 7 ngày tới."
+              tone="slate"
+            />
+          )}
+        </SurfaceSection>
         <SurfaceSection
           eyebrow="Phân tích tháng"
           title="Chỉ số tháng hiện tại"
@@ -396,19 +493,19 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                 <p className="text-sm font-semibold text-slate-950">Nhân sự nghỉ nhiều trong tháng</p>
                 <div className="mt-4 space-y-3">
                   {monthlyLeaves
-                    .sort((a,b) => (b.phep + b.om + b.khac) - (a.phep + a.om + a.khac))
+                    .sort((a, b) => (b.phep + b.om + b.khac) - (a.phep + a.om + a.khac))
                     .slice(0, 5).map((item) => {
-                    const person = data.staff.find((staff) => staff.id === item.staffId);
-                    return (
-                      <div key={item.staffId} className="flex items-center justify-between gap-3 text-sm">
-                        <div>
-                          <p className="font-medium text-slate-900">{person?.name ?? item.staffId}</p>
-                          <p className="text-slate-500">{item.days} ngày nghỉ quy đổi</p>
+                      const person = data.staff.find((staff) => staff.id === item.staffId);
+                      return (
+                        <div key={item.staffId} className="flex items-center justify-between gap-3 text-sm">
+                          <div>
+                            <p className="font-medium text-slate-900">{person?.name ?? item.staffId}</p>
+                            <p className="text-slate-500">{item.days} ngày nghỉ quy đổi</p>
+                          </div>
+                          <Pill tone="amber">{item.phep + item.om + item.khac} lượt</Pill>
                         </div>
-                        <Pill tone="amber">{item.phep + item.om + item.khac} lượt</Pill>
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
                 </div>
               </div>
             </div>

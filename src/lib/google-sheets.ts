@@ -17,6 +17,7 @@ const APP_DATA_TO_SHEET: Record<AppDataKey, SheetName> = {
   leaveRequests: "leaveRequests",
   positionRules: "positionRules",
   accessControl: "accessControl",
+  leaveCancellations: "leaveCancellations",
 };
 
 const sheetSerializers: Record<AppDataKey, (data: AppData) => SheetRow[]> = {
@@ -96,6 +97,14 @@ const sheetSerializers: Record<AppDataKey, (data: AppData) => SheetRow[]> = {
       role: row.role,
       displayName: row.displayName ?? "",
     })),
+  leaveCancellations: (data) =>
+    data.leaveCancellations.map((row) => ({
+      id: row.id,
+      staffId: row.staffId,
+      date: row.date,
+      shift: row.shift,
+      cancelledAt: row.cancelledAt,
+    })),
 };
 
 function slugify(value: string) {
@@ -122,7 +131,7 @@ let isStructureEnsured = false;
 
 async function ensureCorrectSheetStructure() {
   if (!isSheetsConfigured() || isStructureEnsured) return;
-  
+
   const sheets = createSheetsClient();
   const spreadsheet = await sheets.spreadsheets.get({
     spreadsheetId: env.GOOGLE_SHEET_ID,
@@ -130,64 +139,64 @@ async function ensureCorrectSheetStructure() {
 
   const existingSheets = spreadsheet.data.sheets ?? [];
   const sheetTitles = existingSheets.map(s => s.properties?.title);
-  const targetTitle = SHEET_NAMES.positionRules;
+
+  // --- Xử lý positionRules (migration từ area_rules) ---
+  const posRulesTitle = SHEET_NAMES.positionRules;
   const legacyTitle = "area_rules";
 
-  // Nếu target đã có thì thôi
-  if (sheetTitles.includes(targetTitle)) return;
-
-  // Nếu target chưa có mà legacy có -> Đổi tên
-  const legacySheet = existingSheets.find(s => s.properties?.title === legacyTitle);
-  if (legacySheet && legacySheet.properties?.sheetId !== undefined) {
-    console.log(`🪄 [Google Sheets] Đang tự động đổi tên tab "${legacyTitle}" thành "${targetTitle}"...`);
-    await sheets.spreadsheets.batchUpdate({
-      spreadsheetId: env.GOOGLE_SHEET_ID,
-      requestBody: {
-        requests: [
-          {
-            updateSheetProperties: {
-              properties: {
-                sheetId: legacySheet.properties.sheetId,
-                title: targetTitle,
+  if (!sheetTitles.includes(posRulesTitle)) {
+    const legacySheet = existingSheets.find(s => s.properties?.title === legacyTitle);
+    if (legacySheet && legacySheet.properties?.sheetId !== undefined) {
+      console.log(`🪄 [Google Sheets] Đang tự động đổi tên tab "${legacyTitle}" thành "${posRulesTitle}"...`);
+      await sheets.spreadsheets.batchUpdate({
+        spreadsheetId: env.GOOGLE_SHEET_ID,
+        requestBody: {
+          requests: [
+            {
+              updateSheetProperties: {
+                properties: {
+                  sheetId: legacySheet.properties.sheetId,
+                  title: posRulesTitle,
+                },
+                fields: "title",
               },
-              fields: "title",
             },
-          },
-        ],
-      },
-    });
-    return;
+          ],
+        },
+      });
+    } else {
+      await createSheetWithHeaders(sheets, posRulesTitle, SHEET_HEADERS.positionRules);
+    }
   }
 
-  // Nếu cả hai đều không có -> Tạo mới với header
-  console.log(`🪄 [Google Sheets] Đang tạo mới tab "${targetTitle}"...`);
+  // --- Tạo tab leave_cancellations nếu chưa có ---
+  const cancelTitle = SHEET_NAMES.leaveCancellations;
+  if (!sheetTitles.includes(cancelTitle)) {
+    await createSheetWithHeaders(sheets, cancelTitle, SHEET_HEADERS.leaveCancellations);
+  }
+
+  isStructureEnsured = true;
+}
+
+async function createSheetWithHeaders(
+  sheets: ReturnType<typeof createSheetsClient>,
+  title: string,
+  headers: readonly string[],
+) {
+  console.log(`🪄 [Google Sheets] Đang tạo mới tab "${title}"...`);
   await sheets.spreadsheets.batchUpdate({
     spreadsheetId: env.GOOGLE_SHEET_ID,
     requestBody: {
-      requests: [
-        {
-          addSheet: {
-            properties: {
-              title: targetTitle,
-            },
-          },
-        },
-      ],
+      requests: [{ addSheet: { properties: { title } } }],
     },
   });
 
-  // Ghi header cho sheet mới tạo
-  const headers = SHEET_HEADERS.positionRules;
   await sheets.spreadsheets.values.update({
     spreadsheetId: env.GOOGLE_SHEET_ID,
-    range: `${targetTitle}!A1`,
+    range: `${title}!A1`,
     valueInputOption: "USER_ENTERED",
-    requestBody: {
-      values: [[...headers]],
-    },
+    requestBody: { values: [[...headers]] },
   });
-
-  isStructureEnsured = true;
 }
 
 function createSheetsClient() {
@@ -239,6 +248,7 @@ export async function readAppDataFromSheets(): Promise<AppData> {
     `${SHEET_NAMES.leaveRequests}!A:Z`,
     `${SHEET_NAMES.positionRules}!A:Z`,
     `${SHEET_NAMES.accessControl}!A:Z`,
+    `${SHEET_NAMES.leaveCancellations}!A:Z`,
   ];
 
   let batchResponse;
@@ -277,6 +287,7 @@ export async function readAppDataFromSheets(): Promise<AppData> {
   const leaveRows = parseSheet(5);
   const positionRuleRows = parseSheet(6);
   const accessRows = parseSheet(7);
+  const cancellationRows = parseSheet(8);
 
   const data = {
     staff: staffRows.map((row, index) => ({
@@ -352,6 +363,13 @@ export async function readAppDataFromSheets(): Promise<AppData> {
       role: row.role as "admin" | "coordinator" | "viewer",
       displayName: row.displayName,
     })),
+    leaveCancellations: cancellationRows.map((row, index) => ({
+      id: ensureId("cancel", row.id, `${row.staffId}-${row.date}`, index),
+      staffId: row.staffId,
+      date: row.date,
+      shift: row.shift as "morning" | "afternoon" | "full-day",
+      cancelledAt: row.cancelledAt,
+    })),
   };
 
   if (process.env.NODE_ENV === "development") {
@@ -402,7 +420,7 @@ export async function writeAppDataKeysToSheets(data: AppData, keys: AppDataKey[]
     const sheetName = APP_DATA_TO_SHEET[key];
     const headers = [...SHEET_HEADERS[sheetName]];
     const rows = sheetSerializers[key](data);
-    
+
     if (process.env.NODE_ENV === "development") {
       console.log(`   - ${key} (${sheetName}): chuẩn bị ghi ${rows.length} dòng`);
     }

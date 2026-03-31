@@ -90,6 +90,14 @@ export interface AccessControlEntry {
   displayName?: string;
 }
 
+export interface LeaveCancellation {
+  id: string;
+  staffId: string;
+  date: string;
+  shift: LeaveShift;
+  cancelledAt: string;
+}
+
 export interface AppData {
   staff: StaffMember[];
   positions: Position[];
@@ -99,6 +107,7 @@ export interface AppData {
   leaveRequests: LeaveRecord[];
   positionRules: PositionRule[];
   accessControl: AccessControlEntry[];
+  leaveCancellations: LeaveCancellation[];
 }
 
 export interface SessionUser {

@@ -19,6 +19,8 @@ import {
   getAppData,
   writeAppDataKeysToSheets,
   invalidateAppDataCache,
+  deleteLeaveRequest,
+  addLeaveCancellation,
 } from "@/lib/repository";
 import { canEdit, getUserContext } from "@/lib/session";
 
@@ -49,7 +51,7 @@ async function assertEditor() {
 }
 
 function revalidateWorkspace() {
-  ["/", "/schedule", "/template", "/staff", "/leave", "/reports"].forEach((path) => {
+  ["/", "/schedule", "/template", "/staff", "/leave", "/reports", "/areas"].forEach((path) => {
     revalidatePath(path);
   });
 }
@@ -324,11 +326,11 @@ export async function saveLeaveAction(formData: FormData) {
 
     for (let i = 0; i < dayCount; i++) {
       const date = format(addDays(start, i), "yyyy-MM-dd");
-      
+
       const relevantLeaves = currentData.leaveRequests.filter(
         (l) => l.date === date && l.reason !== "dihoc" && l.staffId !== staffId
       );
-      
+
       let morningCount = 0;
       let afternoonCount = 0;
       for (const l of relevantLeaves) {
@@ -352,23 +354,31 @@ export async function saveLeaveAction(formData: FormData) {
 
     if (quotaExceededDate) {
       if (!canEdit(user.role)) {
-         throw new Error(`Ngày ${quotaExceededDate} đã có đủ 2 nhân sự nghỉ. Hệ thống từ chối đăng ký thêm.`);
+        throw new Error(`Ngày ${quotaExceededDate} đã có đủ 2 nhân sự nghỉ. Hệ thống từ chối đăng ký thêm.`);
       } else if (!forceQuota) {
-         redirectWithState(returnTo, {
-           confirmQuota: "true",
-           cfStaffId: staffId,
-           cfFromDate: fromDate,
-           cfToDate: toDate || "",
-           cfShift: shift,
-           cfReason: reason,
-           cfNote: note,
-         });
+        redirectWithState(returnTo, {
+          confirmQuota: "true",
+          cfStaffId: staffId,
+          cfFromDate: fromDate,
+          cfToDate: toDate || "",
+          cfShift: shift,
+          cfReason: reason,
+          cfNote: note,
+        });
       }
     }
     // --- Kết thúc logic Check Quota ---
 
+    const duplicateDates: string[] = [];
     for (let i = 0; i < dayCount; i++) {
       const date = format(addDays(start, i), "yyyy-MM-dd");
+      const existingLeave = currentData.leaveRequests.find(
+        (l) => l.staffId === staffId && l.date === date && (l.shift === shift || l.shift === "full-day")
+      );
+      if (existingLeave) {
+        duplicateDates.push(date);
+        continue;
+      }
       await upsertLeaveRequest({
         staffId,
         date,
@@ -383,6 +393,7 @@ export async function saveLeaveAction(formData: FormData) {
       message: dayCount === 1
         ? "Đã cập nhật lịch nghỉ."
         : `Đã tạo ${dayCount} ngày nghỉ (${fromDate} → ${toDate}).`,
+      ...(duplicateDates.length > 0 && { warning: `Các ngày đã có lịch nghỉ: ${duplicateDates.join(", ")}` }),
     });
   } catch (error: any) {
     if (error?.message === "NEXT_REDIRECT" || error?.digest?.startsWith("NEXT_REDIRECT")) {
@@ -549,5 +560,60 @@ export async function savePositionRulesBatchAction(formData: FormData) {
   } catch (error: any) {
     if (error?.message === "NEXT_REDIRECT" || error?.digest?.startsWith("NEXT_REDIRECT")) throw error;
     redirectWithState(returnTo, { error: error instanceof Error ? error.message : "Lỗi lưu cấu hình vị trí." });
+  }
+}
+
+export async function cancelLeaveAction(formData: FormData) {
+  const returnTo = getValue(formData, "returnTo") || "/leave";
+
+  try {
+    const { user } = await getUserContext({ required: false });
+    if (!user) {
+      throw new Error("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.");
+    }
+
+    const leaveId = getValue(formData, "leaveId");
+    if (!leaveId) {
+      throw new Error("Không tìm thấy mã đăng ký nghỉ phép.");
+    }
+
+    const data = await getAppData();
+    const leaveRecord = data.leaveRequests.find((l) => l.id === leaveId);
+    if (!leaveRecord) {
+      throw new Error("Đăng ký nghỉ phép không tồn tại hoặc đã bị xoá.");
+    }
+
+    // Viewer chỉ được huỷ phép của bản thân
+    if (!canEdit(user.role)) {
+      const ownStaff = data.staff.find(
+        (s) => s.email.toLowerCase() === user.email.toLowerCase(),
+      );
+      if (!ownStaff || ownStaff.id !== leaveRecord.staffId) {
+        throw new Error("Bạn chỉ có quyền huỷ nghỉ phép của bản thân.");
+      }
+    }
+
+    // Xoá leave record
+    await deleteLeaveRequest(leaveId);
+
+    // Ghi log huỷ phép
+    const now = new Date().toISOString();
+    await addLeaveCancellation({
+      staffId: leaveRecord.staffId,
+      date: leaveRecord.date,
+      shift: leaveRecord.shift,
+      cancelledAt: now,
+    });
+
+    revalidateWorkspace();
+    const person = data.staff.find((s) => s.id === leaveRecord.staffId);
+    redirectWithState(returnTo, {
+      message: `${person?.name ?? "Nhân sự"} đã đăng ký quay lại làm ngày ${leaveRecord.date}.`,
+    });
+  } catch (error: any) {
+    if (error?.message === "NEXT_REDIRECT" || error?.digest?.startsWith("NEXT_REDIRECT")) throw error;
+    redirectWithState(returnTo, {
+      error: error instanceof Error ? error.message : "Không thể huỷ đăng ký nghỉ phép.",
+    });
   }
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useTransition, useState } from "react";
+import { useEffect, useTransition, useState } from "react";
 import { ArrowDown, ArrowUp, CheckCircle2, Loader2, Minus, Plus, Users } from "lucide-react";
 import { updatePositionQuota, updatePositionStaffOrder } from "@/app/actions";
 import type { Position, StaffMember } from "@/lib/types";
@@ -33,6 +33,15 @@ export function PositionCard({ position, allStaff, editable }: PositionCardProps
   const [quota, setQuota] = useState(position.quota || 1);
   const [isPending, startTransition] = useTransition();
 
+  // Sync state khi props thay đổi (server revalidate sau khi cập nhật nhân sự)
+  useEffect(() => {
+    setCurrentStaff(orderedStaff);
+  }, [allStaff, position.staffOrder]);
+
+  useEffect(() => {
+    setQuota(position.quota || 1);
+  }, [position.quota]);
+
   const handleQuotaChange = (delta: number) => {
     if (!editable) return;
     const q = Math.max(1, quota + delta);
@@ -50,7 +59,7 @@ export function PositionCard({ position, allStaff, editable }: PositionCardProps
     const newList = [...currentStaff];
     const swapWith = direction === "up" ? index - 1 : index + 1;
     [newList[index], newList[swapWith]] = [newList[swapWith], newList[index]];
-    
+
     setCurrentStaff(newList);
     startTransition(async () => {
       await updatePositionStaffOrder(position.id, newList.map((s) => s.id));
@@ -87,6 +96,7 @@ export function PositionCard({ position, allStaff, editable }: PositionCardProps
             <button
               onClick={() => handleQuotaChange(-1)}
               disabled={!editable || quota <= 1 || isPending}
+              title="Giảm định mức"
               className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-slate-600 shadow-sm border border-slate-200 transition hover:bg-slate-100 hover:text-slate-900 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Minus className="h-3 w-3" />
@@ -95,6 +105,7 @@ export function PositionCard({ position, allStaff, editable }: PositionCardProps
             <button
               onClick={() => handleQuotaChange(1)}
               disabled={!editable || isPending}
+              title="Tăng định mức"
               className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-slate-600 shadow-sm border border-slate-200 transition hover:bg-slate-100 hover:text-slate-900 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Plus className="h-3 w-3" />

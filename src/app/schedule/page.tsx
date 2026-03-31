@@ -52,12 +52,12 @@ function getDefaultDayAndShift(weekStart: string): { day: number; shift: "mornin
   if (now >= weekStartDate && now <= addDays(weekEndDate, 1)) {
     const currentDay = now.getDay(); // 0=CN, 1=T2, ...6=T7
     const hour = now.getHours();
-    
+
     // Nếu là CN hoặc ngoài phạm vi T2-T7, mặc định Sáng T2
     if (currentDay === 0 || currentDay > 6) {
       return { day: 1, shift: "morning" };
     }
-    
+
     return {
       day: currentDay, // 1=T2, 2=T3... khớp dayOfWeek
       shift: hour < 12 ? "morning" : "afternoon",
@@ -98,13 +98,13 @@ export default async function SchedulePage({ searchParams }: SchedulePageProps) 
     actualAssignments.length > 0
       ? actualAssignments
       : buildAssignmentsFromTemplate(
-          data.templateSchedule,
-          data.positions,
-          weekStart,
-          data.leaveRequests,
-          data.scheduleRules,
-          data.positionRules,
-        );
+        data.templateSchedule,
+        data.positions,
+        weekStart,
+        data.leaveRequests,
+        data.scheduleRules,
+        data.positionRules,
+      );
 
   const fullBoard = getWeekBoard(
     displayedAssignments,
@@ -170,31 +170,31 @@ export default async function SchedulePage({ searchParams }: SchedulePageProps) 
               <Download className="h-4 w-4" />
               Xuất Excel
             </Link>
-            {editable ? (
-              <>
-                <form action={generateWeekAction}>
-                  <input type="hidden" name="weekStart" value={weekStart} />
-                  <input type="hidden" name="returnTo" value={returnTo} />
-                  <SubmitButton
-                    variant="outline"
-                    pendingText="Đang sinh lịch..."
-                  >
-                    <RefreshCcw className="h-4 w-4" />
-                    Sinh lại từ lịch nền
-                  </SubmitButton>
-                </form>
-                <form action={publishWeekAction}>
-                  <input type="hidden" name="weekStart" value={weekStart} />
-                  <input type="hidden" name="returnTo" value={returnTo} />
-                  <SubmitButton
-                    pendingText="Đang chốt lịch..."
-                  >
-                    <SendHorizontal className="h-4 w-4" />
-                    Chốt lịch tuần
-                  </SubmitButton>
-                </form>
-              </>
-            ) : null}
+            {currentUser.role === "admin" && (
+              <form action={generateWeekAction}>
+                <input type="hidden" name="weekStart" value={weekStart} />
+                <input type="hidden" name="returnTo" value={returnTo} />
+                <SubmitButton
+                  variant="outline"
+                  pendingText="Đang sinh lịch..."
+                >
+                  <RefreshCcw className="h-4 w-4" />
+                  Sinh lại từ lịch nền
+                </SubmitButton>
+              </form>
+            )}
+            {editable && (
+              <form action={publishWeekAction}>
+                <input type="hidden" name="weekStart" value={weekStart} />
+                <input type="hidden" name="returnTo" value={returnTo} />
+                <SubmitButton
+                  pendingText="Đang chốt lịch..."
+                >
+                  <SendHorizontal className="h-4 w-4" />
+                  Chốt lịch tuần
+                </SubmitButton>
+              </form>
+            )}
           </div>
         }
       >
@@ -214,11 +214,10 @@ export default async function SchedulePage({ searchParams }: SchedulePageProps) 
             <Link
               key={`${tab.dayOfWeek}-${tab.shift}`}
               href={tab.href}
-              className={`rounded-full px-3.5 py-2 text-xs font-semibold transition ${
-                tab.isActive
+              className={`rounded-full px-3.5 py-2 text-xs font-semibold transition ${tab.isActive
                   ? "bg-slate-950 text-white shadow-md"
                   : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-              }`}
+                }`}
             >
               {tab.label}
             </Link>

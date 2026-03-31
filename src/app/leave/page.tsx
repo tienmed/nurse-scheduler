@@ -5,6 +5,7 @@ import { FilePlus2 } from "lucide-react";
 import { saveLeaveAction } from "@/app/actions";
 import { AppShell } from "@/components/app-shell";
 import { AuthRequiredState } from "@/components/auth-required-state";
+import { CancelLeaveButton } from "@/components/cancel-leave-button";
 import { EmptyState } from "@/components/empty-state";
 import { LeaveCalendar } from "@/components/leave-calendar";
 import { SubmitButton } from "@/components/submit-button";
@@ -58,6 +59,12 @@ export default async function LeavePage({ searchParams }: LeavePageProps) {
     const currentStaff = data.staff.find(
         (s) => s.email.toLowerCase() === currentUser.email.toLowerCase(),
     );
+
+    // Filter leave requests based on user role
+    // "chỉ áp dụng cho viewer, cá nhân sẽ thấy được lịch nghỉ phép của mình"
+    const displayLeaveRequests = editable || !currentStaff
+        ? data.leaveRequests
+        : data.leaveRequests.filter(l => l.staffId === currentStaff.id);
 
     // Danh sách nhân sự khả dụng cho form
     const availableStaff = editable ? data.staff : currentStaff ? [currentStaff] : [];
@@ -217,7 +224,7 @@ export default async function LeavePage({ searchParams }: LeavePageProps) {
                     const next7Days = addDays(today, 7);
 
                     // Lọc nhân sự vắng mặt trong 7 ngày tới
-                    const upcomingAbsences = data.leaveRequests
+                    const upcomingAbsences = displayLeaveRequests
                         .filter((l) => {
                             const d = parseISO(l.date);
                             return isWithinInterval(d, { start: today, end: next7Days });
@@ -287,9 +294,19 @@ export default async function LeavePage({ searchParams }: LeavePageProps) {
                                                                 {person?.name ?? l.staffId}
                                                             </span>
                                                         </div>
-                                                        <span className="shrink-0 text-[10px] font-semibold text-slate-400 uppercase">
-                                                            {l.shift === "full-day" ? "CN" : l.shift === "morning" ? "S" : "C"}
-                                                        </span>
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="shrink-0 text-[10px] font-semibold text-slate-400 uppercase">
+                                                                {l.shift === "full-day" ? "CN" : l.shift === "morning" ? "S" : "C"}
+                                                            </span>
+                                                            {currentStaff?.id === l.staffId && (
+                                                                <CancelLeaveButton
+                                                                    leaveId={l.id}
+                                                                    staffName={person?.name ?? l.staffId}
+                                                                    date={l.date}
+                                                                    shiftLabel={LEAVE_SHIFT_LABELS[l.shift]}
+                                                                />
+                                                            )}
+                                                        </div>
                                                     </div>
                                                 );
                                             })}
@@ -335,15 +352,15 @@ export default async function LeavePage({ searchParams }: LeavePageProps) {
                                 <input type="hidden" name="shift" value={cfShift} />
                                 <input type="hidden" name="reason" value={cfReason} />
                                 <input type="hidden" name="note" value={cfNote} />
-                                
-                                <Link 
-                                    href="/leave" 
+
+                                <Link
+                                    href="/leave"
                                     className="inline-flex items-center justify-center rounded-2xl px-6 py-3 text-sm font-semibold text-slate-600 ring-1 ring-inset ring-slate-200 hover:bg-slate-50 transition"
                                 >
                                     Từ chối
                                 </Link>
-                                <SubmitButton 
-                                    className="inline-flex items-center justify-center rounded-2xl bg-amber-600 px-6 py-3 text-sm font-semibold text-white shadow-sm hover:bg-amber-700 transition" 
+                                <SubmitButton
+                                    className="inline-flex items-center justify-center rounded-2xl bg-amber-600 px-6 py-3 text-sm font-semibold text-white shadow-sm hover:bg-amber-700 transition"
                                     pendingText="Đang ép lưu..."
                                 >
                                     Đồng ý & Lưu

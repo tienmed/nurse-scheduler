@@ -4,6 +4,7 @@ import { AppShell } from "@/components/app-shell";
 import { AuthRequiredState } from "@/components/auth-required-state";
 import { EmptyState } from "@/components/empty-state";
 import { SurfaceSection } from "@/components/surface-section";
+import { AddPositionDialog } from "@/components/add-position-dialog";
 import { getAppData } from "@/lib/repository";
 import { canEdit, getUserContext } from "@/lib/session";
 import { MapPin, Map as MapIcon } from "lucide-react";
@@ -72,6 +73,7 @@ export default async function AreasPage() {
   const data = await getAppData();
   const editable = canEdit(user.role);
   const areaGroups = groupPositionsByArea(data.positions);
+  const existingAreas = Array.from(new Set(data.positions.map((p) => p.area).filter(Boolean)));
 
   return (
     <AppShell
@@ -82,6 +84,11 @@ export default async function AreasPage() {
       user={user}
     >
       <div className="mx-auto mt-6 max-w-6xl space-y-8 pb-12 px-4 sm:px-6">
+        {user.role === "admin" && (
+          <div className="flex justify-end">
+            <AddPositionDialog existingAreas={existingAreas} />
+          </div>
+        )}
         {areaGroups.size === 0 ? (
           <SurfaceSection title="Không có dữ liệu" eyebrow="Trống">
             <EmptyState

@@ -11,6 +11,7 @@ import { buildAssignmentsFromTemplate } from "@/lib/schedule";
 import type {
   AccessControlEntry,
   AppData,
+  LeaveCancellation,
   PositionRule,
   LeaveRecord,
   Position,
@@ -38,6 +39,9 @@ export async function getAppData(): Promise<AppData> {
   // Đảm bảo các trường mới luôn tồn tại (phòng trường hợp cache cũ hoặc sheet trống)
   if (!data.positionRules) {
     data.positionRules = [];
+  }
+  if (!data.leaveCancellations) {
+    data.leaveCancellations = [];
   }
 
   return data;
@@ -186,7 +190,7 @@ export async function upsertManyTemplateAssignments(
 ) {
   if (!inputs.length) return [];
   const data = await getAppData();
-  
+
   inputs.forEach((input) => {
     const existingIndex = data.templateSchedule.findIndex(
       (item) =>
@@ -339,7 +343,7 @@ export async function upsertPositionRule(input: Omit<PositionRule, "id"> & { id?
 
 export async function upsertManyPositionRules(rules: (Omit<PositionRule, "id"> & { id?: string })[]) {
   const data = await getAppData();
-  
+
   for (const input of rules) {
     const existing = data.positionRules.find(
       (item) =>
@@ -387,4 +391,23 @@ export async function publishWeek(weekStart: string) {
   );
 
   await persistData(data, ["weeklySchedule"]);
+}
+
+export async function deleteLeaveRequest(leaveId: string) {
+  const data = await getAppData();
+  data.leaveRequests = data.leaveRequests.filter((item) => item.id !== leaveId);
+  await persistData(data, ["leaveRequests"]);
+}
+
+export async function addLeaveCancellation(
+  input: Omit<LeaveCancellation, "id">,
+) {
+  const data = await getAppData();
+  const entry: LeaveCancellation = {
+    ...input,
+    id: `cancel-${Date.now()}`,
+  };
+  data.leaveCancellations.push(entry);
+  await persistData(data, ["leaveCancellations"]);
+  return entry;
 }

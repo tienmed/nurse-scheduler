@@ -164,4 +164,5 @@ export const MOCK_DATA: AppData = {
       displayName: "Tài khoản xem lịch",
     },
   ],
+  leaveCancellations: [],
 };
