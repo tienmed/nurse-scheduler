@@ -1,3 +1,5 @@
+import { BoardTabs } from "@/components/board-tabs";
+
 import { addDays, format, parseISO } from "date-fns";
 import { getWeekStartFromInput } from "@/lib/date";
 import { getAppData } from "@/lib/repository";
@@ -53,13 +55,19 @@ type AreaGroup = {
 };
 
 function getDefaultDayAndShift(weekStart: string): { day: number; shift: "morning" | "afternoon" } {
+  // Lấy giờ hiện tại chuẩn theo múi giờ Việt Nam (UTC+7)
   const now = new Date();
+  const vnTime = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Ho_Chi_Minh" }));
+
   const weekStartDate = parseISO(weekStart);
-  const weekEndDate = addDays(weekStartDate, 5);
-  if (now >= weekStartDate && now <= addDays(weekEndDate, 1)) {
-    const currentDay = now.getDay();
-    const hour = now.getHours();
-    if (currentDay === 0 || currentDay > 6) return { day: 1, shift: "morning" };
+  const weekEndDate = addDays(weekStartDate, 5); // T2 -> T7 (5 days diff)
+
+  // Chỉ bắt tab nếu ngày hiện nay nằm trong phạm vi của tuần đang xem
+  if (vnTime >= weekStartDate && vnTime <= addDays(weekEndDate, 1)) {
+    const currentDay = vnTime.getDay(); // 0 = Chủ nhật
+    const hour = vnTime.getHours();
+
+    if (currentDay === 0) return { day: 1, shift: "morning" };
     return { day: currentDay, shift: hour < 12 ? "morning" : "afternoon" };
   }
   return { day: 1, shift: "morning" };
@@ -76,13 +84,13 @@ export default async function BoardPage({ searchParams }: BoardPageProps) {
     actualAssignments.length > 0
       ? actualAssignments
       : buildAssignmentsFromTemplate(
-          data.templateSchedule,
-          data.positions,
-          weekStart,
-          data.leaveRequests,
-          data.scheduleRules,
-          data.positionRules,
-        );
+        data.templateSchedule,
+        data.positions,
+        weekStart,
+        data.leaveRequests,
+        data.scheduleRules,
+        data.positionRules,
+      );
 
   const fullBoard = getWeekBoard(
     displayedAssignments,
@@ -225,17 +233,15 @@ export default async function BoardPage({ searchParams }: BoardPageProps) {
               <div className="flex h-8 items-center rounded-full bg-slate-200 p-1">
                 <Link
                   href={`/board?week=${weekStart}&day=${selectedDay}&shift=${selectedShift}&view=calendar`}
-                  className={`flex h-full items-center rounded-full px-4 font-semibold transition-colors ${
-                    !isPersonnelView ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-900"
-                  }`}
+                  className={`flex h-full items-center rounded-full px-4 font-semibold transition-colors ${!isPersonnelView ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-900"
+                    }`}
                 >
                   Lịch
                 </Link>
                 <Link
                   href={`/board?week=${weekStart}&day=${selectedDay}&shift=${selectedShift}&view=personnel`}
-                  className={`flex h-full items-center rounded-full px-4 font-semibold transition-colors ${
-                    isPersonnelView ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-900"
-                  }`}
+                  className={`flex h-full items-center rounded-full px-4 font-semibold transition-colors ${isPersonnelView ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-900"
+                    }`}
                 >
                   Nhân sự
                 </Link>
@@ -246,25 +252,7 @@ export default async function BoardPage({ searchParams }: BoardPageProps) {
       </header>
 
       {/* Tab bar */}
-      <nav className="sticky top-[73px] z-40 border-b border-slate-200 bg-white/90 backdrop-blur-md">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6">
-          <div className="flex gap-1 overflow-x-auto py-2.5 scrollbar-none">
-            {slotTabs.map((tab) => (
-              <Link
-                key={`${tab.dayOfWeek}-${tab.shift}`}
-                href={tab.href}
-                className={`shrink-0 rounded-full px-4 py-2 text-xs font-semibold transition-all ${
-                  tab.isActive
-                    ? "bg-slate-900 text-white shadow-md"
-                    : "bg-slate-100 text-slate-500 hover:bg-slate-200 hover:text-slate-700"
-                }`}
-              >
-                {tab.label}
-              </Link>
-            ))}
-          </div>
-        </div>
-      </nav>
+      <BoardTabs tabs={slotTabs} />
 
       {/* Content */}
       <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6">
