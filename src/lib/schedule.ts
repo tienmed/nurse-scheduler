@@ -78,6 +78,40 @@ export function getLeaveConflict(
   );
 }
 
+export function createLeaveConflictChecker(leaveRequests: LeaveRecord[]) {
+  const map = new Map<string, LeaveRecord[]>();
+  for (const l of leaveRequests) {
+    const key = `${l.staffId}-${l.date}`;
+    let list = map.get(key);
+    if (!list) {
+      list = [];
+      map.set(key, list);
+    }
+    list.push(l);
+  }
+  return {
+    check: (staffId: string, date: string, shift: ShiftType) => {
+      const list = map.get(`${staffId}-${date}`);
+      if (!list) return undefined;
+      return list.find((l) => l.shift === "full-day" || l.shift === shift);
+    },
+  };
+}
+
+export function createClosedPositionChecker(positionRules: PositionRule[]) {
+  const closedSet = new Set<string>();
+  for (const r of positionRules) {
+    if (!r.active) {
+      closedSet.add(`${r.dayOfWeek}-${r.shift}-${r.positionId}`);
+    }
+  }
+  return {
+    isClosed: (dayOfWeek: number | string, shift: string, positionId: string) => {
+      return closedSet.has(`${dayOfWeek}-${shift}-${positionId}`);
+    },
+  };
+}
+
 export function buildAssignmentsFromTemplate(
   templateSchedule: TemplateAssignment[],
   positions: Position[],
@@ -87,7 +121,9 @@ export function buildAssignmentsFromTemplate(
   positionRules: PositionRule[] = [],
 ) {
   const weekStartDate = parseISO(weekStart);
-  const inactivePositionRules = positionRules.filter((r) => !r.active);
+
+  const closedPositionChecker = createClosedPositionChecker(positionRules);
+  const leaveChecker = createLeaveConflictChecker(leaveRequests);
 
   const allowedSlots = new Set(
     getActiveScheduleRules(scheduleRules).map(
@@ -100,30 +136,25 @@ export function buildAssignmentsFromTemplate(
       .filter((assignment) =>
         allowedSlots.has(`${assignment.dayOfWeek}-${assignment.shift}`),
       )
-      .filter((assignment) => {
-        // Lọc bỏ nếu vị trí bị đóng
-        const isPositionClosed = inactivePositionRules.some(
-          (r) =>
-            Number(r.dayOfWeek) === Number(assignment.dayOfWeek) &&
-            String(r.shift) === String(assignment.shift) &&
-            String(r.positionId) === String(assignment.positionId),
-        );
-        return !isPositionClosed;
-      })
+      .filter((assignment) => !closedPositionChecker.isClosed(assignment.dayOfWeek, assignment.shift, assignment.positionId))
       .map((assignment) => {
         const date = format(
           addDays(weekStartDate, assignment.dayOfWeek - 1),
           "yyyy-MM-dd",
         );
-        const leave = getLeaveConflict(
+        const leave = leaveChecker.check(
           assignment.staffId,
           date,
           assignment.shift,
-          leaveRequests,
         );
 
+        // Ngoại lệ: Đi học + vị trí KHNV → không coi là xung đột
+        const positionName = positions.find((p) => p.id === assignment.positionId)?.name ?? "";
+        const isExempt = leave?.reason === "dihoc" && positionName.toUpperCase().includes("KHNV");
+        const effectiveLeave = isExempt ? undefined : leave;
+
         return {
-          id: `weekly-${weekStart}-${assignment.shift}-${assignment.positionId}-${assignment.staffId}-${assignment.dayOfWeek}-${assignment.slotIndex || 0}`,
+          id: `preview-${weekStart}-${assignment.shift}-${assignment.positionId}-${assignment.staffId}-${assignment.dayOfWeek}-${assignment.slotIndex || 0}`,
           weekStart,
           date,
           shift: assignment.shift,
@@ -131,9 +162,9 @@ export function buildAssignmentsFromTemplate(
           staffId: assignment.staffId,
           slotIndex: assignment.slotIndex,
           source: "template" as const,
-          status: leave ? ("needs-review" as const) : ("draft" as const),
-          note: leave
-            ? `Trùng lịch nghỉ ${LEAVE_REASON_LABELS[leave.reason].toLowerCase()}`
+          status: effectiveLeave ? ("needs-review" as const) : ("draft" as const),
+          note: effectiveLeave
+            ? `Trùng lịch nghỉ ${LEAVE_REASON_LABELS[effectiveLeave.reason].toLowerCase()}`
             : assignment.note ?? "",
         };
       }),
@@ -160,7 +191,9 @@ export function getWeekBoard(
 ) {
   const assignments = getWeeklyAssignments(weeklySchedule, weekStart);
   const staffMap = new Map(staff.map((member) => [member.id, member]));
-  const closedPositions = positionRules.filter((r) => !r.active);
+
+  const closedPositionChecker = createClosedPositionChecker(positionRules);
+  const leaveChecker = createLeaveConflictChecker(leaveRequests);
 
   return getActiveScheduleRules(scheduleRules).map((slot) => {
     const date = format(
@@ -174,60 +207,55 @@ export function getWeekBoard(
       shift: slot.shift,
       title: `${WEEKDAY_LABELS[slot.dayOfWeek]} · ${SHIFT_LABELS[slot.shift]}`,
       entries: positions
-        .filter((position) => {
-          // Chỉ lấy vị trí đang mở
-          const isPositionClosed = closedPositions.some(
-            (r) =>
-              Number(r.dayOfWeek) === Number(slot.dayOfWeek) &&
-              String(r.shift) === String(slot.shift) &&
-              String(r.positionId) === String(position.id),
-          );
-          return !isPositionClosed;
-        })
+        .filter((position) => !closedPositionChecker.isClosed(slot.dayOfWeek, slot.shift, position.id))
         .map((position) => {
           const posAssignments = assignments.filter(
-          (item) =>
-            item.date === date &&
-            item.shift === slot.shift &&
-            item.positionId === position.id,
-        );
+            (item) =>
+              item.date === date &&
+              item.shift === slot.shift &&
+              item.positionId === position.id,
+          );
 
-        const quota = position.quota || 1;
-        const slots = [];
+          const quota = position.quota || 1;
+          const slots = [];
 
-        // Đẻ đủ số khe dựa theo quota
-        const iterations = Math.max(quota, posAssignments.length);
+          // Đẻ đủ số khe dựa theo quota
+          const iterations = Math.max(quota, posAssignments.length);
 
-        for (let i = 0; i < iterations; i++) {
-          const assignment = posAssignments.find((a) => (a.slotIndex || 0) === i) ?? null;
-          let person = assignment ? staffMap.get(assignment.staffId) ?? null : null;
+          for (let i = 0; i < iterations; i++) {
+            const assignment = posAssignments.find((a) => (a.slotIndex || 0) === i) ?? null;
+            let person = assignment ? staffMap.get(assignment.staffId) ?? null : null;
 
-          if (!assignment) {
-            const defaultStaffId = position.staffOrder?.[i];
-            if (defaultStaffId) {
-              person = staffMap.get(defaultStaffId) ?? null;
+            if (!assignment) {
+              const defaultStaffId = position.staffOrder?.[i];
+              if (defaultStaffId) {
+                person = staffMap.get(defaultStaffId) ?? null;
+              }
             }
+
+            const rawLeave = assignment
+              ? leaveChecker.check(assignment.staffId, date, slot.shift)
+              : person
+                ? leaveChecker.check(person.id, date, slot.shift)
+                : null;
+
+            // Ngoại lệ: Đi học + vị trí KHNV → không coi là xung đột
+            const isExempt = rawLeave?.reason === "dihoc" && position.name.toUpperCase().includes("KHNV");
+            const leave = isExempt ? null : rawLeave;
+
+            slots.push({
+              assignment,
+              person,
+              leave,
+              slotIndex: i,
+            });
           }
 
-          const leave = assignment
-            ? getLeaveConflict(assignment.staffId, date, slot.shift, leaveRequests)
-            : person
-              ? getLeaveConflict(person.id, date, slot.shift, leaveRequests)
-              : null;
-
-          slots.push({
-            assignment,
-            person,
-            leave,
-            slotIndex: i,
-          });
-        }
-
-        return {
-          position,
-          slots,
-        };
-      }),
+          return {
+            position,
+            slots,
+          };
+        }),
     };
   });
 }
@@ -376,12 +404,13 @@ export function suggestStaffForSlot(
   const workloadMap = new Map(workload.map((w) => [w.staffId, w]));
   const targetPos = positions.find((p) => p.id === positionId);
   const staffOrder = targetPos?.staffOrder || [];
+  const leaveChecker = createLeaveConflictChecker(leaveRequests);
 
   // Lấy các assignment trong cùng buổi
   const currentShiftAssignments = weeklySchedule.filter(
     (a) => a.date === date && a.shift === shift
   );
-  
+
   // Trích xuất những người đã có ca trong cùng buổi
   const busyStaffMap = new Map<string, string[]>();
   for (const a of currentShiftAssignments) {
@@ -393,7 +422,7 @@ export function suggestStaffForSlot(
 
   const available = staff.filter((member) => {
     if (!member.active) return false;
-    const conflict = getLeaveConflict(member.id, date, shift, leaveRequests);
+    const conflict = leaveChecker.check(member.id, date, shift);
     if (conflict) return false;
     return true;
   });
@@ -417,17 +446,17 @@ export function suggestStaffForSlot(
     if (busyPositions) {
       // Đã bị xoá khỏi mảng available nếu có LeaveConflict,
       // nên ở đây chắc chắn là "kiêm nhiệm" các vị trí khác
-       if (busyPositions.includes(targetPos?.name || "")) {
-         // Đang bị trùng CHÍNH cái vị trí đang chọn (nghịch lý nhưng nếu db có lưu trước đó)
-         // Thực tế là nếu họ đã có trong vị trí này (chẳng hạn slot 0), nếu click slot 1 họ cũng hiện ra list list.
-         reasons.push(`Đang ở ca này`);
-       } else {
-         reasons.push(`Đã xếp: ${busyPositions.join(", ")}`);
-       }
-       score -= 50; 
+      if (busyPositions.includes(targetPos?.name || "")) {
+        // Đang bị trùng CHÍNH cái vị trí đang chọn (nghịch lý nhưng nếu db có lưu trước đó)
+        // Thực tế là nếu họ đã có trong vị trí này (chẳng hạn slot 0), nếu click slot 1 họ cũng hiện ra list list.
+        reasons.push(`Đang ở ca này`);
+      } else {
+        reasons.push(`Đã xếp: ${busyPositions.join(", ")}`);
+      }
+      score -= 50;
     } else {
       reasons.push("Rảnh ca này");
-      score += 20; 
+      score += 20;
     }
 
     // Nếu là ngày tăng ca
@@ -465,15 +494,15 @@ export function getDefaultDayAndShift(weekStart: string): { day: number; shift: 
   const weekEndDate = addDays(weekStartDate, 5); // Thứ 7
 
   if (now >= weekStartDate && now <= addDays(weekEndDate, 1)) {
-    const currentDay = now.getDay(); 
+    const currentDay = now.getDay();
     const hour = now.getHours();
-    
+
     if (currentDay === 0 || currentDay > 6) {
       return { day: 1, shift: "morning" };
     }
-    
+
     return {
-      day: currentDay, 
+      day: currentDay,
       shift: hour < 12 ? "morning" : "afternoon",
     };
   }

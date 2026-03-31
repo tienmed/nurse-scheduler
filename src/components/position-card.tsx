@@ -67,7 +67,7 @@ export function PositionCard({ position, allStaff, editable }: PositionCardProps
   };
 
   return (
-    <article className="relative flex flex-col justify-between overflow-hidden rounded-[26px] border border-slate-200/80 bg-white p-5 shadow-[0_12px_40px_rgba(15,23,42,0.03)] transition hover:shadow-[0_16px_50px_rgba(15,23,42,0.06)]">
+    <article className="relative flex flex-col justify-between overflow-hidden rounded-[20px] bg-white p-5 shadow-sm ring-1 ring-slate-200/50 transition-all hover:shadow-md focus-within:ring-2 focus-within:ring-blue-500">
       {isPending && (
         <div className="absolute right-4 top-4 text-teal-600">
           <Loader2 className="h-4 w-4 animate-spin" />

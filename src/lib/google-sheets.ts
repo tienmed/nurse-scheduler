@@ -107,15 +107,7 @@ const sheetSerializers: Record<AppDataKey, (data: AppData) => SheetRow[]> = {
     })),
 };
 
-function slugify(value: string) {
-  return value
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 48);
-}
+import { generateId } from "@/lib/id";
 
 function ensureId(prefix: string, rawId: string | undefined, fallbackSeed: string, index: number) {
   const trimmed = `${rawId ?? ""}`.trim();
@@ -123,8 +115,8 @@ function ensureId(prefix: string, rawId: string | undefined, fallbackSeed: strin
     return trimmed;
   }
 
-  const slug = slugify(fallbackSeed) || `${prefix}-${index + 1}`;
-  return `${prefix}-${slug}`;
+  // Nếu người dùng không nhập ID trên file Sheets, tự cấp ID chuẩn `prefix-timestamp-random`
+  return generateId(prefix);
 }
 
 let isStructureEnsured = false;
@@ -411,31 +403,105 @@ export async function writeAppDataKeysToSheets(data: AppData, keys: AppDataKey[]
   }
 
   if (process.env.NODE_ENV === "development") {
-    console.log(`💾 [Google Sheets] Bắt đầu ghi các khóa: ${uniqueKeys.join(", ")}`);
+    console.log(`💾 [Google Sheets] Bắt đầu GHI (Upsert) các khóa: ${uniqueKeys.join(", ")}`);
   }
 
   const sheets = createSheetsClient();
-  const clearRanges = uniqueKeys.map((key) => `${SHEET_NAMES[APP_DATA_TO_SHEET[key]]}!A:Z`);
-  const updateData = uniqueKeys.map((key) => {
+
+  // 1. Lấy toàn bộ cột A (chứa ID) của các Sheet cần cập nhật
+  const getRanges = uniqueKeys.map((key) => `${SHEET_NAMES[APP_DATA_TO_SHEET[key]]}!A:A`);
+  const batchGetResponse = await sheets.spreadsheets.values.batchGet({
+    spreadsheetId: env.GOOGLE_SHEET_ID,
+    ranges: getRanges,
+  });
+
+  const valueRanges = batchGetResponse.data.valueRanges || [];
+  const updateData = [];
+  const clearRanges: string[] = [];
+
+  for (let i = 0; i < uniqueKeys.length; i++) {
+    const key = uniqueKeys[i];
     const sheetName = APP_DATA_TO_SHEET[key];
+    const actualSheetName = SHEET_NAMES[sheetName];
     const headers = [...SHEET_HEADERS[sheetName]];
     const rows = sheetSerializers[key](data);
 
-    if (process.env.NODE_ENV === "development") {
-      console.log(`   - ${key} (${sheetName}): chuẩn bị ghi ${rows.length} dòng`);
+    // colA chứa mảng các ID hiện có trên Sheet
+    const colA = valueRanges[i]?.values || [];
+    const existingIds = new Map<string, number>();
+
+    colA.forEach((rowVal, idx) => {
+      if (rowVal[0]) {
+        existingIds.set(rowVal[0].toString().trim(), idx + 1); // Row Google Sheet bắt đầu từ 1
+      }
+    });
+
+    let nextAvailableRow = colA.length + 1;
+    // Đảm bảo không ghi đè lên hàng Header (nếu sheet trắng tinh)
+    if (nextAvailableRow === 1) nextAvailableRow = 2;
+
+    const holes: number[] = [];
+    const keepIds = new Set(rows.map((r) => r.id));
+
+    // Tìm các dòng "Hole" (ID có trên sheet nhưng đã bị xoá khỏi AppData)
+    existingIds.forEach((rowNum, id) => {
+      // Bỏ qua chữ "id" trên Header
+      if (id !== "id" && !keepIds.has(id)) {
+        holes.push(rowNum);
+      }
+    });
+
+    // Ưu tiên lấp Hole từ trên xuống dưới
+    holes.sort((a, b) => a - b);
+
+    // Chuẩn bị dữ liệu ghi (Header luôn được nạp ở A1 nếu cần, nhưng để an toàn cứ upsert rải rác)
+    // Để ghi headers:
+    updateData.push({
+      range: `${actualSheetName}!A1`,
+      values: [headers],
+    });
+
+    for (const row of rows) {
+      const id = row.id;
+      let targetRow: number;
+
+      if (id && existingIds.has(id)) {
+        // Cập nhật dòng cũ
+        targetRow = existingIds.get(id)!;
+      } else {
+        // ID mới -> Xin cấp dòng (tái sử dụng lỗ hổng hoặc nhét xuống dưới)
+        if (holes.length > 0) {
+          targetRow = holes.shift()!;
+        } else {
+          targetRow = nextAvailableRow++;
+        }
+      }
+
+      updateData.push({
+        range: `${actualSheetName}!A${targetRow}`,
+        values: [headers.map((header) => row[header] ?? "")],
+      });
     }
 
-    return {
-      range: `${SHEET_NAMES[sheetName]}!A1`,
-      values: [headers, ...rows.map((row) => headers.map((header) => row[header] ?? ""))],
-    };
-  });
+    // Nếu vẫn còn thừa Hole (Tức là lượng xoá > lượng thêm mới), thì Clear dọn dẹp các dòng đó
+    for (const hole of holes) {
+      clearRanges.push(`${actualSheetName}!A${hole}:Z${hole}`);
+    }
 
-  await sheets.spreadsheets.values.batchClear({
-    spreadsheetId: env.GOOGLE_SHEET_ID,
-    requestBody: { ranges: clearRanges },
-  });
+    if (process.env.NODE_ENV === "development") {
+      console.log(`   - ${key} (${actualSheetName}): Upsert ${rows.length} dòng.`);
+    }
+  }
 
+  // 2. Chạy dọn rác (nếu có)
+  if (clearRanges.length > 0) {
+    await sheets.spreadsheets.values.batchClear({
+      spreadsheetId: env.GOOGLE_SHEET_ID,
+      requestBody: { ranges: clearRanges },
+    });
+  }
+
+  // 3. Thực thi Upsert dữ liệu (Update các ô đích danh)
   await sheets.spreadsheets.values.batchUpdate({
     spreadsheetId: env.GOOGLE_SHEET_ID,
     requestBody: {

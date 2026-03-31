@@ -7,7 +7,7 @@ import {
   writeAppDataKeysToSheets,
 } from "@/lib/google-sheets";
 import { MOCK_DATA } from "@/lib/mock-data";
-import { buildAssignmentsFromTemplate } from "@/lib/schedule";
+import { buildAssignmentsFromTemplate, getWeekBoard } from "@/lib/schedule";
 import type {
   AccessControlEntry,
   AppData,
@@ -20,6 +20,8 @@ import type {
   TemplateAssignment,
   WeeklyAssignment,
 } from "@/lib/types";
+
+import { generateId } from "@/lib/id";
 
 function cloneData(): AppData {
   return JSON.parse(JSON.stringify(MOCK_DATA)) as AppData;
@@ -69,7 +71,7 @@ export async function upsertStaff(input: Omit<StaffMember, "id"> & { id?: string
   const existing = input.id ? data.staff.find((item) => item.id === input.id) : undefined;
   const entry = {
     ...input,
-    id: input.id || `staff-${Date.now()}`,
+    id: input.id || generateId("staff"),
   };
 
   const nextItems = data.staff.filter((item) => item.id !== entry.id);
@@ -109,7 +111,8 @@ export async function upsertAccessControl(
   const data = await getAppData();
   const normalizedEmail = input.email.trim().toLowerCase();
   const entry = {
-    id: input.id || `access-${Date.now()}`,
+    ...input,
+    id: input.id || generateId("access"),
     email: normalizedEmail,
     role: input.role,
     displayName: input.displayName,
@@ -127,7 +130,7 @@ export async function upsertPosition(input: Omit<Position, "id"> & { id?: string
   const data = await getAppData();
   const entry = {
     ...input,
-    id: input.id || `position-${Date.now()}`,
+    id: input.id || generateId("pos"),
   };
 
   const nextItems = data.positions.filter((item) => item.id !== entry.id);
@@ -147,7 +150,7 @@ export async function upsertScheduleRule(
 
   const entry = {
     ...input,
-    id: input.id || existing?.id || `slot-${input.dayOfWeek}-${input.shift}`,
+    id: input.id || existing?.id || generateId("slot"),
   };
 
   data.scheduleRules = data.scheduleRules.filter((item) => item.id !== entry.id);
@@ -170,7 +173,7 @@ export async function upsertTemplateAssignment(
 
   const entry = {
     ...input,
-    id: input.id || existing?.id || `template-${Date.now()}`,
+    id: input.id || existing?.id || generateId("template"),
   };
 
   if (process.env.NODE_ENV === "development") {
@@ -181,7 +184,45 @@ export async function upsertTemplateAssignment(
     ...data.templateSchedule.filter((item) => item.id !== entry.id),
     entry,
   ];
-  await persistData(data, ["templateSchedule"]);
+
+  const keysToSave: (keyof typeof data)[] = ["templateSchedule"];
+
+  // Đồng bộ ngược: Nếu nhân sự được gán vào 1 vị trí cố định ở Lịch nền,
+  // Tự động bổ sung nhân sự đó vào danh sách vị trí nếu chưa có.
+  if (entry.staffId) {
+    let staffUpdated = false;
+    let posUpdated = false;
+
+    // 1. Cập nhật staff.positionIds
+    const staffIndex = data.staff.findIndex(s => s.id === entry.staffId);
+    if (staffIndex !== -1) {
+      const staff = data.staff[staffIndex];
+      // Type staff.positionIds as it might be undefined/not array
+      if (!staff.positionIds) staff.positionIds = [];
+      if (!staff.positionIds.includes(entry.positionId)) {
+        staff.positionIds.push(entry.positionId);
+        staffUpdated = true;
+      }
+    }
+
+    // 2. Cập nhật position.staffOrder
+    if (staffUpdated || true) { // Always check posOrder
+      const posIndex = data.positions.findIndex(p => p.id === entry.positionId);
+      if (posIndex !== -1) {
+        const pos = data.positions[posIndex];
+        if (!pos.staffOrder) pos.staffOrder = [];
+        if (!pos.staffOrder.includes(entry.staffId)) {
+          pos.staffOrder.push(entry.staffId);
+          posUpdated = true;
+        }
+      }
+    }
+
+    if (staffUpdated) keysToSave.push("staff");
+    if (posUpdated) keysToSave.push("positions");
+  }
+
+  await persistData(data, keysToSave);
   return entry;
 }
 
@@ -201,7 +242,7 @@ export async function upsertManyTemplateAssignments(
     );
     const entry = {
       ...input,
-      id: input.id || (existingIndex >= 0 ? data.templateSchedule[existingIndex].id : `template-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`),
+      id: input.id || (existingIndex >= 0 ? data.templateSchedule[existingIndex].id : generateId("template")),
     };
     if (existingIndex >= 0) {
       data.templateSchedule[existingIndex] = entry;
@@ -253,7 +294,7 @@ export async function applyPrioritizedStaffToTemplate() {
             const staffId = orderedStaff[i]?.id;
             if (staffId) {
               newAssignments.push({
-                id: `template-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+                id: generateId("template"),
                 dayOfWeek,
                 shift,
                 positionId: position.id,
@@ -289,7 +330,7 @@ export async function upsertWeeklyAssignment(
 
   const entry: WeeklyAssignment = {
     ...input,
-    id: input.id || existing?.id || `weekly-${Date.now()}`,
+    id: input.id || existing?.id || generateId("weekly"),
     source: input.source ?? "manual",
   };
 
@@ -312,7 +353,7 @@ export async function upsertLeaveRequest(
 
   const entry = {
     ...input,
-    id: input.id || existing?.id || `leave-${Date.now()}`,
+    id: input.id || existing?.id || generateId("leave"),
   };
 
   data.leaveRequests = data.leaveRequests.filter((item) => item.id !== entry.id);
@@ -332,7 +373,7 @@ export async function upsertPositionRule(input: Omit<PositionRule, "id"> & { id?
 
   const entry = {
     ...input,
-    id: input.id || existing?.id || `pos-rule-${Date.now()}`,
+    id: input.id || existing?.id || generateId("pos-rule"),
   };
 
   data.positionRules = data.positionRules.filter((item) => item.id !== entry.id);
@@ -354,7 +395,7 @@ export async function upsertManyPositionRules(rules: (Omit<PositionRule, "id"> &
 
     const entry = {
       ...input,
-      id: input.id || existing?.id || `pos-rule-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+      id: input.id || existing?.id || generateId("pos-rule"),
     };
 
     data.positionRules = data.positionRules.filter((item) => item.id !== entry.id);
@@ -374,7 +415,10 @@ export async function generateWeekFromTemplate(weekStart: string) {
     data.leaveRequests,
     data.scheduleRules,
     data.positionRules,
-  );
+  ).map((item) => ({
+    ...item,
+    id: generateId("weekly")
+  }));
 
   const remaining = data.weeklySchedule.filter((item) => item.weekStart !== weekStart);
   data.weeklySchedule = [...remaining, ...generated];
@@ -384,11 +428,66 @@ export async function generateWeekFromTemplate(weekStart: string) {
 
 export async function publishWeek(weekStart: string) {
   const data = await getAppData();
-  data.weeklySchedule = data.weeklySchedule.map((item) =>
-    item.weekStart === weekStart
-      ? { ...item, status: "published" as const }
-      : item,
+
+  // 1. Phục hồi mảng dự kiến hiện tại (trên màn hình đang có gì)
+  let displayedAssignments = data.weeklySchedule.filter(
+    (item) => item.weekStart === weekStart
   );
+
+  if (displayedAssignments.length === 0) {
+    displayedAssignments = buildAssignmentsFromTemplate(
+      data.templateSchedule,
+      data.positions,
+      weekStart,
+      data.leaveRequests,
+      data.scheduleRules,
+      data.positionRules,
+    );
+  }
+
+  // 2. Dựng fullBoard tương tự UI để lấy những người tự điền qua Định mức (staffOrder)
+  const fullBoard = getWeekBoard(
+    displayedAssignments,
+    data.positions,
+    data.staff,
+    data.leaveRequests,
+    weekStart,
+    data.scheduleRules,
+    data.positionRules,
+  );
+
+  const publishedAssignments: WeeklyAssignment[] = [];
+
+  // 3. Quét tóm tất cả những slot có người để chốt
+  for (const day of fullBoard) {
+    for (const entry of day.entries) {
+      for (const slot of entry.slots) {
+        if (!slot.person) continue;
+
+        const isPreview = slot.assignment?.id?.startsWith("preview-");
+        const finalId = (!slot.assignment || isPreview)
+          ? generateId("weekly")
+          : slot.assignment.id;
+
+        publishedAssignments.push({
+          id: finalId,
+          weekStart,
+          date: day.date,
+          shift: day.shift,
+          positionId: entry.position.id,
+          staffId: slot.person.id,
+          slotIndex: slot.slotIndex,
+          source: slot.assignment?.source || "template",
+          status: "published",
+          note: slot.assignment?.note ?? "",
+        });
+      }
+    }
+  }
+
+  // 4. Lưu đè đợt assignment mới này vào Database
+  const remaining = data.weeklySchedule.filter((item) => item.weekStart !== weekStart);
+  data.weeklySchedule = [...remaining, ...publishedAssignments];
 
   await persistData(data, ["weeklySchedule"]);
 }
@@ -405,7 +504,7 @@ export async function addLeaveCancellation(
   const data = await getAppData();
   const entry: LeaveCancellation = {
     ...input,
-    id: `cancel-${Date.now()}`,
+    id: generateId("cancel"),
   };
   data.leaveCancellations.push(entry);
   await persistData(data, ["leaveCancellations"]);

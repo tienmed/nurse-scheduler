@@ -37,7 +37,7 @@ export function ConflictList({
   // Render Dialog when a conflict is selected
   const renderDialog = () => {
     if (!selectedConflict) return null;
-    
+
     const position = positions.find(p => p.id === selectedConflict.positionId);
     if (!position) return null;
 
@@ -78,7 +78,7 @@ export function ConflictList({
             <div
               key={`${conflict.id}-${idx}`}
               onClick={() => setSelectedConflict(conflict)}
-              className="flex flex-col gap-2 rounded-[22px] border border-rose-200/80 bg-rose-50/50 px-4 py-4 md:flex-row md:items-center md:justify-between shadow-sm cursor-pointer transition-all hover:bg-rose-100/50 hover:border-rose-300 hover:shadow-md active:scale-[0.99] group"
+              className="group cursor-pointer flex flex-col gap-3 rounded-[20px] bg-rose-50 px-5 py-4 shadow-sm ring-1 ring-inset ring-rose-200/60 transition-all hover:bg-rose-100/50 hover:shadow-md active:scale-[0.99] md:flex-row md:items-center md:justify-between"
             >
               <div>
                 <p className="font-semibold text-rose-950 group-hover:text-rose-700 transition-colors">{pName}</p>

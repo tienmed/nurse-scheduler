@@ -230,7 +230,7 @@ export default async function StaffPage({ searchParams }: StaffPageProps) {
             {data.positions.map((position) => (
               <div
                 key={position.id}
-                className="rounded-[22px] border border-slate-200/80 bg-slate-50/80 px-4 py-4"
+                className="rounded-[20px] bg-white px-5 py-4 shadow-sm ring-1 ring-inset ring-slate-200/60 transition hover:shadow-md"
               >
                 <div className="flex items-center justify-between gap-3">
                   <div>

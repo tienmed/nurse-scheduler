@@ -9,7 +9,8 @@ import {
   Siren,
   UserRoundCheck,
 } from "lucide-react";
-import { addDays, parseISO, startOfToday, compareAsc } from "date-fns";
+import { addDays, parseISO, startOfToday, compareAsc, format } from "date-fns";
+import { vi } from "date-fns/locale";
 import { AppShell } from "@/components/app-shell";
 import { AuthRequiredState } from "@/components/auth-required-state";
 import { ConflictList } from "@/components/conflict-list";
@@ -77,7 +78,13 @@ export default async function HomePage({ searchParams }: HomePageProps) {
 
   const monthlyWorkload = calculateMonthlyWorkload(data.weeklySchedule, currentMonth);
   const monthlyLeaves = calculateMonthlyLeaves(data.leaveRequests, currentMonth);
-  const pendingConflicts = nextWeekView.filter((item) => item.status === "needs-review");
+  const pendingConflicts = nextWeekView.filter((item) => {
+    if (item.status !== "needs-review") return false;
+    // Ngoại lệ: Đi học + vị trí KHNV → không coi là xung đột
+    const pos = data.positions.find((p) => p.id === item.positionId);
+    if (pos?.name.toUpperCase().includes("KHNV") && item.note?.includes("đi học")) return false;
+    return true;
+  });
 
   // Dữ liệu nghỉ phép 7 ngày tới
   const today = startOfToday();
@@ -135,12 +142,20 @@ export default async function HomePage({ searchParams }: HomePageProps) {
     })
     .filter(g => g.alertLevel !== null)
     .sort((a, b) => {
+      const dateCompare = compareAsc(parseISO(a.date), parseISO(b.date));
+      if (dateCompare !== 0) return dateCompare;
+
+      const shiftOrder = { "S": 1, "C": 2, "K": 3 };
+      const sA = shiftOrder[a.shift as keyof typeof shiftOrder] || 99;
+      const sB = shiftOrder[b.shift as keyof typeof shiftOrder] || 99;
+      if (sA !== sB) return sA - sB;
+
       const levelRank = { red: 3, orange: 2, yellow: 1 };
       const rankA = a.alertLevel ? levelRank[a.alertLevel] : 0;
       const rankB = b.alertLevel ? levelRank[b.alertLevel] : 0;
       if (rankB !== rankA) return rankB - rankA;
-      if (b.count !== a.count) return b.count - a.count;
-      return compareAsc(parseISO(a.date), parseISO(b.date));
+
+      return b.count - a.count;
     });
 
   const kpis = [
@@ -266,32 +281,32 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                 let labelColorClass = "";
 
                 if (isRedAlert) {
-                  cardClass = "bg-rose-50 border-rose-200/60 shadow-[0_12px_40px_rgba(225,29,72,0.06)]";
-                  iconWrapperClass = "bg-rose-100 text-rose-600";
-                  titleClass = "text-rose-950";
-                  descClass = "text-rose-700 font-medium";
-                  tagClass = "bg-white text-rose-800 border-rose-100";
+                  cardClass = "bg-rose-50 ring-1 ring-inset ring-rose-200/60 shadow-sm transition-all hover:shadow-md";
+                  iconWrapperClass = "bg-rose-100 text-rose-600 ring-4 ring-white";
+                  titleClass = "text-rose-950 font-semibold";
+                  descClass = "text-rose-700/90 leading-relaxed font-medium";
+                  tagClass = "bg-white text-rose-800 ring-1 ring-rose-200";
                   labelColorClass = "text-rose-400";
                 } else if (isOrangeAlert) {
-                  cardClass = "bg-orange-50 border-orange-200/60 shadow-[0_12px_40px_rgba(249,115,22,0.08)]";
-                  iconWrapperClass = "bg-orange-100 text-orange-600";
-                  titleClass = "text-orange-950";
-                  descClass = "text-orange-700 font-medium";
-                  tagClass = "bg-white text-orange-800 border-orange-100";
+                  cardClass = "bg-orange-50 ring-1 ring-inset ring-orange-200/60 shadow-sm transition-all hover:shadow-md";
+                  iconWrapperClass = "bg-orange-100 text-orange-600 ring-4 ring-white";
+                  titleClass = "text-orange-950 font-semibold";
+                  descClass = "text-orange-700/90 leading-relaxed font-medium";
+                  tagClass = "bg-white text-orange-800 ring-1 ring-orange-200";
                   labelColorClass = "text-orange-500";
                 } else {
-                  cardClass = "bg-amber-50 border-amber-200/60 shadow-[0_12px_40px_rgba(245,158,11,0.04)]";
-                  iconWrapperClass = "bg-amber-100 text-amber-600";
-                  titleClass = "text-amber-950";
-                  descClass = "text-amber-700 font-medium";
-                  tagClass = "bg-white text-amber-800 border-amber-100";
-                  labelColorClass = "text-amber-500 font-normal";
+                  cardClass = "bg-amber-50 ring-1 ring-inset ring-amber-200/60 shadow-sm transition-all hover:shadow-md";
+                  iconWrapperClass = "bg-amber-100 text-amber-600 ring-4 ring-white";
+                  titleClass = "text-amber-950 font-semibold";
+                  descClass = "text-amber-700/90 leading-relaxed font-medium";
+                  tagClass = "bg-white text-amber-800 ring-1 ring-amber-200";
+                  labelColorClass = "text-amber-500";
                 }
 
                 return (
                   <div
                     key={`${shortage.date}-${shortage.shift}-${idx}`}
-                    className={`rounded-[24px] border border-transparent p-5 text-sm transition-all ${cardClass}`}
+                    className={`rounded-[20px] p-5 text-sm ${cardClass}`}
                   >
                     <div className="flex items-start gap-4">
                       <div
@@ -302,12 +317,12 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                       <div className="flex-1 space-y-3">
                         <div>
                           <p
-                            className={`font-bold ${titleClass}`}
+                            className={titleClass}
                           >
                             Cảnh báo: Có {shortage.count} người cùng nghỉ vào ca {LEAVE_SHIFT_LABELS[shortage.shift]} ngày {shortage.date}
                           </p>
                           <p
-                            className={`mt-1 line-clamp-2 text-xs leading-5 ${descClass}`}
+                            className={`mt-1 line-clamp-2 text-xs ${descClass}`}
                           >
                             {isRedAlert && "Mức độ Báo Động (Đỏ): Nguy cơ cao trống vị trí trực do vắng nhiều người kèm nhân sự đi học."}
                             {isOrangeAlert && "Mức độ Chú Ý (Cam): Rủi ro thiếu nhân sự vì vắng từ 2 người trở lên, hoặc 1 người nghỉ kèm người đi học."}
@@ -318,7 +333,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                           {shortage.leaves.map((l) => {
                             const pName = data.staff.find(s => s.id === l.staffId)?.name || l.staffId;
                             return (
-                              <span key={l.id} className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold ${tagClass} border shadow-sm`}>
+                              <span key={l.id} className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold ${tagClass} shadow-sm`}>
                                 {pName}
                                 <span className={labelColorClass}>({LEAVE_REASON_LABELS[l.reason]})</span>
                               </span>
@@ -372,35 +387,75 @@ export default async function HomePage({ searchParams }: HomePageProps) {
         <SurfaceSection
           eyebrow="Gần đây"
           title="Danh sách vắng mặt (7 ngày tới)"
-          description="Dòng thời gian các ca đăng ký nghỉ sắp diễn ra trong tuần tới, được xếp theo thứ tự ưu tiên sát ngày nhất."
+          description="Dòng thời gian các ca đăng ký nghỉ sắp diễn ra, gom theo từng ngày."
         >
-          {upcomingLeaves.length > 0 ? (
-            <div className="space-y-3">
-              {upcomingLeaves.slice(0, 8).map((leave) => {
-                const person = data.staff.find((item) => item.id === leave.staffId);
-                return (
-                  <div
-                    key={leave.id}
-                    className="flex flex-col gap-3 rounded-[22px] border border-slate-200/80 bg-slate-50/75 px-4 py-4 md:flex-row md:items-center md:justify-between"
-                  >
-                    <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white border border-slate-200 text-slate-500 shadow-sm text-xl font-bold">
-                        {leave.date.slice(8, 10)}
+          {upcomingLeaves.length > 0 ? (() => {
+            // Gom theo ngày
+            const byDate = new Map<string, typeof upcomingLeaves>();
+            for (const leave of upcomingLeaves) {
+              if (!byDate.has(leave.date)) byDate.set(leave.date, []);
+              byDate.get(leave.date)!.push(leave);
+            }
+
+            const shiftTone: Record<string, { bg: string; text: string; label: string }> = {
+              morning: { bg: "bg-sky-100", text: "text-sky-700", label: "Sáng" },
+              afternoon: { bg: "bg-amber-100", text: "text-amber-700", label: "Chiều" },
+              "full-day": { bg: "bg-rose-100", text: "text-rose-700", label: "Cả ngày" },
+            };
+
+            return (
+              <div className="space-y-4">
+                {[...byDate.entries()].map(([dateStr, leaves]) => {
+                  const dateObj = parseISO(dateStr);
+                  const dayLabel = format(dateObj, "EEEE", { locale: vi });
+                  const dateLabel = format(dateObj, "dd/MM");
+
+                  return (
+                    <div
+                      key={dateStr}
+                      className="rounded-[20px] bg-white p-4 shadow-sm ring-1 ring-inset ring-slate-200/60 transition-all hover:shadow-md"
+                    >
+                      {/* Header ngày */}
+                      <div className="mb-3 flex items-center gap-3 border-b border-slate-100 pb-3">
+                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-slate-900 text-white shadow-sm text-base font-bold">
+                          {dateStr.slice(8, 10)}
+                        </div>
+                        <div>
+                          <p className="text-sm font-bold text-slate-900 capitalize">{dayLabel}</p>
+                          <p className="text-xs text-slate-500">{dateLabel} · {leaves.length} người nghỉ</p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="font-bold text-slate-900">{person?.name ?? leave.staffId}</p>
-                        <p className="text-sm font-medium text-slate-500">{leave.date}</p>
+
+                      {/* Danh sách nhân sự */}
+                      <div className="space-y-2">
+                        {leaves.map((leave) => {
+                          const person = data.staff.find((s) => s.id === leave.staffId);
+                          const tone = shiftTone[leave.shift] || shiftTone["full-day"];
+
+                          return (
+                            <div
+                              key={leave.id}
+                              className="flex items-center justify-between gap-3 rounded-[14px] px-3 py-2.5 transition hover:bg-slate-50"
+                            >
+                              <div className="flex items-center gap-2.5 min-w-0">
+                                <span className="font-medium text-sm text-slate-800 truncate">
+                                  {person?.name ?? leave.staffId}
+                                </span>
+                                <Pill tone="amber">{LEAVE_REASON_LABELS[leave.reason]}</Pill>
+                              </div>
+                              <span className={`shrink-0 inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-bold tracking-wide ${tone.bg} ${tone.text}`}>
+                                {tone.label}
+                              </span>
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
-                    <div className="flex flex-wrap gap-2">
-                      <Pill tone="amber">{LEAVE_REASON_LABELS[leave.reason]}</Pill>
-                      <Pill tone="slate">{LEAVE_SHIFT_LABELS[leave.shift]}</Pill>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          ) : (
+                  );
+                })}
+              </div>
+            );
+          })() : (
             <EmptyState
               icon={UserRoundCheck}
               title="Tuần tới đi làm đầy đủ"
