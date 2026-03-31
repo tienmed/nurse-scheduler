@@ -46,17 +46,31 @@ function resolveRoleFromEnv(email: string): Role | null {
 }
 
 async function resolveRole(email: string): Promise<Role | null> {
-  const normalized = email.toLowerCase();
+  const normalized = email.trim().toLowerCase();
   const fromEnv = resolveRoleFromEnv(normalized);
   if (fromEnv) {
     return fromEnv;
   }
 
   const data = await getAppData();
+
+  // 1. Kiểm tra trong danh sách phân quyền (accessControl)
   const access = data.accessControl.find(
-    (entry) => entry.email.toLowerCase() === normalized,
+    (entry) => entry.email.trim().toLowerCase() === normalized,
   );
-  return access?.role ?? null;
+  if (access?.role) {
+    return access.role;
+  }
+
+  // 2. Chế độ mở rộng: Nếu email tồn tại trong danh sách Nhân sự đang hoạt động, tự động cấp quyền viewer
+  const isStaff = data.staff.some(
+    (s) => s.email.trim().toLowerCase() === normalized && s.active !== false
+  );
+  if (isStaff) {
+    return "viewer";
+  }
+
+  return null;
 }
 
 const providers = isAuthConfigured()
