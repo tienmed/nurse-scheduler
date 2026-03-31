@@ -61,10 +61,10 @@ async function resolveRole(email: string): Promise<Role | null> {
 
 const providers = isAuthConfigured()
   ? [
-      Google({
-        allowDangerousEmailAccountLinking: false,
-      }),
-    ]
+    Google({
+      allowDangerousEmailAccountLinking: false,
+    }),
+  ]
   : [];
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
@@ -78,6 +78,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     maxAge: SESSION_MAX_AGE,
   },
   providers,
+  pages: {
+    signIn: "/sign-in",
+    error: "/sign-in",
+  },
   callbacks: {
     async signIn({ profile }) {
       const email = profile?.email?.toLowerCase();

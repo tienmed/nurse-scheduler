@@ -164,31 +164,13 @@ export function AppShell({
 
         <div className="flex min-h-screen flex-1 flex-col pb-24 lg:pb-0">
           <header className="sticky top-0 z-20 border-b border-white/70 bg-white/76 px-4 py-4 backdrop-blur md:px-6 lg:px-8">
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-              <div className="space-y-3">
-                <div className="flex flex-wrap gap-2 lg:hidden">
-                  {filteredNavItems.map(({ href, label }) => (
-                    <Link
-                      key={href}
-                      href={href}
-                      className={cn(
-                        "rounded-full px-4 py-2 text-sm font-medium transition",
-                        currentPath === href
-                          ? "bg-slate-950 text-white"
-                          : "bg-white text-slate-600 shadow-sm",
-                      )}
-                    >
-                      {label}
-                    </Link>
-                  ))}
-                </div>
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.28em] text-teal-700">Bảng điều phối</p>
-                  <h2 className="mt-1 text-3xl font-semibold tracking-tight text-slate-950 md:text-[2.2rem]">{title}</h2>
-                </div>
-                <p className="max-w-3xl text-sm leading-6 text-slate-600">{description}</p>
+            <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
+              <div>
+                <p className="text-[10px] md:text-xs font-semibold uppercase tracking-[0.2em] md:tracking-[0.28em] text-teal-700">Bảng điều phối</p>
+                <h2 className="text-2xl md:text-3xl font-semibold tracking-tight text-slate-950 md:text-[2.2rem]">{title}</h2>
+                <p className="mt-1 md:mt-2 max-w-3xl text-xs md:text-sm leading-relaxed text-slate-500 md:text-slate-600 line-clamp-2 md:line-clamp-none">{description}</p>
               </div>
-              <div className="flex flex-wrap gap-2">
+              <div className="hidden md:flex flex-wrap gap-2">
                 <Pill tone={!authEnabled ? "amber" : user ? "teal" : "rose"}>
                   {!authEnabled
                     ? "Đang dùng dữ liệu mẫu"

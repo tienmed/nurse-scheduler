@@ -8,11 +8,12 @@ import { isAuthConfigured, isSheetsConfigured } from "@/lib/env";
 interface SignInPageProps {
   searchParams: Promise<{
     returnTo?: string;
+    error?: string;
   }>;
 }
 
 export default async function SignInPage({ searchParams }: SignInPageProps) {
-  const { returnTo } = await searchParams;
+  const { returnTo, error } = await searchParams;
   const redirectTo = returnTo || "/";
   const oauthReady = isAuthConfigured();
   const sheetsReady = isSheetsConfigured();
@@ -70,6 +71,18 @@ export default async function SignInPage({ searchParams }: SignInPageProps) {
                   Dành cho điều phối viên, trưởng ca và người xem lịch theo đúng phân quyền đã cấu hình.
                 </p>
               </div>
+
+              {error === "AccessDenied" ? (
+                <div className="rounded-[24px] border border-rose-200 bg-rose-50 px-4 py-4 animate-in fade-in slide-in-from-top-2">
+                  <strong className="block mb-1 text-sm text-rose-900">Đăng nhập từ chối</strong>
+                  <p className="text-sm leading-6 text-rose-800">Tài khoản Google của bạn chưa được cấp quyền truy cập vào hệ thống. Vui lòng liên hệ quản trị viên để được thêm tên vào danh sách nhân sự.</p>
+                </div>
+              ) : error ? (
+                <div className="rounded-[24px] border border-rose-200 bg-rose-50 px-4 py-4 animate-in fade-in slide-in-from-top-2">
+                  <strong className="block mb-1 text-sm text-rose-900">Lỗi đăng nhập</strong>
+                  <p className="text-sm leading-6 text-rose-800">{error}</p>
+                </div>
+              ) : null}
 
               {oauthReady ? (
                 <form
