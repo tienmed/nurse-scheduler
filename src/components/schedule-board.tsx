@@ -163,14 +163,23 @@ export function ScheduleBoard({
 
                         <div className="flex flex-col gap-2">
                           {entry.slots.map((subslot) => {
-                            const isAssigned = !!subslot.assignment;
-                            const isConflict = !!subslot.leave;
-                            const isEmpty = !subslot.person;
-                            const tone = isAssigned ? getStatusTone(subslot.assignment!.status) : subslot.person ? "teal" : "slate";
-                            const statusLabel = isAssigned ? ASSIGNMENT_STATUS_LABELS[subslot.assignment!.status] : subslot.person ? "Dự kiến" : "Trống";
+                            const { parseISO, compareAsc, startOfToday } = require("date-fns");
+                            const isPast = compareAsc(parseISO(slot.date), startOfToday()) < 0;
+                            const canEdit = editable && !isPast;
+
+                            const isClosed = subslot.assignment?.staffId === "CLOSED";
+                            const isAssigned = !!subslot.assignment && !isClosed;
+                            const isConflict = !!subslot.leave && !isClosed;
+                            const isEmpty = !subslot.person && !isClosed;
+
+                            const tone = isClosed ? "slate" : isAssigned ? getStatusTone(subslot.assignment!.status) : subslot.person ? "teal" : "slate";
+                            const statusLabel = isClosed ? "Đã Khóa" : isAssigned ? ASSIGNMENT_STATUS_LABELS[subslot.assignment!.status] : subslot.person ? "Dự kiến" : "Trống";
 
                             let slotBaseClass = "flex w-full items-start justify-between rounded-[16px] p-3 text-left transition-all ";
-                            if (isConflict) {
+
+                            if (isClosed) {
+                              slotBaseClass += "bg-slate-100 ring-1 ring-inset ring-slate-200 opacity-70 border-dashed border border-slate-300";
+                            } else if (isConflict) {
                               slotBaseClass += "bg-rose-50 ring-2 ring-inset ring-rose-400 hover:bg-rose-100/50";
                             } else if (isEmpty) {
                               slotBaseClass += "bg-slate-50/50 border-2 border-dashed border-slate-200 hover:border-slate-300 hover:bg-slate-50";
@@ -178,22 +187,30 @@ export function ScheduleBoard({
                               slotBaseClass += "bg-white ring-1 ring-inset ring-slate-200/60 shadow-[0_2px_8px_rgba(15,23,42,0.04)] hover:shadow-[0_8px_20px_rgba(15,23,42,0.08)] hover:ring-slate-300";
                             }
 
-                            if (editable) slotBaseClass += " cursor-pointer active:scale-[0.98]";
+                            if (canEdit) slotBaseClass += " cursor-pointer active:scale-[0.98]";
 
                             return (
                               <button
                                 type="button"
                                 key={`${slot.date}-${slot.shift}-${entry.position.id}-${subslot.slotIndex}`}
                                 onClick={(e) => {
-                                  if (editable) {
+                                  if (canEdit) {
                                     setEditingSlot({ slot, entry, subslot, rect: e.currentTarget.getBoundingClientRect() });
                                   }
                                 }}
+                                disabled={!canEdit}
                                 className={slotBaseClass}
                               >
                                 <div className="flex flex-1 flex-col pr-2">
                                   <div className="flex items-center gap-2">
-                                    {subslot.person ? (
+                                    {isClosed ? (
+                                      <>
+                                        <NotebookPen className="h-4 w-4 shrink-0 text-slate-500" />
+                                        <span className="font-medium text-slate-500 line-through decoration-slate-400/50">
+                                          Vị trí bị đóng ca này
+                                        </span>
+                                      </>
+                                    ) : subslot.person ? (
                                       <>
                                         <CalendarClock className="h-4 w-4 shrink-0 text-teal-700" />
                                         <span
@@ -210,7 +227,7 @@ export function ScheduleBoard({
                                     )}
                                   </div>
 
-                                  {subslot.person && isOvertimeSlot(slot.date, slot.shift) && (
+                                  {!isClosed && subslot.person && isOvertimeSlot(slot.date, slot.shift) && (
                                     <div className="ml-6 mt-1 flex items-center gap-1">
                                       <span
                                         className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider ${subslot.person.prefersOvertime

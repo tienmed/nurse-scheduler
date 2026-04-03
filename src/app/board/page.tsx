@@ -1,6 +1,7 @@
 import { BoardTabs } from "@/components/board-tabs";
 
 import { addDays, format, parseISO } from "date-fns";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { getWeekStartFromInput } from "@/lib/date";
 import { getAppData } from "@/lib/repository";
 import {
@@ -77,6 +78,8 @@ export default async function BoardPage({ searchParams }: BoardPageProps) {
   const { week, day: dayParam, shift: shiftParam, view } = await searchParams;
   const isPersonnelView = view === "personnel";
   const weekStart = getWeekStartFromInput(week);
+  const currentWeekStart = getWeekStartFromInput(); // Tuần hiện tại thực tế
+  const isCurrentWeek = weekStart === currentWeekStart;
   const data = await getAppData();
 
   const actualAssignments = getWeeklyAssignments(data.weeklySchedule, weekStart);
@@ -246,6 +249,23 @@ export default async function BoardPage({ searchParams }: BoardPageProps) {
                   Nhân sự
                 </Link>
               </div>
+              {isCurrentWeek ? (
+                <Link
+                  href={`/board?week=${format(addDays(parseISO(currentWeekStart), 7), "yyyy-MM-dd")}${isPersonnelView ? "&view=personnel" : ""}`}
+                  className="flex items-center gap-1 rounded-full bg-slate-900 px-3 py-1.5 font-semibold text-white shadow-sm transition-all hover:bg-slate-700 active:scale-95"
+                >
+                  Tuần sau
+                  <ChevronRight className="h-3.5 w-3.5" />
+                </Link>
+              ) : (
+                <Link
+                  href={`/board?week=${currentWeekStart}${isPersonnelView ? "&view=personnel" : ""}`}
+                  className="flex items-center gap-1 rounded-full bg-teal-600 px-3 py-1.5 font-semibold text-white shadow-sm transition-all hover:bg-teal-500 active:scale-95"
+                >
+                  <ChevronLeft className="h-3.5 w-3.5" />
+                  Tuần hiện tại
+                </Link>
+              )}
             </div>
           </div>
         </div>

@@ -72,6 +72,9 @@ export function ShiftEditDialog({
   // Lấy staff cũ để nhỡ không có trong list gợi ý vẫn show đc tên
   const currentStaff = staff.find((s) => s.id === (currentAssignment?.staffId ?? defaultPerson?.id));
 
+  const { startOfToday, compareAsc } = require("date-fns");
+  const isPast = compareAsc(parseISO(date), startOfToday()) < 0;
+
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm transition-all duration-300" onClick={onClose} />
@@ -87,14 +90,22 @@ export function ShiftEditDialog({
         <h2 className="mb-2 text-xl font-bold text-slate-900">
           Điều chỉnh ca làm việc {mode === "template" && <span className="text-teal-600 font-semibold">(Lịch Nền)</span>}
         </h2>
-        <div className="mb-6 flex flex-wrap gap-2 text-sm text-slate-600">
+        <div className="mb-4 flex flex-wrap gap-2 text-sm text-slate-600">
           <Pill tone="slate">{WEEKDAY_LABELS[dayOfWeek]}</Pill>
           <Pill tone="slate">{SHIFT_LABELS[shift]}</Pill>
           <Pill tone="teal">{position.area ? `${position.area} - ` : ""}{position.name}</Pill>
         </div>
 
-        <form 
+        {isPast && (
+          <div className="mb-6 rounded-2xl bg-amber-50 p-4 border border-amber-200 text-amber-800 text-sm">
+            <span className="font-bold block mb-1">Ngày đã chốt</span>
+            Ca làm việc này đã xảy ra trong quá khứ. Bạn không thể thay đổi nhân sự hay đóng vị trí.
+          </div>
+        )}
+
+        <form
           action={async (formData) => {
+            if (isPast) return onClose();
             try {
               if (mode === "template") {
                 await saveSingleTemplateAssignmentAction(formData);
@@ -104,7 +115,7 @@ export function ShiftEditDialog({
             } finally {
               onClose();
             }
-          }} 
+          }}
           className="space-y-6"
         >
           <input type="hidden" name="returnTo" value={returnTo} />
@@ -119,99 +130,131 @@ export function ShiftEditDialog({
 
           <div className="space-y-3">
             <h3 className="text-sm font-semibold text-slate-900">Chọn nhân sự mới</h3>
-            {suggestions.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">
-                Không tìm thấy nhân sự phù hợp / Đã hết người rảnh.
-              </div>
-            ) : (
-              <div className="grid gap-2 max-h-[300px] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-slate-200">
-                {/* Tùy chọn Bỏ chọn nhân sự (Trống) */}
+            <div className="grid gap-2 max-h-[260px] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-slate-200">
+
+              {/* Tùy chọn Khoá Vị Trí (Chỉ dành cho Lịch tuần) */}
+              {mode === "weekly" && (
                 <label
-                  className="group relative flex cursor-pointer items-center justify-between rounded-[22px] border border-slate-200 bg-white px-4 py-3 transition hover:border-slate-300 has-[:checked]:border-rose-500 has-[:checked]:bg-rose-50"
+                  className={`group relative flex items-center justify-between rounded-[22px] border border-slate-200 bg-white px-4 py-3 transition ${isPast ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:border-slate-300 has-[:checked]:border-slate-600 has-[:checked]:bg-slate-100'}`}
                 >
                   <div className="flex items-center gap-3">
                     <input
                       type="radio"
-                      name="_dummyStaffId0"
-                      value=""
-                      checked={selectedStaffId === ""}
+                      name="_dummyStaffId-closed"
+                      value="CLOSED"
+                      checked={selectedStaffId === "CLOSED"}
                       onChange={(e) => setSelectedStaffId(e.target.value)}
-                      className="h-4 w-4 border-slate-300 text-rose-500 focus:ring-rose-500"
+                      disabled={isPast}
+                      className="h-4 w-4 border-slate-300 text-slate-600 focus:ring-slate-600"
                     />
                     <div className="flex flex-col">
-                      <span className="font-medium text-slate-900 group-has-[:checked]:text-rose-900">
-                        Bỏ chọn nhân sự (Trống)
+                      <span className="font-medium text-slate-900 group-has-[:checked]:text-slate-900">
+                        🔒 Đóng vị trí này
                       </span>
-                      <span className="text-[10px] text-slate-500">Gỡ tên nhân sự khỏi vị trí này</span>
+                      <span className="text-[10px] text-slate-500">Cắt giảm vị trí, không cần người trực ca này</span>
                     </div>
                   </div>
-                  <X className="h-4 w-4 text-slate-400 group-has-[:checked]:text-rose-500" />
                 </label>
+              )}
 
-                {/* Đưa nhân sự hiện tại nổi bật nếu vẫn trong list gợi ý, hoặc mặc định nếu ko có */}
-                {currentStaff && !suggestions.find(s => s.staff.id === currentStaff.id) && (
-                  <label
-                    className="group relative flex cursor-pointer items-center justify-between rounded-[22px] border border-slate-200 bg-white px-4 py-3 transition hover:border-slate-300 has-[:checked]:border-teal-600 has-[:checked]:bg-teal-50"
-                  >
-                    <div className="flex items-center gap-3">
-                      <input
-                        type="radio"
-                        name="_dummyStaffId"
-                        value={currentStaff.id}
-                        checked={selectedStaffId === currentStaff.id}
-                        onChange={(e) => setSelectedStaffId(e.target.value)}
-                        className="h-4 w-4 border-slate-300 text-teal-600 focus:ring-teal-600"
-                      />
-                      <span className="font-medium text-slate-900">
-                        {currentStaff.name} <span className="text-xs text-rose-500">(Ca hiện tại - có thể bận/nghỉ)</span>
-                      </span>
-                    </div>
-                  </label>
-                )}
+              {/* Tùy chọn Bỏ chọn nhân sự (Trống) */}
+              <label
+                className={`group relative flex items-center justify-between rounded-[22px] border border-slate-200 bg-white px-4 py-3 transition ${isPast ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:border-slate-300 has-[:checked]:border-rose-500 has-[:checked]:bg-rose-50'}`}
+              >
+                <div className="flex items-center gap-3">
+                  <input
+                    type="radio"
+                    name="_dummyStaffId0"
+                    value=""
+                    checked={selectedStaffId === ""}
+                    onChange={(e) => setSelectedStaffId(e.target.value)}
+                    disabled={isPast}
+                    className="h-4 w-4 border-slate-300 text-rose-500 focus:ring-rose-500"
+                  />
+                  <div className="flex flex-col">
+                    <span className="font-medium text-slate-900 group-has-[:checked]:text-rose-900">
+                      Bỏ chọn nhân sự (Trống)
+                    </span>
+                    <span className="text-[10px] text-slate-500">Gỡ tên nhân sự khỏi vị trí này</span>
+                  </div>
+                </div>
+                {!isPast && <X className="h-4 w-4 text-slate-400 group-has-[:checked]:text-rose-500" />}
+              </label>
 
-                {suggestions.map((sug) => {
-                  const isChecked = selectedStaffId === sug.staff.id;
-                  return (
+              {/* Danh sách Suggestions */}
+              {suggestions.length === 0 ? (
+                <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500 mb-2">
+                  Không tìm thấy nhân sự phù hợp / Đã hết người rảnh.
+                </div>
+              ) : (
+                <>
+
+                  {/* Đưa nhân sự hiện tại nổi bật nếu vẫn trong list gợi ý, hoặc mặc định nếu ko có */}
+                  {currentStaff && !suggestions.find(s => s.staff.id === currentStaff.id) && (
                     <label
-                      key={sug.staff.id}
-                      className="group relative flex cursor-pointer flex-col gap-2 md:flex-row md:items-center justify-between rounded-[22px] border border-slate-200 bg-white px-4 py-3 transition hover:border-slate-300 hover:bg-slate-50 has-[:checked]:border-teal-600 has-[:checked]:bg-teal-50 has-[:checked]:shadow-sm"
+                      className={`group relative flex items-center justify-between rounded-[22px] border border-slate-200 bg-white px-4 py-3 transition ${isPast ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:border-slate-300 has-[:checked]:border-teal-600 has-[:checked]:bg-teal-50'}`}
                     >
                       <div className="flex items-center gap-3">
                         <input
                           type="radio"
-                          name="_dummyStaffId2"
-                          value={sug.staff.id}
-                          checked={isChecked}
+                          name="_dummyStaffId"
+                          value={currentStaff.id}
+                          checked={selectedStaffId === currentStaff.id}
                           onChange={(e) => setSelectedStaffId(e.target.value)}
-                          className="h-4 w-4 shrink-0 rounded-full border-slate-300 text-teal-600 focus:ring-teal-600"
+                          disabled={isPast}
+                          className="h-4 w-4 border-slate-300 text-teal-600 focus:ring-teal-600"
                         />
-                        <span className="font-medium text-slate-900 group-has-[:checked]:text-teal-900">
-                          {sug.staff.name}
+                        <span className="font-medium text-slate-900">
+                          {currentStaff.name} <span className="text-xs text-rose-500">(Ca hiện tại - có thể bận/nghỉ)</span>
                         </span>
                       </div>
-                      <div className="flex flex-wrap gap-1.5 ml-7 md:ml-0">
-                        {sug.reasons.map((r, i) => (
-                          <span
-                            key={i}
-                            className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
-                              r === "Cùng khu vực" 
-                                ? "bg-indigo-100 text-indigo-700" 
-                                : r === "Ít ca" 
-                                ? "bg-emerald-100 text-emerald-700"
-                                : r === "Sẵn sàng TC"
-                                ? "bg-amber-100 text-amber-700"
-                                : "bg-slate-100 text-slate-600"
-                            }`}
-                          >
-                            {r}
-                          </span>
-                        ))}
-                      </div>
                     </label>
-                  );
-                })}
-              </div>
-            )}
+                  )}
+
+                  {suggestions.map((sug) => {
+                    const isChecked = selectedStaffId === sug.staff.id;
+                    return (
+                      <label
+                        key={sug.staff.id}
+                        className={`group relative flex flex-col gap-2 md:flex-row md:items-center justify-between rounded-[22px] border border-slate-200 bg-white px-4 py-3 transition ${isPast ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:border-slate-300 hover:bg-slate-50 has-[:checked]:border-teal-600 has-[:checked]:bg-teal-50 has-[:checked]:shadow-sm'}`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <input
+                            type="radio"
+                            name="_dummyStaffId2"
+                            value={sug.staff.id}
+                            checked={isChecked}
+                            onChange={(e) => setSelectedStaffId(e.target.value)}
+                            disabled={isPast}
+                            className="h-4 w-4 shrink-0 rounded-full border-slate-300 text-teal-600 focus:ring-teal-600"
+                          />
+                          <span className="font-medium text-slate-900 group-has-[:checked]:text-teal-900">
+                            {sug.staff.name}
+                          </span>
+                        </div>
+                        <div className="flex flex-wrap gap-1.5 ml-7 md:ml-0">
+                          {sug.reasons.map((r, i) => (
+                            <span
+                              key={i}
+                              className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${r === "Cùng khu vực"
+                                ? "bg-indigo-100 text-indigo-700"
+                                : r === "Ít ca"
+                                  ? "bg-emerald-100 text-emerald-700"
+                                  : r === "Sẵn sàng TC"
+                                    ? "bg-amber-100 text-amber-700"
+                                    : "bg-slate-100 text-slate-600"
+                                }`}
+                            >
+                              {r}
+                            </span>
+                          ))}
+                        </div>
+                      </label>
+                    );
+                  })}
+                </>
+              )}
+            </div>
           </div>
 
           <label className="block space-y-2 text-sm text-slate-700">
@@ -219,7 +262,8 @@ export function ShiftEditDialog({
             <textarea
               name="note"
               rows={2}
-              className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-teal-500"
+              disabled={isPast}
+              className={`w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-teal-500 ${isPast ? 'opacity-50 cursor-not-allowed' : ''}`}
               placeholder="VD: Gọi đổi ca đột xuất vì ốm..."
               defaultValue={currentAssignment?.note ?? ""}
             />
@@ -231,12 +275,14 @@ export function ShiftEditDialog({
               onClick={onClose}
               className="rounded-2xl border border-slate-200 px-6 py-3 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
             >
-              Huỷ
+              {isPast ? "Đóng" : "Huỷ"}
             </button>
-            <SubmitButton className="px-6 rounded-2xl">
-              <CheckCircle2 className="h-4 w-4" />
-              Lưu thay đổi
-            </SubmitButton>
+            {!isPast && (
+              <SubmitButton className="px-6 rounded-2xl">
+                <CheckCircle2 className="h-4 w-4" />
+                Lưu thay đổi
+              </SubmitButton>
+            )}
           </div>
         </form>
       </div>
