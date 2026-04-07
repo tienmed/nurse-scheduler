@@ -8,6 +8,7 @@ import {
   FolderPlus,
   Siren,
   UserRoundCheck,
+  UserX,
 } from "lucide-react";
 import { addDays, parseISO, startOfToday, compareAsc, format } from "date-fns";
 import { vi } from "date-fns/locale";
@@ -18,7 +19,7 @@ import { EmptyState } from "@/components/empty-state";
 import { Pill } from "@/components/pill";
 import { SurfaceSection } from "@/components/surface-section";
 import { LEAVE_REASON_LABELS, LEAVE_SHIFT_LABELS } from "@/lib/constants";
-import { formatDate, getMonthKey, getNextWeekStart } from "@/lib/date";
+import { formatDate, getMonthKey, getNextWeekStart, getWeekStart } from "@/lib/date";
 import { isSheetsConfigured } from "@/lib/env";
 import { getAppData } from "@/lib/repository";
 import {
@@ -104,6 +105,59 @@ export default async function HomePage({ searchParams }: HomePageProps) {
       return cDate >= today && cDate <= next7Days;
     })
     .sort((a, b) => compareAsc(parseISO(a.date), parseISO(b.date)));
+
+  // Nhân sự active nhưng không được phân công trong 7 ngày tới
+  const currentWeekStart = getWeekStart();
+  const endWeekStart = getWeekStart(addDays(today, 7));
+
+  // Lấy assignments cho tuần hiện tại
+  const currentWeekSaved = getWeeklyAssignments(data.weeklySchedule, currentWeekStart);
+  const currentWeekAssignments = currentWeekSaved.length > 0
+    ? currentWeekSaved
+    : buildAssignmentsFromTemplate(
+        data.templateSchedule,
+        data.positions,
+        currentWeekStart,
+        data.leaveRequests,
+        data.scheduleRules,
+        data.positionRules,
+      );
+
+  // Nếu 7 ngày span sang tuần sau, lấy thêm assignments tuần sau
+  let next7DaysAssignments = currentWeekAssignments.filter((a) => {
+    const d = parseISO(a.date);
+    return d >= today && d <= next7Days;
+  });
+
+  if (endWeekStart !== currentWeekStart) {
+    const nextWeekSaved = getWeeklyAssignments(data.weeklySchedule, endWeekStart);
+    const nextWeekAssignmentsForCalc = nextWeekSaved.length > 0
+      ? nextWeekSaved
+      : buildAssignmentsFromTemplate(
+          data.templateSchedule,
+          data.positions,
+          endWeekStart,
+          data.leaveRequests,
+          data.scheduleRules,
+          data.positionRules,
+        );
+    const filtered = nextWeekAssignmentsForCalc.filter((a) => {
+      const d = parseISO(a.date);
+      return d >= today && d <= next7Days;
+    });
+    next7DaysAssignments = [...next7DaysAssignments, ...filtered];
+  }
+
+  // Xác định nhân sự đã được phân công
+  const assignedStaffIds = new Set(next7DaysAssignments.map((a) => a.staffId));
+
+  // Xác định nhân sự đang nghỉ phép (loại trừ khỏi danh sách trống việc)
+  const onLeaveStaffIds = new Set(upcomingLeaves.map((l) => l.staffId));
+
+  // Nhân sự active, không được phân công, và không đang nghỉ phép
+  const unassignedStaff = data.staff.filter(
+    (s) => s.active && !assignedStaffIds.has(s.id) && !onLeaveStaffIds.has(s.id),
+  );
 
   // Báo động rủi ro nhân sự (3 mức Đỏ, Cam, Vàng)
   const groupedLeaves = new Map<string, typeof upcomingLeaves>();
@@ -468,42 +522,74 @@ export default async function HomePage({ searchParams }: HomePageProps) {
         <SurfaceSection
           eyebrow="Cập nhật"
           title="Nhân sự trống việc (7 ngày tới)"
-          description="Các nhân sự đã huỷ đăng ký nghỉ phép và sẵn sàng quay lại làm việc."
+          description="Nhân sự huỷ phép quay lại và nhân sự chưa được phân công vị trí trong 7 ngày tới."
         >
-          {recentCancellations.length > 0 ? (
-            <div className="space-y-3">
-              {recentCancellations.map((cancel) => {
-                const person = data.staff.find((s) => s.id === cancel.staffId);
-                const cancelTime = cancel.cancelledAt ? formatDate(cancel.cancelledAt.slice(0, 10)) : "";
-                return (
-                  <div
-                    key={cancel.id}
-                    className="flex flex-col gap-3 rounded-[22px] border border-emerald-200/80 bg-emerald-50/60 px-4 py-4 md:flex-row md:items-center md:justify-between"
-                  >
-                    <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-100 border border-emerald-200 text-emerald-600 shadow-sm">
-                        <Briefcase className="h-4 w-4" />
+          {recentCancellations.length > 0 || unassignedStaff.length > 0 ? (
+            <div className="space-y-5">
+              {/* Nhân sự huỷ phép */}
+              {recentCancellations.length > 0 && (
+                <div className="space-y-3">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Huỷ phép — Sẵn sàng quay lại</p>
+                  {recentCancellations.map((cancel) => {
+                    const person = data.staff.find((s) => s.id === cancel.staffId);
+                    const cancelTime = cancel.cancelledAt ? formatDate(cancel.cancelledAt.slice(0, 10)) : "";
+                    return (
+                      <div
+                        key={cancel.id}
+                        className="flex flex-col gap-3 rounded-[22px] border border-emerald-200/80 bg-emerald-50/60 px-4 py-4 md:flex-row md:items-center md:justify-between"
+                      >
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-100 border border-emerald-200 text-emerald-600 shadow-sm">
+                            <Briefcase className="h-4 w-4" />
+                          </div>
+                          <div>
+                            <p className="font-bold text-slate-900">{person?.name ?? cancel.staffId}</p>
+                            <p className="text-sm text-slate-500">
+                              Quay lại làm ngày {cancel.date} · {LEAVE_SHIFT_LABELS[cancel.shift]}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          <Pill tone="teal">Sẵn sàng</Pill>
+                          {cancelTime && <Pill tone="slate">Huỷ lúc {cancelTime}</Pill>}
+                        </div>
                       </div>
-                      <div>
-                        <p className="font-bold text-slate-900">{person?.name ?? cancel.staffId}</p>
-                        <p className="text-sm text-slate-500">
-                          Quay lại làm ngày {cancel.date} · {LEAVE_SHIFT_LABELS[cancel.shift]}
-                        </p>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Nhân sự chưa phân công */}
+              {unassignedStaff.length > 0 && (
+                <div className="space-y-3">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Chưa phân công vị trí</p>
+                  {unassignedStaff.map((member) => (
+                    <div
+                      key={member.id}
+                      className="flex flex-col gap-3 rounded-[22px] border border-amber-200/80 bg-amber-50/60 px-4 py-4 md:flex-row md:items-center md:justify-between"
+                    >
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-amber-100 border border-amber-200 text-amber-600 shadow-sm">
+                          <UserX className="h-4 w-4" />
+                        </div>
+                        <div>
+                          <p className="font-bold text-slate-900">{member.name}</p>
+                          <p className="text-sm text-slate-500">
+                            Không có vị trí nào trong 7 ngày tới
+                          </p>
+                        </div>
                       </div>
+                      <Pill tone="amber">Chưa phân công</Pill>
                     </div>
-                    <div className="flex flex-wrap gap-2">
-                      <Pill tone="teal">Sẵn sàng</Pill>
-                      {cancelTime && <Pill tone="slate">Huỷ lúc {cancelTime}</Pill>}
-                    </div>
-                  </div>
-                );
-              })}
+                  ))}
+                </div>
+              )}
             </div>
           ) : (
             <EmptyState
               icon={Briefcase}
               title="Chưa có thay đổi"
-              description="Không có nhân sự nào huỷ nghỉ phép và quay lại làm trong 7 ngày tới."
+              description="Không có nhân sự nào huỷ nghỉ phép hoặc trống việc trong 7 ngày tới."
               tone="slate"
             />
           )}
