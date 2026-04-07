@@ -408,7 +408,23 @@ export async function writeAppDataKeysToSheets(data: AppData, keys: AppDataKey[]
 
   const sheets = createSheetsClient();
 
-  // 1. Lấy toàn bộ cột A (chứa ID) của các Sheet cần cập nhật
+  // 1. Lấy metadata của Spreadsheet (để biết rowCount hiện tại và sheetId của từng tab)
+  const spreadsheetMeta = await sheets.spreadsheets.get({
+    spreadsheetId: env.GOOGLE_SHEET_ID,
+  });
+  const sheetMetadataMap = new Map<string, { sheetId: number; rowCount: number }>();
+  spreadsheetMeta.data.sheets?.forEach((s) => {
+    const title = s.properties?.title;
+    const sheetId = s.properties?.sheetId;
+    if (title && typeof sheetId === "number") {
+      sheetMetadataMap.set(title, {
+        sheetId,
+        rowCount: Number(s.properties?.gridProperties?.rowCount ?? 1000),
+      });
+    }
+  });
+
+  // 2. Lấy toàn bộ cột A (chứa ID) của các Sheet cần cập nhật
   const getRanges = uniqueKeys.map((key) => `${SHEET_NAMES[APP_DATA_TO_SHEET[key]]}!A:A`);
   const batchGetResponse = await sheets.spreadsheets.values.batchGet({
     spreadsheetId: env.GOOGLE_SHEET_ID,
@@ -418,6 +434,7 @@ export async function writeAppDataKeysToSheets(data: AppData, keys: AppDataKey[]
   const valueRanges = batchGetResponse.data.valueRanges || [];
   const updateData = [];
   const clearRanges: string[] = [];
+  const maxRowsNeededPerSheet = new Map<string, number>();
 
   for (let i = 0; i < uniqueKeys.length; i++) {
     const key = uniqueKeys[i];
@@ -425,6 +442,8 @@ export async function writeAppDataKeysToSheets(data: AppData, keys: AppDataKey[]
     const actualSheetName = SHEET_NAMES[sheetName];
     const headers = [...SHEET_HEADERS[sheetName]];
     const rows = sheetSerializers[key](data);
+
+    let maxRowForThisSheet = 1;
 
     // colA chứa mảng các ID hiện có trên Sheet
     const colA = valueRanges[i]?.values || [];
@@ -477,11 +496,15 @@ export async function writeAppDataKeysToSheets(data: AppData, keys: AppDataKey[]
         }
       }
 
+      if (targetRow > maxRowForThisSheet) maxRowForThisSheet = targetRow;
+
       updateData.push({
         range: `${actualSheetName}!A${targetRow}`,
         values: [headers.map((header) => row[header] ?? "")],
       });
     }
+
+    maxRowsNeededPerSheet.set(actualSheetName, maxRowForThisSheet);
 
     // Nếu vẫn còn thừa Hole (Tức là lượng xoá > lượng thêm mới), thì Clear dọn dẹp các dòng đó
     for (const hole of holes) {
@@ -493,7 +516,36 @@ export async function writeAppDataKeysToSheets(data: AppData, keys: AppDataKey[]
     }
   }
 
-  // 2. Chạy dọn rác (nếu có)
+  // 3. Kiểm tra và mở rộng kích thước Sheet (Insert rows) nếu cần
+  const resizeRequests: any[] = [];
+  maxRowsNeededPerSheet.forEach((maxRow, sheetName) => {
+    const meta = sheetMetadataMap.get(sheetName);
+    if (meta && maxRow > meta.rowCount) {
+      // Mở rộng thêm 200 hàng để tránh phải resize liên tục
+      const newRowCount = maxRow + 200;
+      console.log(`📏 [Google Sheets] Tab "${sheetName}" vượt giới hạn (${maxRow}/${meta.rowCount}). Đang mở rộng lên ${newRowCount} hàng...`);
+      resizeRequests.push({
+        updateSheetProperties: {
+          properties: {
+            sheetId: meta.sheetId,
+            gridProperties: {
+              rowCount: newRowCount,
+            },
+          },
+          fields: "gridProperties.rowCount",
+        },
+      });
+    }
+  });
+
+  if (resizeRequests.length > 0) {
+    await sheets.spreadsheets.batchUpdate({
+      spreadsheetId: env.GOOGLE_SHEET_ID,
+      requestBody: { requests: resizeRequests },
+    });
+  }
+
+  // 4. Chạy dọn rác (nếu có)
   if (clearRanges.length > 0) {
     await sheets.spreadsheets.values.batchClear({
       spreadsheetId: env.GOOGLE_SHEET_ID,
