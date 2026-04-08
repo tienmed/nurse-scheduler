@@ -217,17 +217,17 @@ export default async function LeavePage({ searchParams }: LeavePageProps) {
             <SurfaceSection
                 eyebrow="Gần đây"
                 title="Danh sách vắng mặt"
-                description="Nhân sự vắng mặt trong vòng 7 ngày tới (kể từ hôm nay)."
+                description={editable ? "Danh sách vắng mặt trong vòng 30 ngày tới." : "Nhân sự vắng mặt trong vòng 7 ngày tới."}
             >
                 {(() => {
                     const today = startOfToday();
-                    const next7Days = addDays(today, 7);
-
-                    // Lọc nhân sự vắng mặt trong 7 ngày tới
+                    // Lọc nhân sự vắng mặt. Admin/Coordinator thấy 30 ngày, Viewer thấy 7 ngày.
+                    const horizonDays = editable ? 30 : 7;
                     const upcomingAbsences = displayLeaveRequests
                         .filter((l) => {
                             const d = parseISO(l.date);
-                            return isWithinInterval(d, { start: today, end: next7Days });
+                            const endRange = addDays(today, horizonDays);
+                            return isWithinInterval(d, { start: addDays(today, -1), end: endRange });
                         })
                         .sort((a, b) => a.date.localeCompare(b.date));
 
@@ -298,7 +298,7 @@ export default async function LeavePage({ searchParams }: LeavePageProps) {
                                                             <span className="shrink-0 text-[10px] font-semibold text-slate-400 uppercase">
                                                                 {l.shift === "full-day" ? "CN" : l.shift === "morning" ? "S" : "C"}
                                                             </span>
-                                                            {currentStaff?.id === l.staffId && (
+                                                            {(editable || currentStaff?.id === l.staffId) && (
                                                                 <CancelLeaveButton
                                                                     leaveId={l.id}
                                                                     staffName={person?.name ?? l.staffId}

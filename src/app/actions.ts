@@ -604,22 +604,46 @@ export async function cancelLeaveAction(formData: FormData) {
       }
     }
 
-    // Xoá leave record
-    await deleteLeaveRequest(leaveId);
+    const cancelType = getValue(formData, "cancelType") || "all";
 
-    // Ghi log huỷ phép
-    const now = new Date().toISOString();
-    await addLeaveCancellation({
-      staffId: leaveRecord.staffId,
-      date: leaveRecord.date,
-      shift: leaveRecord.shift,
-      cancelledAt: now,
-    });
+    if (cancelType === "all" || leaveRecord.shift !== "full-day") {
+      // Xoá hoàn toàn
+      await deleteLeaveRequest(leaveId);
+
+      await addLeaveCancellation({
+        staffId: leaveRecord.staffId,
+        date: leaveRecord.date,
+        shift: leaveRecord.shift,
+        cancelledAt: new Date().toISOString(),
+      });
+    } else {
+      // Huỷ 1 phần (Giữ Sáng hoặc Giữ Chiều)
+      const remainingShift = cancelType === "morning" ? "afternoon" : "morning";
+      const cancelledShift = cancelType === "morning" ? "morning" : "afternoon";
+
+      // Update DB giữ lại nửa buổi còn lại
+      await upsertLeaveRequest({
+        ...leaveRecord,
+        shift: remainingShift as "morning" | "afternoon"
+      });
+
+      // Ghi log chỉ huỷ nửa buổi đó
+      await addLeaveCancellation({
+        staffId: leaveRecord.staffId,
+        date: leaveRecord.date,
+        shift: cancelledShift as "morning" | "afternoon",
+        cancelledAt: new Date().toISOString(),
+      });
+    }
 
     revalidateWorkspace();
     const person = data.staff.find((s) => s.id === leaveRecord.staffId);
+    let messageStr = `${person?.name ?? "Nhân sự"} đã quay lại làm việc ngày ${leaveRecord.date}.`;
+    if (cancelType === "morning") messageStr = `${person?.name ?? "Nhân sự"} đã quay lại làm ngày ${leaveRecord.date} (Ca Sáng).`;
+    if (cancelType === "afternoon") messageStr = `${person?.name ?? "Nhân sự"} đã quay lại làm ngày ${leaveRecord.date} (Ca Chiều).`;
+
     redirectWithState(returnTo, {
-      message: `${person?.name ?? "Nhân sự"} đã đăng ký quay lại làm ngày ${leaveRecord.date}.`,
+      message: messageStr,
     });
   } catch (error: any) {
     if (error?.message === "NEXT_REDIRECT" || error?.digest?.startsWith("NEXT_REDIRECT")) throw error;

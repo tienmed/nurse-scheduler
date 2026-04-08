@@ -70,13 +70,32 @@ export function CancelLeaveButton({ leaveId, staffName, date, shiftLabel }: Canc
                             <strong>{shiftLabel}</strong> ngày <strong>{date}</strong>?
                             <br />
                             <span className="text-slate-400 mt-1 block">
-                                Đăng ký nghỉ phép buổi này sẽ bị xoá khỏi hệ thống.
+                                Đăng ký nghỉ phép cho ca này sẽ bị xoá khỏi hệ thống.
                             </span>
                         </p>
+
+                        {shiftLabel.toLowerCase() === "cả ngày" && (
+                            <div className="mb-6 space-y-2 rounded-xl border border-emerald-100 bg-emerald-50/50 p-4">
+                                <label className="flex items-center gap-2 cursor-pointer">
+                                    <input type="radio" name="cancelType" value="all" defaultChecked className="text-emerald-600 focus:ring-emerald-600" />
+                                    <span className="text-sm font-medium text-slate-700">Đi làm cả ngày (Huỷ toàn bộ phép)</span>
+                                </label>
+                                <label className="flex items-center gap-2 cursor-pointer mt-2">
+                                    <input type="radio" name="cancelType" value="morning" className="text-emerald-600 focus:ring-emerald-600" />
+                                    <span className="text-sm font-medium text-slate-700">Chỉ đi làm Sáng (Giữ phép Chiều)</span>
+                                </label>
+                                <label className="flex items-center gap-2 cursor-pointer mt-2">
+                                    <input type="radio" name="cancelType" value="afternoon" className="text-emerald-600 focus:ring-emerald-600" />
+                                    <span className="text-sm font-medium text-slate-700">Chỉ đi làm Chiều (Giữ phép Sáng)</span>
+                                </label>
+                            </div>
+                        )}
 
                         <form action={handleConfirm} className="flex items-center justify-end gap-3">
                             <input type="hidden" name="leaveId" value={leaveId} />
                             <input type="hidden" name="returnTo" value="/leave" />
+                            {shiftLabel.toLowerCase() !== "cả ngày" && <input type="hidden" name="cancelType" value="all" />}
+
                             <button
                                 type="button"
                                 onClick={() => setShowConfirm(false)}
@@ -95,7 +114,7 @@ export function CancelLeaveButton({ leaveId, staffName, date, shiftLabel }: Canc
                                 ) : (
                                     <Briefcase className="h-4 w-4" />
                                 )}
-                                {isPending ? "Đang xử lý..." : "Xác nhận đi làm"}
+                                {isPending ? "Đang xử lý..." : "Xác nhận"}
                             </button>
                         </form>
                     </div>
