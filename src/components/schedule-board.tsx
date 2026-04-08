@@ -163,8 +163,8 @@ export function ScheduleBoard({
 
                         <div className="flex flex-col gap-2">
                           {entry.slots.map((subslot) => {
-                            const { parseISO, compareAsc, startOfToday } = require("date-fns");
-                            const isPast = compareAsc(parseISO(slot.date), startOfToday()) < 0;
+                            const { isPastShift } = require("@/lib/date");
+                            const isPast = mode !== "template" && isPastShift(slot.date, slot.shift);
                             const canEdit = editable && !isPast;
 
                             const isClosed = subslot.assignment?.staffId === "CLOSED";

@@ -510,7 +510,15 @@ export async function publishWeek(weekStart: string) {
   for (const day of fullBoard) {
     for (const entry of day.entries) {
       for (const slot of entry.slots) {
-        if (!slot.person) continue;
+        let finalStaffId: string | undefined;
+
+        if (slot.assignment) {
+          finalStaffId = slot.assignment.staffId;
+        } else if (slot.person) {
+          finalStaffId = slot.person.id;
+        }
+
+        if (finalStaffId === undefined) continue;
 
         const isPreview = slot.assignment?.id?.startsWith("preview-");
         const finalId = (!slot.assignment || isPreview)
@@ -523,7 +531,7 @@ export async function publishWeek(weekStart: string) {
           date: day.date,
           shift: day.shift,
           positionId: entry.position.id,
-          staffId: slot.person.id,
+          staffId: finalStaffId,
           slotIndex: slot.slotIndex,
           source: slot.assignment?.source || "template",
           status: "published",

@@ -72,8 +72,8 @@ export function ShiftEditDialog({
   // Lấy staff cũ để nhỡ không có trong list gợi ý vẫn show đc tên
   const currentStaff = staff.find((s) => s.id === (currentAssignment?.staffId ?? defaultPerson?.id));
 
-  const { startOfToday, compareAsc } = require("date-fns");
-  const isPast = compareAsc(parseISO(date), startOfToday()) < 0;
+  const { isPastShift } = require("@/lib/date");
+  const isPast = mode !== "template" && isPastShift(date, shift);
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
@@ -82,6 +82,7 @@ export function ShiftEditDialog({
         <button
           type="button"
           onClick={onClose}
+          aria-label="Đóng"
           className="absolute right-6 top-6 rounded-full bg-slate-100 p-2 text-slate-500 transition hover:bg-slate-200 hover:text-slate-900"
         >
           <X className="h-5 w-5" />

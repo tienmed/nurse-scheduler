@@ -321,7 +321,7 @@ export async function saveLeaveAction(formData: FormData) {
     }
 
     // Tạo danh sách ngày từ fromDate → toDate
-    const { addDays, parseISO, format, differenceInCalendarDays } = await import("date-fns");
+    const { addDays, parseISO, format, differenceInCalendarDays, isWeekend } = await import("date-fns");
     const start = parseISO(fromDate);
     const end = parseISO(toDate);
     const dayCount = differenceInCalendarDays(end, start) + 1;
@@ -330,14 +330,24 @@ export async function saveLeaveAction(formData: FormData) {
       throw new Error("Khoảng ngày không hợp lệ (tối đa 90 ngày).");
     }
 
+    const validDatesToProcess: string[] = [];
+    for (let i = 0; i < dayCount; i++) {
+      const targetDate = addDays(start, i);
+      if (!isWeekend(targetDate)) {
+        validDatesToProcess.push(format(targetDate, "yyyy-MM-dd"));
+      }
+    }
+
+    if (validDatesToProcess.length === 0) {
+      throw new Error("Khoảng thời gian đăng ký không có ngày làm việc nào (chỉ bao gồm thứ 7, chủ nhật).");
+    }
+
     // --- Bắt đầu logic Check Quota Nghỉ Phép ---
     const currentData = await getAppData();
     const forceQuota = getValue(formData, "forceQuota") === "true";
     let quotaExceededDate = "";
 
-    for (let i = 0; i < dayCount; i++) {
-      const date = format(addDays(start, i), "yyyy-MM-dd");
-
+    for (const date of validDatesToProcess) {
       const relevantLeaves = currentData.leaveRequests.filter(
         (l) => l.date === date && l.reason !== "dihoc" && l.staffId !== staffId
       );
@@ -381,8 +391,7 @@ export async function saveLeaveAction(formData: FormData) {
     // --- Kết thúc logic Check Quota ---
 
     const duplicateDates: string[] = [];
-    for (let i = 0; i < dayCount; i++) {
-      const date = format(addDays(start, i), "yyyy-MM-dd");
+    for (const date of validDatesToProcess) {
       const existingLeave = currentData.leaveRequests.find(
         (l) => l.staffId === staffId && l.date === date && (l.shift === shift || l.shift === "full-day")
       );
@@ -401,9 +410,9 @@ export async function saveLeaveAction(formData: FormData) {
 
     revalidateWorkspace();
     redirectWithState(returnTo, {
-      message: dayCount === 1
+      message: validDatesToProcess.length === 1
         ? "Đã cập nhật lịch nghỉ."
-        : `Đã tạo ${dayCount} ngày nghỉ (${fromDate} → ${toDate}).`,
+        : `Đã tạo ${validDatesToProcess.length} ngày nghỉ gốc (${fromDate} → ${toDate}, không tính T7/CN).`,
       ...(duplicateDates.length > 0 && { warning: `Các ngày đã có lịch nghỉ: ${duplicateDates.join(", ")}` }),
     });
   } catch (error: any) {

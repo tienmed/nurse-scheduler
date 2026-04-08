@@ -79,3 +79,29 @@ export function isCurrentOrNextWeek(weekStart: string): boolean {
   return weekStart === current || weekStart === next;
 }
 
+/** Tương tự như kiểm tra khóa ca làm, nhận biết ca đã qua so với hiện tại (theo giờ) */
+export function isPastShift(dateStr: string, shift: string): boolean {
+  if (!dateStr) return false;
+  const { parseISO, compareAsc, startOfToday } = require("date-fns");
+  const parsedDate = parseISO(dateStr);
+  const today = startOfToday();
+  const dateDiff = compareAsc(parsedDate, today);
+
+  if (dateDiff < 0) {
+    return true; // Ngày ở trong quá khứ
+  }
+  if (dateDiff > 0) {
+    return false; // Ngày ở tương lai
+  }
+
+  // Ngày hiện tại (hôm nay)
+  const currentHour = new Date().getHours();
+  if (shift === "morning") {
+    return currentHour >= 12; // Quá 12h trưa -> khóa ca sáng
+  }
+  if (shift === "afternoon") {
+    return currentHour >= 18; // Quá 18h -> khóa ca chiều
+  }
+  return false;
+}
+
