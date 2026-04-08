@@ -509,3 +509,4 @@ export function getDefaultDayAndShift(weekStart: string): { day: number; shift: 
 
   return { day: 1, shift: "morning" };
 }
+

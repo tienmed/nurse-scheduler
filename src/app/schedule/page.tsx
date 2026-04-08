@@ -21,7 +21,7 @@ import {
   SHIFT_LABELS,
   WEEKDAY_LABELS,
 } from "@/lib/constants";
-import { formatDate, getWeekDates, getWeekStartFromInput } from "@/lib/date";
+import { formatDate, getWeekDates, getWeekStartFromInput, isCurrentOrNextWeek } from "@/lib/date";
 import { getAppData } from "@/lib/repository";
 import {
   buildAssignmentsFromTemplate,
@@ -91,6 +91,7 @@ export default async function SchedulePage({ searchParams }: SchedulePageProps) 
   const currentUser = user!;
   const data = await getAppData();
   const editable = canEdit(currentUser.role);
+  const canPlan = isCurrentOrNextWeek(weekStart);
   const activeRules = getActiveScheduleRules(data.scheduleRules);
 
   const actualAssignments = getWeeklyAssignments(data.weeklySchedule, weekStart);
@@ -170,7 +171,7 @@ export default async function SchedulePage({ searchParams }: SchedulePageProps) 
               <Download className="h-4 w-4" />
               Xuất Excel
             </Link>
-            {currentUser.role === "admin" && (
+            {currentUser.role === "admin" && canPlan && (
               <form action={generateWeekAction}>
                 <input type="hidden" name="weekStart" value={weekStart} />
                 <input type="hidden" name="returnTo" value={returnTo} />
@@ -183,7 +184,7 @@ export default async function SchedulePage({ searchParams }: SchedulePageProps) 
                 </SubmitButton>
               </form>
             )}
-            {editable && (
+            {editable && canPlan && (
               <form action={publishWeekAction}>
                 <input type="hidden" name="weekStart" value={weekStart} />
                 <input type="hidden" name="returnTo" value={returnTo} />
@@ -206,6 +207,9 @@ export default async function SchedulePage({ searchParams }: SchedulePageProps) 
           <Pill tone="rose">
             {displayedAssignments.filter((item) => item.status === "needs-review").length} ca cần rà soát
           </Pill>
+          {!canPlan && (
+            <Pill tone="amber">Chỉ được sinh/chốt lịch cho tuần hiện tại hoặc tuần kế tiếp</Pill>
+          )}
         </div>
 
         {/* Tabs ngang điều hướng buổi */}
@@ -215,8 +219,8 @@ export default async function SchedulePage({ searchParams }: SchedulePageProps) 
               key={`${tab.dayOfWeek}-${tab.shift}`}
               href={tab.href}
               className={`rounded-full px-3.5 py-2 text-xs font-semibold transition ${tab.isActive
-                  ? "bg-slate-950 text-white shadow-md"
-                  : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                ? "bg-slate-950 text-white shadow-md"
+                : "bg-slate-100 text-slate-600 hover:bg-slate-200"
                 }`}
             >
               {tab.label}

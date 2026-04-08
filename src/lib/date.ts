@@ -72,3 +72,10 @@ export function formatDate(isoDate: string, pattern = "dd/MM/yyyy") {
   return format(parseISO(isoDate), pattern);
 }
 
+/** Kiểm tra weekStart có phải tuần hiện tại hoặc tuần kế tiếp */
+export function isCurrentOrNextWeek(weekStart: string): boolean {
+  const current = getWeekStart();
+  const next = getNextWeekStart();
+  return weekStart === current || weekStart === next;
+}
+
