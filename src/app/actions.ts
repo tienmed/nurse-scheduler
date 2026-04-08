@@ -50,6 +50,17 @@ async function assertEditor() {
   }
 }
 
+async function assertAdmin() {
+  const { user } = await getUserContext({ required: false });
+  if (!user) {
+    throw new Error("Phiên đăng nhập đã hết hạn hoặc chưa sẵn sàng. Vui lòng đăng nhập lại rồi thử lại.");
+  }
+
+  if (user.role !== "admin") {
+    throw new Error("Hành động này chỉ dành cho Quản trị viên.");
+  }
+}
+
 function revalidateWorkspace() {
   ["/", "/schedule", "/template", "/staff", "/leave", "/reports", "/areas"].forEach((path) => {
     revalidatePath(path);
@@ -410,7 +421,7 @@ export async function generateWeekAction(formData: FormData) {
   const returnTo = getValue(formData, "returnTo") || "/schedule";
 
   try {
-    await assertEditor();
+    await assertAdmin();
     const weekStart = getValue(formData, "weekStart");
     await generateWeekFromTemplate(weekStart);
     revalidateWorkspace();

@@ -11,8 +11,10 @@ import {
   MapPin,
   Users,
 } from "lucide-react";
+import { cookies } from "next/headers";
 import { signOut } from "@/auth";
 import { Pill } from "@/components/pill";
+import { DataHorizonPicker } from "@/components/data-horizon-picker";
 import { APP_NAME, APP_TAGLINE, ROLE_LABELS } from "@/lib/constants";
 import { cn } from "@/lib/cn";
 import { canEdit } from "@/lib/session";
@@ -39,7 +41,7 @@ const navItems = [
   { href: "/reports", label: "Báo cáo", shortLabel: "Báo cáo", icon: FileSpreadsheet },
 ];
 
-export function AppShell({
+export async function AppShell({
   currentPath,
   title,
   description,
@@ -49,6 +51,9 @@ export function AppShell({
   message,
   error,
 }: AppShellProps) {
+  const cookieStore = await cookies();
+  const initialHorizon = cookieStore.get("nh-data-horizon")?.value;
+
   const editable = user ? canEdit(user.role) : false;
   const filteredNavItems = navItems.filter((item) => {
     if (["/staff", "/areas", "/template"].includes(item.href)) {
@@ -179,6 +184,7 @@ export function AppShell({
                       : "Phiên cần làm mới"}
                 </Pill>
                 <Pill tone="slate">Sẵn sàng mở rộng</Pill>
+                <DataHorizonPicker initialHorizon={initialHorizon} />
               </div>
             </div>
             {message ? (

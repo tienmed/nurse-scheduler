@@ -18,7 +18,7 @@ import { ConflictList } from "@/components/conflict-list";
 import { EmptyState } from "@/components/empty-state";
 import { Pill } from "@/components/pill";
 import { SurfaceSection } from "@/components/surface-section";
-import { LEAVE_REASON_LABELS, LEAVE_SHIFT_LABELS } from "@/lib/constants";
+import { LEAVE_REASON_LABELS, LEAVE_SHIFT_LABELS, SHIFT_LABELS, WEEKDAY_LABELS } from "@/lib/constants";
 import { formatDate, getMonthKey, getNextWeekStart, getWeekStart } from "@/lib/date";
 import { isSheetsConfigured } from "@/lib/env";
 import { getAppData } from "@/lib/repository";
@@ -26,8 +26,10 @@ import {
   buildAssignmentsFromTemplate,
   calculateMonthlyLeaves,
   calculateMonthlyWorkload,
+  getActiveScheduleRules,
   getWeeklyAssignments,
 } from "@/lib/schedule";
+import type { ShiftType } from "@/lib/types";
 import { getUserContext } from "@/lib/session";
 
 interface HomePageProps {
@@ -115,13 +117,13 @@ export default async function HomePage({ searchParams }: HomePageProps) {
   const currentWeekAssignments = currentWeekSaved.length > 0
     ? currentWeekSaved
     : buildAssignmentsFromTemplate(
-        data.templateSchedule,
-        data.positions,
-        currentWeekStart,
-        data.leaveRequests,
-        data.scheduleRules,
-        data.positionRules,
-      );
+      data.templateSchedule,
+      data.positions,
+      currentWeekStart,
+      data.leaveRequests,
+      data.scheduleRules,
+      data.positionRules,
+    );
 
   // Nếu 7 ngày span sang tuần sau, lấy thêm assignments tuần sau
   let next7DaysAssignments = currentWeekAssignments.filter((a) => {
@@ -134,13 +136,13 @@ export default async function HomePage({ searchParams }: HomePageProps) {
     const nextWeekAssignmentsForCalc = nextWeekSaved.length > 0
       ? nextWeekSaved
       : buildAssignmentsFromTemplate(
-          data.templateSchedule,
-          data.positions,
-          endWeekStart,
-          data.leaveRequests,
-          data.scheduleRules,
-          data.positionRules,
-        );
+        data.templateSchedule,
+        data.positions,
+        endWeekStart,
+        data.leaveRequests,
+        data.scheduleRules,
+        data.positionRules,
+      );
     const filtered = nextWeekAssignmentsForCalc.filter((a) => {
       const d = parseISO(a.date);
       return d >= today && d <= next7Days;
@@ -148,16 +150,87 @@ export default async function HomePage({ searchParams }: HomePageProps) {
     next7DaysAssignments = [...next7DaysAssignments, ...filtered];
   }
 
-  // Xác định nhân sự đã được phân công
-  const assignedStaffIds = new Set(next7DaysAssignments.map((a) => a.staffId));
-
-  // Xác định nhân sự đang nghỉ phép (loại trừ khỏi danh sách trống việc)
-  const onLeaveStaffIds = new Set(upcomingLeaves.map((l) => l.staffId));
-
-  // Nhân sự active, không được phân công, và không đang nghỉ phép
-  const unassignedStaff = data.staff.filter(
-    (s) => s.active && !assignedStaffIds.has(s.id) && !onLeaveStaffIds.has(s.id),
+  // --- Logic cảnh báo trống lịch THEO TỪNG CA ---
+  // Xây dựng Set các leave đã bị huỷ trong 7 ngày tới
+  const cancelledLeaveSet = new Set(
+    data.leaveCancellations
+      .filter((c) => {
+        const cDate = parseISO(c.date);
+        return cDate >= today && cDate <= next7Days;
+      })
+      .map((c) => `${c.staffId}-${c.date}-${c.shift}`),
   );
+
+  // Kiểm tra nhân sự có đang nghỉ phép thực sự (chưa bị huỷ) cho 1 ca cụ thể
+  function isEffectivelyOnLeave(
+    staffId: string, date: string, shift: ShiftType,
+  ): boolean {
+    const matchingLeave = upcomingLeaves.find(
+      (l) =>
+        l.staffId === staffId &&
+        l.date === date &&
+        (l.shift === "full-day" || l.shift === shift),
+    );
+    if (!matchingLeave) return false;
+    // Kiểm tra xem leave này đã bị huỷ chưa
+    const cancelKey = `${staffId}-${date}-${matchingLeave.shift}`;
+    return !cancelledLeaveSet.has(cancelKey);
+  }
+
+  // Duyệt từng ca trong 7 ngày tới
+  const activeRules = getActiveScheduleRules(data.scheduleRules);
+
+  interface UnassignedSlotInfo {
+    staffId: string;
+    date: string;
+    shift: ShiftType;
+    dayOfWeek: number;
+  }
+
+  const unassignedSlots: UnassignedSlotInfo[] = [];
+  const activeStaffList = data.staff.filter((s) => s.active);
+
+  for (let d = 0; d < 7; d++) {
+    const dateObj = addDays(today, d);
+    const dateStr = format(dateObj, "yyyy-MM-dd");
+    const dayOfWeek = dateObj.getDay(); // 0=CN, 1=T2...6=T7
+
+    // CN (0) hoặc Thứ 7 (6) → skip (Thứ 7 là ngày tăng ca, không tính trống việc bắt buộc)
+    if (dayOfWeek === 0 || dayOfWeek === 6) continue;
+
+    // Lấy các shift hoạt động cho dayOfWeek này
+    const slotsForDay = activeRules.filter((r) => r.dayOfWeek === dayOfWeek);
+
+    for (const slot of slotsForDay) {
+      // Tìm assignment cho ca này
+      const assignedIds = new Set(
+        next7DaysAssignments
+          .filter((a) => a.date === dateStr && a.shift === slot.shift)
+          .map((a) => a.staffId),
+      );
+
+      // Kiểm tra từng nhân sự active
+      for (const staff of activeStaffList) {
+        if (assignedIds.has(staff.id)) continue;
+        if (isEffectivelyOnLeave(staff.id, dateStr, slot.shift)) continue;
+
+        unassignedSlots.push({
+          staffId: staff.id,
+          date: dateStr,
+          shift: slot.shift,
+          dayOfWeek,
+        });
+      }
+    }
+  }
+
+  // Gom theo nhân sự để hiển thị
+  const unassignedByStaff = new Map<string, UnassignedSlotInfo[]>();
+  for (const uSlot of unassignedSlots) {
+    const list = unassignedByStaff.get(uSlot.staffId) ?? [];
+    list.push(uSlot);
+    unassignedByStaff.set(uSlot.staffId, list);
+  }
 
   // Báo động rủi ro nhân sự (3 mức Đỏ, Cam, Vàng)
   const groupedLeaves = new Map<string, typeof upcomingLeaves>();
@@ -524,7 +597,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
           title="Nhân sự trống việc (7 ngày tới)"
           description="Nhân sự huỷ phép quay lại và nhân sự chưa được phân công vị trí trong 7 ngày tới."
         >
-          {recentCancellations.length > 0 || unassignedStaff.length > 0 ? (
+          {recentCancellations.length > 0 || unassignedByStaff.size > 0 ? (
             <div className="space-y-5">
               {/* Nhân sự huỷ phép */}
               {recentCancellations.length > 0 && (
@@ -559,29 +632,50 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                 </div>
               )}
 
-              {/* Nhân sự chưa phân công */}
-              {unassignedStaff.length > 0 && (
+              {/* Nhân sự chưa phân công — theo từng ca */}
+              {unassignedByStaff.size > 0 && (
                 <div className="space-y-3">
                   <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Chưa phân công vị trí</p>
-                  {unassignedStaff.map((member) => (
-                    <div
-                      key={member.id}
-                      className="flex flex-col gap-3 rounded-[22px] border border-amber-200/80 bg-amber-50/60 px-4 py-4 md:flex-row md:items-center md:justify-between"
-                    >
-                      <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-amber-100 border border-amber-200 text-amber-600 shadow-sm">
-                          <UserX className="h-4 w-4" />
+                  {[...unassignedByStaff.entries()].map(([staffId, slots]) => {
+                    const member = data.staff.find((s) => s.id === staffId);
+                    if (!member) return null;
+                    return (
+                      <div
+                        key={staffId}
+                        className="rounded-[22px] border border-amber-200/80 bg-amber-50/60 px-4 py-4"
+                      >
+                        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                          <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-amber-100 border border-amber-200 text-amber-600 shadow-sm">
+                              <UserX className="h-4 w-4" />
+                            </div>
+                            <div>
+                              <p className="font-bold text-slate-900">{member.name}</p>
+                              <p className="text-sm text-slate-500">
+                                Trống {slots.length} ca trong 7 ngày tới
+                              </p>
+                            </div>
+                          </div>
+                          <Pill tone="amber">{slots.length} ca trống</Pill>
                         </div>
-                        <div>
-                          <p className="font-bold text-slate-900">{member.name}</p>
-                          <p className="text-sm text-slate-500">
-                            Không có vị trí nào trong 7 ngày tới
-                          </p>
+                        <div className="mt-3 flex flex-wrap gap-1.5 pl-[52px]">
+                          {slots.slice(0, 8).map((s) => (
+                            <span
+                              key={`${s.date}-${s.shift}`}
+                              className="inline-flex items-center rounded-full bg-white px-2.5 py-1 text-[11px] font-semibold text-amber-800 ring-1 ring-amber-200 shadow-sm"
+                            >
+                              {WEEKDAY_LABELS[s.dayOfWeek]} · {SHIFT_LABELS[s.shift as ShiftType]}
+                            </span>
+                          ))}
+                          {slots.length > 8 && (
+                            <span className="inline-flex items-center rounded-full bg-amber-100 px-2.5 py-1 text-[11px] font-medium text-amber-700">
+                              +{slots.length - 8} ca khác
+                            </span>
+                          )}
                         </div>
                       </div>
-                      <Pill tone="amber">Chưa phân công</Pill>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>

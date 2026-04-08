@@ -1,5 +1,6 @@
 import { google } from "googleapis";
-import { unstable_cache, revalidateTag } from "next/cache";
+import { cache as reactCache } from "react";
+import { revalidateTag } from "next/cache";
 import { SHEET_HEADERS, SHEET_NAMES } from "@/lib/constants";
 import { env, getServiceAccountPrivateKey, isSheetsConfigured } from "@/lib/env";
 import type { AppData } from "@/lib/types";
@@ -60,19 +61,33 @@ const sheetSerializers: Record<AppDataKey, (data: AppData) => SheetRow[]> = {
       slotIndex: row.slotIndex !== undefined ? `${row.slotIndex}` : "0",
       note: row.note ?? "",
     })),
-  weeklySchedule: (data) =>
-    data.weeklySchedule.map((row) => ({
-      id: row.id,
-      weekStart: row.weekStart,
-      date: row.date,
-      shift: row.shift,
-      positionId: row.positionId,
-      staffId: row.staffId,
-      slotIndex: row.slotIndex !== undefined ? `${row.slotIndex}` : "0",
-      source: row.source,
-      status: row.status,
-      note: row.note ?? "",
-    })),
+  weeklySchedule: (data) => {
+    // Tự động làm gọn: Chỉ lưu 180 ngày lịch sử gần nhất để tránh phình to DB (10 triệu cells)
+    const { parseISO, subDays, isAfter, startOfToday } = require("date-fns");
+    const cutoff = subDays(startOfToday(), 180);
+
+    return data.weeklySchedule
+      .filter(item => {
+        try {
+          return isAfter(parseISO(item.date), cutoff);
+        } catch {
+          return true;
+        }
+      })
+      .map((item) => ({
+        ...item,
+        id: item.id || "",
+        weekStart: item.weekStart || "",
+        date: item.date || "",
+        shift: item.shift || "morning",
+        positionId: item.positionId || "",
+        staffId: item.staffId || "",
+        slotIndex: String(item.slotIndex || 0),
+        source: item.source || "manual",
+        status: item.status || "draft",
+        note: item.note || "",
+      }));
+  },
   leaveRequests: (data) =>
     data.leaveRequests.map((row) => ({
       id: row.id,
@@ -259,27 +274,34 @@ export async function readAppDataFromSheets(): Promise<AppData> {
     }
   }
 
-  const parseSheet = (index: number) => {
+  const parseSheet = (index: number, name: string) => {
     const values = batchResponse[index]?.values ?? [];
     if (values.length === 0) return [];
     const [headerRow, ...rows] = values;
     const headers = headerRow.map((v) => `${v}`.trim());
-    return rows
-      .filter((row) => row.some((cell) => `${cell}`.trim()))
-      .map((row) =>
-        Object.fromEntries(headers.map((header, colIndex) => [header, `${row[colIndex] ?? ""}`]))
-      );
+    const validRows = rows.filter((row) => row.some((cell) => `${cell}`.trim()));
+
+    if (process.env.NODE_ENV === "development") {
+      console.log(`   - ${name}: ${validRows.length} dòng dữ liệu (tổng ${rows.length} hàng).`);
+      if (validRows.length > 5000) {
+        console.warn(`     🚨 CẢNH BÁO: Bảng ${name} có quá nhiều dữ liệu (>5000 dòng), có thể gây chậm và lỗi cache.`);
+      }
+    }
+
+    return validRows.map((row) =>
+      Object.fromEntries(headers.map((header, colIndex) => [header, `${row[colIndex] ?? ""}`]))
+    );
   };
 
-  const staffRows = parseSheet(0);
-  const positionRows = parseSheet(1);
-  const scheduleRuleRows = parseSheet(2);
-  const templateRows = parseSheet(3);
-  const weeklyRows = parseSheet(4);
-  const leaveRows = parseSheet(5);
-  const positionRuleRows = parseSheet(6);
-  const accessRows = parseSheet(7);
-  const cancellationRows = parseSheet(8);
+  const staffRows = parseSheet(0, "staff");
+  const positionRows = parseSheet(1, "positions");
+  const scheduleRuleRows = parseSheet(2, "schedule_rules");
+  const templateRows = parseSheet(3, "template_schedule");
+  const weeklyRows = parseSheet(4, "weekly_schedule");
+  const leaveRows = parseSheet(5, "leave_requests");
+  const positionRuleRows = parseSheet(6, "position_rules");
+  const accessRows = parseSheet(7, "access_control");
+  const cancellationRows = parseSheet(8, "leave_cancellations");
 
   const data = {
     staff: staffRows.map((row, index) => ({
@@ -377,18 +399,32 @@ export async function writeAppDataToSheets(data: AppData) {
 }
 
 const CACHE_TAG = "app-data";
+const TTL = 60 * 1000; // 60 seconds
 
-const cachedReadAppData = unstable_cache(
-  async () => readAppDataFromSheets(),
-  ["app-data-sheets"],
-  { tags: [CACHE_TAG], revalidate: 60 },
-);
+// Cache trong bộ nhớ để tránh giới hạn 2MB của Next.js filesystem cache
+let memoryCache: { data: AppData; timestamp: number } | null = null;
+
+// React.cache giúp deduplicate các lời gọi trong cùng 1 vòng đời render của Server Component
+const deduplicatedReadAppData = reactCache(async () => {
+  const now = Date.now();
+  if (memoryCache && (now - memoryCache.timestamp < TTL)) {
+    if (process.env.NODE_ENV === "development") {
+      console.log("⚡ [Cache] Đang sử dụng dữ liệu từ bộ nhớ (Memory Cache).");
+    }
+    return memoryCache.data;
+  }
+
+  const data = await readAppDataFromSheets();
+  memoryCache = { data, timestamp: now };
+  return data;
+});
 
 export function getCachedAppData() {
-  return cachedReadAppData();
+  return deduplicatedReadAppData();
 }
 
 export function invalidateAppDataCache() {
+  memoryCache = null;
   revalidateTag(CACHE_TAG, "max");
 }
 
@@ -450,8 +486,18 @@ export async function writeAppDataKeysToSheets(data: AppData, keys: AppDataKey[]
     const existingIds = new Map<string, number>();
 
     colA.forEach((rowVal, idx) => {
-      if (rowVal[0]) {
-        existingIds.set(rowVal[0].toString().trim(), idx + 1); // Row Google Sheet bắt đầu từ 1
+      const id = rowVal[0]?.toString().trim();
+      const rowNum = idx + 1;
+      if (id && id !== "id") {
+        if (existingIds.has(id)) {
+          // PHÁT HIỆN TRÙNG LẶP: ID này đã có ở một dòng trước đó
+          // Đánh dấu dòng cũ là "Hole" để hệ thống ghi đè hoặc xoá bỏ
+          holes.push(existingIds.get(id)!);
+          if (process.env.NODE_ENV === "development") {
+            console.warn(`   ⚠️  Phát hiện ID trùng lặp "${id}" tại dòng ${existingIds.get(id)}. Đang đưa vào danh sách dọn dẹp.`);
+          }
+        }
+        existingIds.set(id, rowNum);
       }
     });
 
@@ -516,21 +562,46 @@ export async function writeAppDataKeysToSheets(data: AppData, keys: AppDataKey[]
     }
   }
 
-  // 3. Kiểm tra và mở rộng kích thước Sheet (Insert rows) nếu cần
-  const resizeRequests: any[] = [];
+  // 3. Chuẩn bị các yêu cầu Grid (Dọn dẹp dòng thừa VÀ Mở rộng sheet nếu cần)
+  // Quy tắc: Đưa Cleanup (Xoá dòng) lên TRƯỚC Resize (Thêm dòng) để giải phóng Cell Pool (giới hạn 10 triệu ô của Google)
+  const gridRequests: any[] = [];
+
+  // --- PHẦN 1: Dọn rác (DeleteDimension) ---
+  maxRowsNeededPerSheet.forEach((maxRow, sheetName) => {
+    const meta = sheetMetadataMap.get(sheetName);
+    const finalMaxRow = Math.max(maxRow, 1);
+    if (meta && meta.rowCount > finalMaxRow + 50) {
+      const startRowIndex = finalMaxRow;
+      const endRowIndex = meta.rowCount;
+      if (process.env.NODE_ENV === "development") {
+        console.log(`🧹 [Google Sheets] Dọn dẹp tab "${sheetName}": Xoá ${endRowIndex - startRowIndex} dòng thừa.`);
+      }
+      gridRequests.push({
+        deleteDimension: {
+          range: {
+            sheetId: meta.sheetId,
+            dimension: "ROWS",
+            startIndex: startRowIndex,
+            endIndex: endRowIndex,
+          },
+        },
+      });
+    }
+  });
+
+  // --- PHẦN 2: Mở rộng (UpdateSheetProperties) ---
   maxRowsNeededPerSheet.forEach((maxRow, sheetName) => {
     const meta = sheetMetadataMap.get(sheetName);
     if (meta && maxRow > meta.rowCount) {
-      // Mở rộng thêm 200 hàng để tránh phải resize liên tục
-      const newRowCount = maxRow + 200;
-      console.log(`📏 [Google Sheets] Tab "${sheetName}" vượt giới hạn (${maxRow}/${meta.rowCount}). Đang mở rộng lên ${newRowCount} hàng...`);
-      resizeRequests.push({
+      const newRowCount = maxRow + 50; // Giảm buffer xuống 50 để tránh lỗi grid limit 10tr cells
+      if (process.env.NODE_ENV === "development") {
+        console.log(`📏 [Google Sheets] Mở rộng tab "${sheetName}" lên ${newRowCount} hàng.`);
+      }
+      gridRequests.push({
         updateSheetProperties: {
           properties: {
             sheetId: meta.sheetId,
-            gridProperties: {
-              rowCount: newRowCount,
-            },
+            gridProperties: { rowCount: newRowCount },
           },
           fields: "gridProperties.rowCount",
         },
@@ -538,29 +609,30 @@ export async function writeAppDataKeysToSheets(data: AppData, keys: AppDataKey[]
     }
   });
 
-  if (resizeRequests.length > 0) {
+  // 4. Thực thi duy nhất 1 lần batchUpdate đối với cấu trúc Grid (tiết kiệm quota và cell pool)
+  if (gridRequests.length > 0) {
     await sheets.spreadsheets.batchUpdate({
       spreadsheetId: env.GOOGLE_SHEET_ID,
-      requestBody: { requests: resizeRequests },
+      requestBody: { requests: gridRequests },
     });
   }
 
-  // 4. Chạy dọn rác (nếu có)
+  // 5. Chạy cập nhật dữ liệu (Values)
+  await sheets.spreadsheets.values.batchUpdate({
+    spreadsheetId: env.GOOGLE_SHEET_ID,
+    requestBody: {
+      valueInputOption: "RAW",
+      data: updateData,
+    },
+  });
+
+  // 6. Chạy ClearRanges cho các Hole
   if (clearRanges.length > 0) {
     await sheets.spreadsheets.values.batchClear({
       spreadsheetId: env.GOOGLE_SHEET_ID,
       requestBody: { ranges: clearRanges },
     });
   }
-
-  // 3. Thực thi Upsert dữ liệu (Update các ô đích danh)
-  await sheets.spreadsheets.values.batchUpdate({
-    spreadsheetId: env.GOOGLE_SHEET_ID,
-    requestBody: {
-      valueInputOption: "USER_ENTERED",
-      data: updateData,
-    },
-  });
 
   if (process.env.NODE_ENV === "development") {
     console.log(`✅ [Google Sheets] Đã ghi xong cho các khóa: ${uniqueKeys.join(", ")}`);

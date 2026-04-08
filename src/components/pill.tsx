@@ -2,7 +2,7 @@
 
 interface PillProps {
   children: React.ReactNode;
-  tone?: "slate" | "emerald" | "amber" | "rose" | "teal";
+  tone?: "slate" | "emerald" | "amber" | "rose" | "teal" | "indigo";
 }
 
 const toneClasses = {
@@ -11,6 +11,7 @@ const toneClasses = {
   amber: "border-amber-200 bg-amber-100/90 text-amber-700",
   rose: "border-rose-200 bg-rose-100/90 text-rose-700",
   teal: "border-teal-200 bg-teal-100/90 text-teal-700",
+  indigo: "border-indigo-200 bg-indigo-100/90 text-indigo-700",
 };
 
 export function Pill({ children, tone = "slate" }: PillProps) {

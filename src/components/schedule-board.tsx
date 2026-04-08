@@ -171,9 +171,10 @@ export function ScheduleBoard({
                             const isAssigned = !!subslot.assignment && !isClosed;
                             const isConflict = !!subslot.leave && !isClosed;
                             const isEmpty = !subslot.person && !isClosed;
+                            const isPreview = !subslot.assignment && !!subslot.person;
 
-                            const tone = isClosed ? "slate" : isAssigned ? getStatusTone(subslot.assignment!.status) : subslot.person ? "teal" : "slate";
-                            const statusLabel = isClosed ? "Đã Khóa" : isAssigned ? ASSIGNMENT_STATUS_LABELS[subslot.assignment!.status] : subslot.person ? "Dự kiến" : "Trống";
+                            const tone = isClosed ? "slate" : isAssigned ? getStatusTone(subslot.assignment!.status) : isPreview ? "indigo" : "slate";
+                            const statusLabel = isClosed ? "Đã Khóa" : isAssigned ? ASSIGNMENT_STATUS_LABELS[subslot.assignment!.status] : isPreview ? "Dự kiến" : "Trống";
 
                             let slotBaseClass = "flex w-full items-start justify-between rounded-[16px] p-3 text-left transition-all ";
 
@@ -183,6 +184,8 @@ export function ScheduleBoard({
                               slotBaseClass += "bg-rose-50 ring-2 ring-inset ring-rose-400 hover:bg-rose-100/50";
                             } else if (isEmpty) {
                               slotBaseClass += "bg-slate-50/50 border-2 border-dashed border-slate-200 hover:border-slate-300 hover:bg-slate-50";
+                            } else if (isPreview) {
+                              slotBaseClass += "bg-indigo-50/40 ring-1 ring-inset ring-indigo-200 border-indigo-100/50 hover:bg-indigo-50 hover:ring-indigo-300 shadow-sm";
                             } else {
                               slotBaseClass += "bg-white ring-1 ring-inset ring-slate-200/60 shadow-[0_2px_8px_rgba(15,23,42,0.04)] hover:shadow-[0_8px_20px_rgba(15,23,42,0.08)] hover:ring-slate-300";
                             }

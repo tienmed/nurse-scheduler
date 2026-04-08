@@ -22,6 +22,20 @@ import type {
 } from "@/lib/types";
 
 import { generateId } from "@/lib/id";
+import { cookies } from "next/headers";
+
+async function getHorizonDays(): Promise<number> {
+  try {
+    const cookieStore = await cookies();
+    const horizon = cookieStore.get("nh-data-horizon")?.value;
+    if (horizon && horizon !== "all") {
+      return parseInt(horizon, 10);
+    }
+  } catch (e) {
+    // ignore
+  }
+  return 0; // 0 means show all
+}
 
 function cloneData(): AppData {
   return JSON.parse(JSON.stringify(MOCK_DATA)) as AppData;
@@ -29,12 +43,46 @@ function cloneData(): AppData {
 
 export async function getAppData(): Promise<AppData> {
   let data: AppData;
+  const horizonDays = await getHorizonDays();
+
   if (isSheetsConfigured()) {
     data = await getCachedAppData();
   } else {
     data = cloneData();
     if (data.accessControl.length === 0) {
       data.accessControl = DEMO_ACCESS_CONTROL;
+    }
+  }
+
+  // Áp dụng bộ lọc thời gian nếu có cấu hình chân trời dữ liệu (Horizon)
+  if (horizonDays > 0) {
+    const { subDays, parseISO, isAfter, startOfToday } = await import("date-fns");
+    const cutoffDate = subDays(startOfToday(), horizonDays);
+
+    const filterByDate = (items: any[]) =>
+      items.filter((item) => {
+        if (!item.date) return true;
+        try {
+          return isAfter(parseISO(item.date), cutoffDate);
+        } catch {
+          return true;
+        }
+      });
+
+    const originalCounts = {
+      weekly: data.weeklySchedule.length,
+      leaves: data.leaveRequests.length,
+      cancels: data.leaveCancellations.length,
+    };
+
+    data.weeklySchedule = filterByDate(data.weeklySchedule);
+    data.leaveRequests = filterByDate(data.leaveRequests);
+    data.leaveCancellations = filterByDate(data.leaveCancellations);
+
+    if (process.env.NODE_ENV === "development") {
+      console.log(`🧹 [Horizon Filter] Đã lọc dữ liệu > ${horizonDays} ngày:`);
+      console.log(`   - Lịch tuần: ${originalCounts.weekly} -> ${data.weeklySchedule.length}`);
+      console.log(`   - Nghỉ phép: ${originalCounts.leaves} -> ${data.leaveRequests.length}`);
     }
   }
 
