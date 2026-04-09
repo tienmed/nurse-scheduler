@@ -510,3 +510,153 @@ export function getDefaultDayAndShift(weekStart: string): { day: number; shift: 
   return { day: 1, shift: "morning" };
 }
 
+export interface MonthlyTimesheetStaffRow {
+  staffId: string;
+  name: string;
+  days: Record<
+    string,
+    {
+      morning: "✔" | "P" | "H" | "O" | "T" | null;
+      afternoon: "✔" | "P" | "H" | "O" | "T" | null;
+    }
+  >;
+  totalWork: number;
+  totalLeaveP: number;
+  totalLeaveH: number;
+  totalLeaveO: number;
+  totalOvertime: number;
+}
+
+/**
+ * Báo cáo chấm công chi tiết theo ngày trong tháng
+ */
+export function buildMonthlyTimesheet(
+  weeklySchedule: WeeklyAssignment[],
+  leaveRequests: LeaveRecord[],
+  staff: StaffMember[],
+  positions: Position[],
+  scheduleRules: ScheduleRule[],
+  positionRules: PositionRule[],
+  monthKey: string
+): MonthlyTimesheetStaffRow[] {
+  const { start, end } = getMonthBounds(monthKey);
+  const startDate = parseISO(start);
+  const endDate = parseISO(end);
+  const daysCount = differenceInCalendarDays(endDate, startDate) + 1;
+
+  const { getWeekStartFromInput } = require("@/lib/date");
+  const uniqueWeeks = new Set<string>();
+  for (let i = 0; i < daysCount; i++) {
+    uniqueWeeks.add(getWeekStartFromInput(format(addDays(startDate, i), "yyyy-MM-dd")));
+  }
+
+  // Khởi tạo map cho mỗi nhân sự
+  const timesheetMap = new Map<string, MonthlyTimesheetStaffRow>();
+  for (const member of staff) {
+    if (!member.active) continue;
+    timesheetMap.set(member.id, {
+      staffId: member.id,
+      name: member.name,
+      days: {},
+      totalWork: 0,
+      totalLeaveP: 0,
+      totalLeaveH: 0,
+      totalLeaveO: 0,
+      totalOvertime: 0,
+    });
+  }
+
+  // 1. Phủ trước tất cả dữ liệu nghỉ phép cho toàn bộ nhân sự
+  const leaveChecker = createLeaveConflictChecker(leaveRequests);
+  for (const member of staff) {
+    if (!member.active) continue;
+    const row = timesheetMap.get(member.id);
+    if (!row) continue;
+
+    for (let i = 0; i < daysCount; i++) {
+      const currentDate = format(addDays(startDate, i), "yyyy-MM-dd");
+      const mLeave = leaveChecker.check(member.id, currentDate, "morning");
+      const aLeave = leaveChecker.check(member.id, currentDate, "afternoon");
+
+      if (!row.days[currentDate]) {
+        row.days[currentDate] = { morning: null, afternoon: null };
+      }
+
+      if (mLeave) {
+        const mark = mLeave.reason === "dihoc" ? "H" : mLeave.reason === "om" ? "O" : "P";
+        row.days[currentDate].morning = mark;
+        if (mark === "H") row.totalLeaveH++;
+        else if (mark === "O") row.totalLeaveO++;
+        else row.totalLeaveP++;
+      }
+
+      if (aLeave) {
+        const mark = aLeave.reason === "dihoc" ? "H" : aLeave.reason === "om" ? "O" : "P";
+        row.days[currentDate].afternoon = mark;
+        if (mark === "H") row.totalLeaveH++;
+        else if (mark === "O") row.totalLeaveO++;
+        else row.totalLeaveP++;
+      }
+    }
+  }
+
+  // 2. Duyệt qua tất cả các tuần liên quan đến tháng này, dùng getWeekBoard để lấy dữ liệu thực tế hệt như giao diện
+  for (const weekStart of uniqueWeeks) {
+    const board = getWeekBoard(
+      weeklySchedule,
+      positions,
+      staff,
+      leaveRequests,
+      weekStart,
+      scheduleRules,
+      positionRules
+    );
+
+    // board là array lịch trình từng slot (VD: Sáng T2, Chiều T2...)
+    for (const slot of board) {
+      // Chỉ lấy những ngày nằm gọn trong tháng đang xét
+      if (slot.date < start || slot.date > end) continue;
+
+      const dateStr = slot.date;
+      const isMorning = slot.shift === "morning";
+      const isWeekend = parseISO(dateStr).getDay() === 0 || parseISO(dateStr).getDay() === 6;
+
+      for (const entry of slot.entries) {
+        for (const subslot of entry.slots) {
+          // Bỏ qua nếu bị đóng ca hoặc không có nhân sự
+          if (!subslot.person || subslot.assignment?.staffId === "CLOSED") continue;
+
+          const row = timesheetMap.get(subslot.person.id);
+          if (!row) continue;
+
+          // Nếu đã được đánh dấu phép ở bước Pre-fill thì bỏ qua đếm ca làm
+          const existingMark = isMorning ? row.days[dateStr].morning : row.days[dateStr].afternoon;
+          if (existingMark === "P" || existingMark === "O" || existingMark === "H") {
+            continue; // Đã đánh dấu nghỉ thì bỏ qua không tính vào đi làm
+          }
+
+          // Cập nhật ca đi làm
+          let mark: "✔" | "T" = "✔";
+          if (isWeekend) {
+            mark = "T";
+            // Kể cả lặp nhiều vị trí trong ca, chỉ cộng khi slot đó chưa được đánh dấu (chống count đúp)
+            if (existingMark !== "T") row.totalOvertime++;
+          } else {
+            mark = "✔";
+            if (existingMark !== "✔") row.totalWork++;
+          }
+
+          if (isMorning) {
+            row.days[dateStr].morning = mark;
+          } else {
+            row.days[dateStr].afternoon = mark;
+          }
+        }
+      }
+    }
+  }
+
+  // Trả về danh sách toàn bộ cán bộ (kể cả chưa có dữ kiện để vẽ khung lưới đầy đủ)
+  return Array.from(timesheetMap.values())
+    .sort((a, b) => a.name.localeCompare(b.name, "vi"));
+}

@@ -4,12 +4,14 @@ import { AuthRequiredState } from "@/components/auth-required-state";
 import { EmptyState } from "@/components/empty-state";
 import { Pill } from "@/components/pill";
 import { SurfaceSection } from "@/components/surface-section";
-import { getMonthKey } from "@/lib/date";
+import { getMonthKey, getMonthBounds } from "@/lib/date";
+import { format, parseISO, addDays, differenceInCalendarDays } from "date-fns";
 import { getAppData } from "@/lib/repository";
 import {
   calculateMonthlyLeaves,
   calculateMonthlyWorkload,
   calculatePositionRotations,
+  buildMonthlyTimesheet,
 } from "@/lib/schedule";
 import { getUserContext } from "@/lib/session";
 
@@ -49,6 +51,29 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
     (left, right) => right.days - left.days,
   );
   const rotations = calculatePositionRotations(data.weeklySchedule).slice(0, 18);
+  const timesheet = buildMonthlyTimesheet(
+    data.weeklySchedule,
+    data.leaveRequests,
+    data.staff,
+    data.positions,
+    data.scheduleRules,
+    data.positionRules,
+    monthKey
+  );
+
+  const { start, end } = getMonthBounds(monthKey);
+  const startDate = parseISO(start);
+  const daysCount = differenceInCalendarDays(parseISO(end), startDate) + 1;
+  const daysOfWeek = ["CN", "T2", "T3", "T4", "T5", "T6", "T7"];
+  const daysArray = Array.from({ length: daysCount }).map((_, i) => {
+    const d = addDays(startDate, i);
+    return {
+      dateStr: format(d, "yyyy-MM-dd"),
+      label: format(d, "dd/MM"),
+      isWeekend: d.getDay() === 0 || d.getDay() === 6,
+      dow: daysOfWeek[d.getDay()],
+    };
+  });
 
   return (
     <AppShell
@@ -88,6 +113,111 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
             </a>
           </div>
         </form>
+      </SurfaceSection>
+
+      <SurfaceSection
+        eyebrow="Bảng chấm công"
+        title="Bảng tổng hợp chi tiết tháng"
+        description="Theo dõi trực quan phân ca, làm thêm và nghỉ phép của nhân sự từng ngày."
+      >
+        {timesheet.length > 0 ? (
+          <div className="overflow-x-auto rounded-[24px] border border-slate-200/80 shadow-sm scrollbar-thin scrollbar-thumb-slate-200">
+            <table className="min-w-max divide-y divide-slate-200 text-left text-sm text-slate-800">
+              <thead className="bg-slate-50 sticky top-0 z-10 text-slate-600">
+                <tr>
+                  <th rowSpan={3} className="px-4 py-3 font-semibold border-r border-slate-200 sticky left-0 bg-slate-50 min-w-[200px] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
+                    Nhân viên
+                  </th>
+                  {daysArray.map((day) => (
+                    <th key={`${day.dateStr}-dow`} colSpan={2} className={`px-2 py-1 text-center font-medium border-b border-b-slate-200 border-r border-r-slate-200 text-xs text-slate-500 ${day.isWeekend ? "bg-amber-50/50 text-amber-700" : "bg-slate-100/50"}`}>
+                      {day.dow}
+                    </th>
+                  ))}
+                  <th rowSpan={3} className="px-4 py-3 font-semibold text-center border-l-2 border-slate-300">
+                    Σ Ngày làm
+                  </th>
+                  <th rowSpan={3} className="px-4 py-3 font-semibold text-center border-l border-slate-200">
+                    Σ Phép
+                  </th>
+                  <th rowSpan={3} className="px-4 py-3 font-semibold text-center border-l border-slate-200">
+                    Σ Tăng ca
+                  </th>
+                </tr>
+                <tr>
+                  {daysArray.map((day) => (
+                    <th key={day.dateStr} colSpan={2} className={`px-2 py-2 text-center font-medium border-r border-slate-200 border-b border-b-slate-200 ${day.isWeekend ? "bg-slate-100" : ""}`}>
+                      {day.label}
+                    </th>
+                  ))}
+                </tr>
+                <tr>
+                  {daysArray.map((day) => (
+                    <td key={`${day.dateStr}-sub`} colSpan={2} className={`p-0 border-r border-slate-200 ${day.isWeekend ? "bg-slate-100" : ""}`}>
+                      <div className="flex text-xs text-slate-400 font-medium w-[48px]">
+                        <div className="flex-1 text-center border-r border-slate-200/60 py-1">S</div>
+                        <div className="flex-1 text-center py-1">C</div>
+                      </div>
+                    </td>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-200 bg-white">
+                {timesheet.map((row) => (
+                  <tr key={row.staffId} className="hover:bg-slate-50 transition-colors h-11">
+                    <td className="px-4 py-3 font-medium text-slate-900 border-r border-slate-200 sticky left-0 bg-white group-hover:bg-slate-50 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
+                      {row.name}
+                    </td>
+                    {daysArray.map((day) => {
+                      const data = row.days[day.dateStr];
+                      const renderCell = (val: "✔" | "P" | "H" | "O" | "T" | null) => {
+                        if (!val) return null;
+                        if (val === "✔") return <span className="text-teal-600 font-bold">✔</span>;
+                        if (val === "P") return <span className="inline-flex h-5 w-5 items-center justify-center rounded bg-slate-200 text-[11px] font-bold text-slate-600">P</span>;
+                        if (val === "H") return <span className="inline-flex h-5 w-5 items-center justify-center rounded bg-indigo-100 text-[11px] font-bold text-indigo-700">H</span>;
+                        if (val === "O") return <span className="inline-flex h-5 w-5 items-center justify-center rounded bg-rose-100 text-[11px] font-bold text-rose-700">O</span>;
+                        if (val === "T") return <span className="inline-flex h-5 w-5 items-center justify-center rounded bg-amber-100/80 text-[11px] font-bold text-amber-700">T</span>;
+                        return val;
+                      };
+                      return (
+                        <td key={day.dateStr} colSpan={2} className={`p-0 border-r border-slate-200 ${day.isWeekend ? "bg-slate-50/50" : ""}`}>
+                          <div className="flex h-full w-full min-w-[48px] items-center text-center">
+                            <div className="flex-1 border-r border-slate-200/50 min-h-[36px] h-full flex items-center justify-center">
+                              {renderCell(data?.morning)}
+                            </div>
+                            <div className="flex-1 min-h-[36px] h-full flex items-center justify-center">
+                              {renderCell(data?.afternoon)}
+                            </div>
+                          </div>
+                        </td>
+                      );
+                    })}
+                    <td className="px-4 py-3 text-center font-bold text-slate-700 bg-slate-50/50 border-l-2 border-slate-300">
+                      {row.totalWork > 0 ? row.totalWork / 2 : 0}
+                    </td>
+                    <td className="px-4 py-3 text-center font-medium text-slate-600 border-l border-slate-200 min-w-[80px]">
+                      <div className="flex flex-col items-center justify-center text-xs space-y-0.5">
+                        {row.totalLeaveP > 0 && <div>P: {row.totalLeaveP / 2}</div>}
+                        {row.totalLeaveH > 0 && <div className="text-indigo-600 font-semibold">H: {row.totalLeaveH / 2}</div>}
+                        {row.totalLeaveO > 0 && <div className="text-rose-600 font-semibold">O: {row.totalLeaveO / 2}</div>}
+                        {(row.totalLeaveP === 0 && row.totalLeaveH === 0 && row.totalLeaveO === 0) && "0"}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-center font-medium text-amber-600 border-l border-slate-200">
+                      {row.totalOvertime > 0 ? row.totalOvertime / 2 : 0}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <EmptyState
+            icon={RefreshCcwDot}
+            title="Chưa có dữ liệu chấm công"
+            description="Lịch làm việc hoặc đăng ký nghỉ phép của tháng này hiện đang trống."
+            tone="slate"
+          />
+        )}
       </SurfaceSection>
 
       <div className="grid gap-6 xl:grid-cols-2">

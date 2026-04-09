@@ -74,48 +74,50 @@ export function CancelLeaveButton({ leaveId, staffName, date, shiftLabel }: Canc
                             </span>
                         </p>
 
-                        {shiftLabel.toLowerCase() === "cả ngày" && (
-                            <div className="mb-6 space-y-2 rounded-xl border border-emerald-100 bg-emerald-50/50 p-4">
-                                <label className="flex items-center gap-2 cursor-pointer">
-                                    <input type="radio" name="cancelType" value="all" defaultChecked className="text-emerald-600 focus:ring-emerald-600" />
-                                    <span className="text-sm font-medium text-slate-700">Đi làm cả ngày (Huỷ toàn bộ phép)</span>
-                                </label>
-                                <label className="flex items-center gap-2 cursor-pointer mt-2">
-                                    <input type="radio" name="cancelType" value="morning" className="text-emerald-600 focus:ring-emerald-600" />
-                                    <span className="text-sm font-medium text-slate-700">Chỉ đi làm Sáng (Giữ phép Chiều)</span>
-                                </label>
-                                <label className="flex items-center gap-2 cursor-pointer mt-2">
-                                    <input type="radio" name="cancelType" value="afternoon" className="text-emerald-600 focus:ring-emerald-600" />
-                                    <span className="text-sm font-medium text-slate-700">Chỉ đi làm Chiều (Giữ phép Sáng)</span>
-                                </label>
-                            </div>
-                        )}
-
-                        <form action={handleConfirm} className="flex items-center justify-end gap-3">
+                        <form action={handleConfirm} className="space-y-6">
                             <input type="hidden" name="leaveId" value={leaveId} />
                             <input type="hidden" name="returnTo" value="/leave" />
                             {shiftLabel.toLowerCase() !== "cả ngày" && <input type="hidden" name="cancelType" value="all" />}
 
-                            <button
-                                type="button"
-                                onClick={() => setShowConfirm(false)}
-                                disabled={isPending}
-                                className="rounded-2xl px-5 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-800 disabled:opacity-50"
-                            >
-                                Huỷ
-                            </button>
-                            <button
-                                type="submit"
-                                disabled={isPending}
-                                className="inline-flex items-center gap-2 rounded-2xl bg-emerald-600 px-6 py-2.5 text-sm font-semibold text-white shadow-md shadow-emerald-600/20 transition hover:bg-emerald-700 hover:shadow-lg disabled:opacity-60"
-                            >
-                                {isPending ? (
-                                    <Loader2 className="h-4 w-4 animate-spin" />
-                                ) : (
-                                    <Briefcase className="h-4 w-4" />
-                                )}
-                                {isPending ? "Đang xử lý..." : "Xác nhận"}
-                            </button>
+                            {shiftLabel.toLowerCase() === "cả ngày" && (
+                                <div className="space-y-2 rounded-xl border border-emerald-100 bg-emerald-50/50 p-4">
+                                    <label className="flex items-center gap-2 cursor-pointer">
+                                        <input type="radio" name="cancelType" value="all" defaultChecked className="text-emerald-600 focus:ring-emerald-600" />
+                                        <span className="text-sm font-medium text-slate-700">Đi làm cả ngày (Huỷ toàn bộ phép)</span>
+                                    </label>
+                                    <label className="flex items-center gap-2 cursor-pointer mt-2">
+                                        <input type="radio" name="cancelType" value="morning" className="text-emerald-600 focus:ring-emerald-600" />
+                                        <span className="text-sm font-medium text-slate-700">Chỉ đi làm Sáng (Giữ phép Chiều)</span>
+                                    </label>
+                                    <label className="flex items-center gap-2 cursor-pointer mt-2">
+                                        <input type="radio" name="cancelType" value="afternoon" className="text-emerald-600 focus:ring-emerald-600" />
+                                        <span className="text-sm font-medium text-slate-700">Chỉ đi làm Chiều (Giữ phép Sáng)</span>
+                                    </label>
+                                </div>
+                            )}
+
+                            <div className="flex items-center justify-end gap-3">
+                                <button
+                                    type="button"
+                                    onClick={() => setShowConfirm(false)}
+                                    disabled={isPending}
+                                    className="rounded-2xl px-5 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-800 disabled:opacity-50"
+                                >
+                                    Huỷ
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={isPending}
+                                    className="inline-flex items-center gap-2 rounded-2xl bg-emerald-600 px-6 py-2.5 text-sm font-semibold text-white shadow-md shadow-emerald-600/20 transition hover:bg-emerald-700 hover:shadow-lg disabled:opacity-60"
+                                >
+                                    {isPending ? (
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                    ) : (
+                                        <Briefcase className="h-4 w-4" />
+                                    )}
+                                    {isPending ? "Đang xử lý..." : "Xác nhận"}
+                                </button>
+                            </div>
                         </form>
                     </div>
                 </div>
