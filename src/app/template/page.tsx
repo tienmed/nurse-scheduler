@@ -1,7 +1,15 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Settings2, Users } from "lucide-react";
-import { applyPrioritizedStaffToTemplateAction, saveScheduleRuleAction, saveTemplateAssignmentAction, savePositionRuleAction, savePositionRulesBatchAction } from "@/app/actions";
+import { CalendarDays, Settings2, Trash2, Users } from "lucide-react";
+import { 
+  applyPrioritizedStaffToTemplateAction, 
+  saveScheduleRuleAction, 
+  saveTemplateAssignmentAction, 
+  savePositionRuleAction, 
+  savePositionRulesBatchAction,
+  saveHolidayAction,
+  deleteHolidayAction
+} from "@/app/actions";
 import { AppShell } from "@/components/app-shell";
 import { AuthRequiredState } from "@/components/auth-required-state";
 import { EmptyState } from "@/components/empty-state";
@@ -315,6 +323,123 @@ export default async function TemplatePage({ searchParams }: TemplatePageProps) 
               />
             )}
           </SurfaceSection>
+        </div>
+
+        <div className="grid gap-6 xl:grid-cols-2">
+          {/* Quản lý Ngày nghỉ (Holidays) */}
+          <SurfaceSection
+            eyebrow="Ngày nghỉ lễ"
+            title="Quản lý Ngày nghỉ (Holidays)"
+            description="Định nghĩa các ngày nghỉ lễ trong năm. Hệ thống sẽ tự động loại trừ các ngày này khỏi lịch làm việc và không tính công/phép."
+          >
+            <div className="space-y-4">
+              {data.holidays.length > 0 ? (
+                <div className="overflow-hidden rounded-[24px] border border-slate-200/80">
+                  <table className="min-w-full divide-y divide-slate-200 text-left text-sm">
+                    <thead className="bg-slate-50 text-slate-500">
+                      <tr>
+                        <th className="px-4 py-3 font-medium">Ngày</th>
+                        <th className="px-4 py-3 font-medium">Tên ngày lễ</th>
+                        <th className="px-4 py-3 font-medium text-right">Thao tác</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-200 bg-white">
+                      {data.holidays.map((holiday) => (
+                        <tr key={holiday.id}>
+                          <td className="px-4 py-3 font-medium text-slate-900">{holiday.date}</td>
+                          <td className="px-4 py-3 text-slate-500">{holiday.name}</td>
+                          <td className="px-4 py-3 text-right">
+                            <form action={deleteHolidayAction}>
+                              <input type="hidden" name="id" value={holiday.id} />
+                              <input type="hidden" name="returnTo" value="/template" />
+                              <button
+                                type="submit"
+                                className="inline-flex h-8 w-8 items-center justify-center rounded-full text-slate-400 transition hover:bg-rose-50 hover:text-rose-600"
+                                title="Xóa ngày nghỉ"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            </form>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="rounded-[24px] border border-dashed border-slate-200 bg-slate-50/50 p-6 text-center text-sm text-slate-500">
+                  Chưa có ngày nghỉ lễ nào được định nghĩa.
+                </div>
+              )}
+
+              <form action={saveHolidayAction} className="mt-4 grid gap-4 border-t border-slate-200 pt-5">
+                <input type="hidden" name="returnTo" value="/template" />
+                <div className="grid grid-cols-2 gap-4">
+                  <label className="space-y-2 text-sm text-slate-700">
+                    <span className="font-medium">Ngày</span>
+                    <input
+                      type="date"
+                      name="date"
+                      className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-teal-500"
+                      required
+                      disabled={!editable}
+                    />
+                  </label>
+                  <label className="space-y-2 text-sm text-slate-700">
+                    <span className="font-medium">Tên ngày lễ</span>
+                    <input
+                      name="name"
+                      className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-teal-500"
+                      placeholder="Ví dụ: Tết Nguyên Đán"
+                      required
+                      disabled={!editable}
+                    />
+                  </label>
+                </div>
+                <label className="space-y-2 text-sm text-slate-700">
+                  <span className="font-medium">Ghi chú (Không bắt buộc)</span>
+                  <input
+                    name="note"
+                    className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-teal-500"
+                    placeholder="Ghi chú thêm nếu cần"
+                    disabled={!editable}
+                  />
+                </label>
+                <SubmitButton
+                  variant="outline"
+                  disabled={!editable}
+                  className="w-full"
+                >
+                  <CalendarDays className="h-4 w-4" />
+                  Thêm ngày nghỉ
+                </SubmitButton>
+              </form>
+            </div>
+          </SurfaceSection>
+
+          {/* Tips / Info */}
+          <div className="flex flex-col gap-6">
+            <div className="rounded-[32px] bg-teal-50/50 p-6 border border-teal-100 ring-1 ring-teal-200/50">
+              <h4 className="flex items-center gap-2 text-sm font-bold text-teal-900">
+                <Settings2 className="h-4 w-4" />
+                Lưu ý về Ngày nghỉ
+              </h4>
+              <ul className="mt-4 space-y-3 text-sm text-teal-800/80">
+                <li className="flex gap-2">
+                  <span className="font-bold underline">1.</span>
+                  <span>Chủ Nhật và chiều Thứ 7 được hệ thống mặc định coi là ngày nghỉ.</span>
+                </li>
+                <li className="flex gap-2">
+                  <span className="font-bold underline">2.</span>
+                  <span>Ngày nghỉ lễ (Holiday) sẽ ghi đè lịch làm việc của mọi vị trí trong ngày đó.</span>
+                </li>
+                <li className="flex gap-2">
+                  <span className="font-bold underline">3.</span>
+                  <span>Các ngày nghỉ này không được tính vào tổng số ngày làm việc và không bị trừ ngày phép.</span>
+                </li>
+              </ul>
+            </div>
+          </div>
         </div>
       </div>
 

@@ -21,7 +21,10 @@ import {
   invalidateAppDataCache,
   deleteLeaveRequest,
   addLeaveCancellation,
+  upsertHoliday,
+  deleteHoliday,
 } from "@/lib/repository";
+import { isHoliday, isOffDay } from "@/lib/date";
 import { canEdit, getUserContext } from "@/lib/session";
 
 function getValue(formData: FormData, key: string) {
@@ -330,20 +333,20 @@ export async function saveLeaveAction(formData: FormData) {
       throw new Error("Khoảng ngày không hợp lệ (tối đa 90 ngày).");
     }
 
-    const validDatesToProcess: string[] = [];
-    for (let i = 0; i < dayCount; i++) {
-      const targetDate = addDays(start, i);
-      if (!isWeekend(targetDate)) {
-        validDatesToProcess.push(format(targetDate, "yyyy-MM-dd"));
-      }
-    }
-
-    if (validDatesToProcess.length === 0) {
-      throw new Error("Khoảng thời gian đăng ký không có ngày làm việc nào (chỉ bao gồm thứ 7, chủ nhật).");
-    }
-
     // --- Bắt đầu logic Check Quota Nghỉ Phép ---
     const currentData = await getAppData();
+
+    const validDatesToProcess: string[] = [];
+    for (let i = 0; i < dayCount; i++) {
+      const targetDateObj = addDays(start, i);
+      const targetDate = format(targetDateObj, "yyyy-MM-dd");
+      
+      const dayOfWeek = targetDateObj.getDay();
+      if (dayOfWeek === 0) continue; // Skip Chủ nhật
+      if (isHoliday(targetDate, currentData.holidays)) continue; // Skip ngày lễ
+
+      validDatesToProcess.push(targetDate);
+    }
     const forceQuota = getValue(formData, "forceQuota") === "true";
     let quotaExceededDate = "";
 
@@ -658,6 +661,58 @@ export async function cancelLeaveAction(formData: FormData) {
     if (error?.message === "NEXT_REDIRECT" || error?.digest?.startsWith("NEXT_REDIRECT")) throw error;
     redirectWithState(returnTo, {
       error: error instanceof Error ? error.message : "Không thể huỷ đăng ký nghỉ phép.",
+    });
+  }
+}
+
+export async function saveHolidayAction(formData: FormData) {
+  const returnTo = getValue(formData, "returnTo") || "/template";
+  try {
+    const id = getValue(formData, "id");
+    const date = getValue(formData, "date");
+    const name = getValue(formData, "name");
+    const note = getValue(formData, "note");
+
+    if (!date || !name) {
+      throw new Error("Ngày và tên ngày lễ là bắt buộc.");
+    }
+
+    await assertEditor();
+    await upsertHoliday({ id, date, name, note });
+    revalidateWorkspace();
+
+    redirectWithState(returnTo, {
+      message: `Đã lưu ngày nghỉ: ${name} (${date})`,
+    });
+  } catch (error: any) {
+    if (error?.message === "NEXT_REDIRECT" || error?.digest?.startsWith("NEXT_REDIRECT")) throw error;
+    redirectWithState(returnTo, {
+      error: error instanceof Error ? error.message : "Không thể lưu ngày nghỉ.",
+    });
+  }
+}
+
+export async function deleteHolidayAction(formData: FormData) {
+  const returnTo = getValue(formData, "returnTo") || "/template";
+  try {
+    const id = getValue(formData, "id");
+    if (!id) throw new Error("ID ngày nghỉ không hợp lệ.");
+
+    const data = await getAppData();
+    const holiday = data.holidays.find(h => h.id === id);
+    const holidayName = holiday?.name || "Ngày lễ";
+
+    await assertEditor();
+    await deleteHoliday(id);
+    revalidateWorkspace();
+
+    redirectWithState(returnTo, {
+      message: `Đã xóa ngày nghỉ: ${holidayName}`,
+    });
+  } catch (error: any) {
+    if (error?.message === "NEXT_REDIRECT" || error?.digest?.startsWith("NEXT_REDIRECT")) throw error;
+    redirectWithState(returnTo, {
+      error: error instanceof Error ? error.message : "Không thể xóa ngày nghỉ.",
     });
   }
 }

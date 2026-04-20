@@ -4,7 +4,7 @@ import { AuthRequiredState } from "@/components/auth-required-state";
 import { EmptyState } from "@/components/empty-state";
 import { Pill } from "@/components/pill";
 import { SurfaceSection } from "@/components/surface-section";
-import { getMonthKey, getMonthBounds } from "@/lib/date";
+import { formatDate, getMonthKey, getMonthBounds, isOffDay } from "@/lib/date";
 import { format, parseISO, addDays, differenceInCalendarDays } from "date-fns";
 import { getAppData } from "@/lib/repository";
 import {
@@ -44,10 +44,10 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
   }
   const data = await getAppData();
 
-  const workload = calculateMonthlyWorkload(data.weeklySchedule, monthKey).sort(
+  const workload = calculateMonthlyWorkload(data.weeklySchedule, monthKey, data.holidays).sort(
     (left, right) => right.shifts - left.shifts,
   );
-  const leaves = calculateMonthlyLeaves(data.leaveRequests, monthKey).sort(
+  const leaves = calculateMonthlyLeaves(data.leaveRequests, monthKey, data.holidays).sort(
     (left, right) => right.days - left.days,
   );
   const rotations = calculatePositionRotations(data.weeklySchedule).slice(0, 18);
@@ -58,7 +58,8 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
     data.positions,
     data.scheduleRules,
     data.positionRules,
-    monthKey
+    monthKey,
+    data.holidays
   );
 
   const { start, end } = getMonthBounds(monthKey);
@@ -67,9 +68,11 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
   const daysOfWeek = ["CN", "T2", "T3", "T4", "T5", "T6", "T7"];
   const daysArray = Array.from({ length: daysCount }).map((_, i) => {
     const d = addDays(startDate, i);
+    const dateStr = format(d, "yyyy-MM-dd");
     return {
-      dateStr: format(d, "yyyy-MM-dd"),
+      dateStr,
       label: format(d, "dd/MM"),
+      isOffDay: isOffDay(dateStr, "morning", data.holidays) || isOffDay(dateStr, "afternoon", data.holidays),
       isWeekend: d.getDay() === 0 || d.getDay() === 6,
       dow: daysOfWeek[d.getDay()],
     };
@@ -129,7 +132,7 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
                     Nhân viên
                   </th>
                   {daysArray.map((day) => (
-                    <th key={`${day.dateStr}-dow`} colSpan={2} className={`px-2 py-1 text-center font-medium border-b border-b-slate-200 border-r border-r-slate-200 text-xs text-slate-500 ${day.isWeekend ? "bg-amber-50/50 text-amber-700" : "bg-slate-100/50"}`}>
+                    <th key={`${day.dateStr}-dow`} colSpan={2} className={`px-2 py-1 text-center font-medium border-b border-b-slate-200 border-r border-r-slate-200 text-xs text-slate-500 ${day.isOffDay ? "bg-amber-50/50 text-amber-700" : "bg-slate-100/50"}`}>
                       {day.dow}
                     </th>
                   ))}
@@ -145,14 +148,14 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
                 </tr>
                 <tr>
                   {daysArray.map((day) => (
-                    <th key={day.dateStr} colSpan={2} className={`px-2 py-2 text-center font-medium border-r border-slate-200 border-b border-b-slate-200 ${day.isWeekend ? "bg-slate-100" : ""}`}>
+                    <th key={day.dateStr} colSpan={2} className={`px-2 py-2 text-center font-medium border-r border-slate-200 border-b border-b-slate-200 ${day.isOffDay ? "bg-slate-100" : ""}`}>
                       {day.label}
                     </th>
                   ))}
                 </tr>
                 <tr>
                   {daysArray.map((day) => (
-                    <td key={`${day.dateStr}-sub`} colSpan={2} className={`p-0 border-r border-slate-200 ${day.isWeekend ? "bg-slate-100" : ""}`}>
+                    <td key={`${day.dateStr}-sub`} colSpan={2} className={`p-0 border-r border-slate-200 ${day.isOffDay ? "bg-slate-100" : ""}`}>
                       <div className="flex text-xs text-slate-400 font-medium w-[48px]">
                         <div className="flex-1 text-center border-r border-slate-200/60 py-1">S</div>
                         <div className="flex-1 text-center py-1">C</div>
@@ -179,7 +182,7 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
                         return val;
                       };
                       return (
-                        <td key={day.dateStr} colSpan={2} className={`p-0 border-r border-slate-200 ${day.isWeekend ? "bg-slate-50/50" : ""}`}>
+                        <td key={day.dateStr} colSpan={2} className={`p-0 border-r border-slate-200 ${day.isOffDay ? "bg-slate-50/50" : ""}`}>
                           <div className="flex h-full w-full min-w-[48px] items-center text-center">
                             <div className="flex-1 border-r border-slate-200/50 min-h-[36px] h-full flex items-center justify-center">
                               {renderCell(data?.morning)}

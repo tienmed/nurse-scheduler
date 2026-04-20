@@ -165,4 +165,8 @@ export const MOCK_DATA: AppData = {
     },
   ],
   leaveCancellations: [],
+  holidays: [
+    { id: "h-01", date: "2026-04-30", name: "Giải phóng miền Nam" },
+    { id: "h-02", date: "2026-05-01", name: "Quốc tế lao động" },
+  ],
 };

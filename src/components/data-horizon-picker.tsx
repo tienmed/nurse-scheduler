@@ -9,7 +9,7 @@ interface DataHorizonPickerProps {
 
 export function DataHorizonPicker({ initialHorizon }: DataHorizonPickerProps) {
     const [isOpen, setIsOpen] = useState(false);
-    const [horizon, setHorizon] = useState(initialHorizon || "all");
+    const [horizon, setHorizon] = useState(initialHorizon || "60");
 
     useEffect(() => {
         // Nếu chưa từng chọn (không có cookie), tự động mở popup sau 1 giây
@@ -29,14 +29,13 @@ export function DataHorizonPicker({ initialHorizon }: DataHorizonPickerProps) {
     };
 
     const options = [
-        { value: "30", label: "30 ngày gần đây", desc: "Tốc độ nhanh nhất" },
-        { value: "90", label: "90 ngày gần đây", desc: "Tối ưu cho điều phối" },
-        { value: "180", label: "6 tháng gần đây", desc: "Đầy đủ dữ liệu quý" },
-        { value: "365", label: "1 năm gần đây", desc: "Dữ liệu dài hạn" },
+        { value: "14", label: "14 ngày gần đây", desc: "Siêu tốc độ (2 tuần)" },
+        { value: "30", label: "30 ngày gần đây", desc: "Tốc độ nhanh (1 tháng)" },
+        { value: "60", label: "60 ngày gần đây", desc: "Mặc định (2 tháng)" },
         { value: "all", label: "Tất cả dữ liệu", desc: "Có thể gây chậm ứng dụng" },
     ];
 
-    const currentOption = options.find(o => o.value === horizon) || options[4];
+    const currentOption = options.find(o => o.value === horizon) || options[2]; // Default to 60 (index 2)
 
     return (
         <>

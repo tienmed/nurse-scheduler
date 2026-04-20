@@ -14,12 +14,15 @@ export async function GET(request: NextRequest) {
   const startDate = parseISO(start);
   const daysCount = differenceInCalendarDays(parseISO(end), startDate) + 1;
   const daysOfWeek = ["CN", "T2", "T3", "T4", "T5", "T6", "T7"];
+  const { isOffDay } = require("@/lib/date");
   const daysArray = Array.from({ length: daysCount }).map((_, i) => {
     const d = addDays(startDate, i);
+    const dateStr = format(d, "yyyy-MM-dd");
     return {
-      dateStr: format(d, "yyyy-MM-dd"),
+      dateStr,
       label: format(d, "dd/MM"),
       isWeekend: d.getDay() === 0 || d.getDay() === 6,
+      isOffDay: isOffDay(dateStr, "morning", data.holidays) || isOffDay(dateStr, "afternoon", data.holidays),
       dow: daysOfWeek[d.getDay()],
     };
   });
@@ -31,7 +34,8 @@ export async function GET(request: NextRequest) {
     data.positions,
     data.scheduleRules,
     data.positionRules,
-    monthKey
+    monthKey,
+    data.holidays
   );
 
   const workbook = new ExcelJS.Workbook();
@@ -148,7 +152,7 @@ export async function GET(request: NextRequest) {
         // Background cho dòng ngày nghỉ cuối tuần
         if (colNumber > 1 && colNumber < colIndex) {
           const dayIndex = Math.floor((colNumber - 2) / 2);
-          if (daysArray[dayIndex]?.isWeekend) {
+          if (daysArray[dayIndex]?.isOffDay) {
             cell.fill = {
               type: "pattern",
               pattern: "solid",

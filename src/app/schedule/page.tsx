@@ -21,7 +21,7 @@ import {
   SHIFT_LABELS,
   WEEKDAY_LABELS,
 } from "@/lib/constants";
-import { formatDate, getWeekDates, getWeekStartFromInput, isCurrentOrNextWeek } from "@/lib/date";
+import { formatDate, getWeekDates, getWeekStartFromInput, isCurrentOrNextWeek, isOffDay } from "@/lib/date";
 import { getAppData } from "@/lib/repository";
 import {
   buildAssignmentsFromTemplate,
@@ -105,6 +105,7 @@ export default async function SchedulePage({ searchParams }: SchedulePageProps) 
         data.leaveRequests,
         data.scheduleRules,
         data.positionRules,
+        data.holidays,
       );
 
   const fullBoard = getWeekBoard(
@@ -115,10 +116,11 @@ export default async function SchedulePage({ searchParams }: SchedulePageProps) 
     weekStart,
     data.scheduleRules,
     data.positionRules,
+    data.holidays,
   );
 
   const monthKey = weekStart.slice(0, 7);
-  const workload = calculateMonthlyWorkload(actualAssignments, monthKey);
+  const workload = calculateMonthlyWorkload(actualAssignments, monthKey, data.holidays);
 
   // Tính ngày + buổi đang chọn
   const defaults = getDefaultDayAndShift(weekStart);
@@ -146,7 +148,8 @@ export default async function SchedulePage({ searchParams }: SchedulePageProps) 
       isActive,
       date,
     };
-  });
+    })
+    .filter((tab) => !isOffDay(tab.date, tab.shift as "morning" | "afternoon", data.holidays));
 
   return (
     <AppShell

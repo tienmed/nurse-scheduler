@@ -27,8 +27,10 @@ import {
   calculateMonthlyLeaves,
   calculateMonthlyWorkload,
   getActiveScheduleRules,
+  getWeekBoard,
   getWeeklyAssignments,
 } from "@/lib/schedule";
+import { isOffDay } from "@/lib/date";
 import type { ShiftType } from "@/lib/types";
 import { getUserContext } from "@/lib/session";
 
@@ -79,8 +81,8 @@ export default async function HomePage({ searchParams }: HomePageProps) {
         data.positionRules,
       );
 
-  const monthlyWorkload = calculateMonthlyWorkload(data.weeklySchedule, currentMonth);
-  const monthlyLeaves = calculateMonthlyLeaves(data.leaveRequests, currentMonth);
+  const monthlyWorkload = calculateMonthlyWorkload(data.weeklySchedule, currentMonth, data.holidays);
+  const monthlyLeaves = calculateMonthlyLeaves(data.leaveRequests, currentMonth, data.holidays);
   const pendingConflicts = nextWeekView.filter((item) => {
     if (item.status !== "needs-review") return false;
     // Ngoại lệ: Đi học + vị trí KHNV → không coi là xung đột
@@ -123,6 +125,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
       data.leaveRequests,
       data.scheduleRules,
       data.positionRules,
+      data.holidays,
     );
 
   // Nếu 7 ngày span sang tuần sau, lấy thêm assignments tuần sau
@@ -195,13 +198,13 @@ export default async function HomePage({ searchParams }: HomePageProps) {
     const dateStr = format(dateObj, "yyyy-MM-dd");
     const dayOfWeek = dateObj.getDay(); // 0=CN, 1=T2...6=T7
 
-    // CN (0) hoặc Thứ 7 (6) → skip (Thứ 7 là ngày tăng ca, không tính trống việc bắt buộc)
-    if (dayOfWeek === 0 || dayOfWeek === 6) continue;
-
     // Lấy các shift hoạt động cho dayOfWeek này
     const slotsForDay = activeRules.filter((r) => r.dayOfWeek === dayOfWeek);
 
     for (const slot of slotsForDay) {
+      // Nếu là ngày nghỉ (Lễ, Chủ nhật, chiều Thứ 7) → skip cảnh báo trống việc
+      if (isOffDay(dateStr, slot.shift, data.holidays)) continue;
+
       // Tìm assignment cho ca này
       const assignedIds = new Set(
         next7DaysAssignments
@@ -708,7 +711,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                 <p className="text-sm font-semibold text-slate-950">Nhân sự có nhiều ca nhất</p>
                 <div className="mt-4 space-y-3">
                   {monthlyWorkload
-                    .sort((left, right) => right.shifts - left.shifts)
+                    .sort((left: any, right: any) => right.shifts - left.shifts)
                     .slice(0, 5)
                     .map((item) => {
                       const person = data.staff.find((staff) => staff.id === item.staffId);
@@ -728,7 +731,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                 <p className="text-sm font-semibold text-slate-950">Nhân sự nghỉ nhiều trong tháng</p>
                 <div className="mt-4 space-y-3">
                   {monthlyLeaves
-                    .sort((a, b) => (b.phep + b.om + b.khac) - (a.phep + a.om + a.khac))
+                    .sort((a: any, b: any) => (b.phep + b.om + b.khac) - (a.phep + a.om + a.khac))
                     .slice(0, 5).map((item) => {
                       const person = data.staff.find((staff) => staff.id === item.staffId);
                       return (

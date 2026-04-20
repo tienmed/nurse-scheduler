@@ -83,6 +83,13 @@ export interface LeaveRecord {
   note?: string;
 }
 
+export interface Holiday {
+  id: string;
+  date: string;
+  name: string;
+  note?: string;
+}
+
 export interface AccessControlEntry {
   id: string;
   email: string;
@@ -108,6 +115,7 @@ export interface AppData {
   positionRules: PositionRule[];
   accessControl: AccessControlEntry[];
   leaveCancellations: LeaveCancellation[];
+  holidays: Holiday[];
 }
 
 export interface SessionUser {

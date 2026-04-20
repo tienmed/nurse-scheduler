@@ -34,7 +34,7 @@ async function getHorizonDays(): Promise<number> {
   } catch (e) {
     // ignore
   }
-  return 0; // 0 means show all
+  return 60; // Mặc định là 60 ngày để tối ưu hiệu năng
 }
 
 function cloneData(): AppData {
@@ -92,6 +92,9 @@ export async function getAppData(): Promise<AppData> {
   }
   if (!data.leaveCancellations) {
     data.leaveCancellations = [];
+  }
+  if (!data.holidays) {
+    data.holidays = [];
   }
 
   return data;
@@ -463,6 +466,7 @@ export async function generateWeekFromTemplate(weekStart: string) {
     data.leaveRequests,
     data.scheduleRules,
     data.positionRules,
+    data.holidays,
   ).map((item) => ({
     ...item,
     id: generateId("weekly")
@@ -490,6 +494,7 @@ export async function publishWeek(weekStart: string) {
       data.leaveRequests,
       data.scheduleRules,
       data.positionRules,
+      data.holidays,
     );
   }
 
@@ -502,6 +507,7 @@ export async function publishWeek(weekStart: string) {
     weekStart,
     data.scheduleRules,
     data.positionRules,
+    data.holidays,
   );
 
   const publishedAssignments: WeeklyAssignment[] = [];
@@ -565,4 +571,26 @@ export async function addLeaveCancellation(
   data.leaveCancellations.push(entry);
   await persistData(data, ["leaveCancellations"]);
   return entry;
+}
+
+export async function upsertHoliday(input: { id?: string; date: string; name: string; note?: string }) {
+  const data = await getAppData();
+  const entry = {
+    ...input,
+    id: input.id || generateId("holiday"),
+  };
+
+  data.holidays = [
+    ...data.holidays.filter((h) => h.id !== entry.id),
+    entry,
+  ].sort((a, b) => a.date.localeCompare(b.date));
+
+  await persistData(data, ["holidays"]);
+  return entry;
+}
+
+export async function deleteHoliday(id: string) {
+  const data = await getAppData();
+  data.holidays = data.holidays.filter((h) => h.id !== id);
+  await persistData(data, ["holidays"]);
 }

@@ -19,6 +19,7 @@ const APP_DATA_TO_SHEET: Record<AppDataKey, SheetName> = {
   positionRules: "positionRules",
   accessControl: "accessControl",
   leaveCancellations: "leaveCancellations",
+  holidays: "holidays",
 };
 
 const sheetSerializers: Record<AppDataKey, (data: AppData) => SheetRow[]> = {
@@ -120,6 +121,13 @@ const sheetSerializers: Record<AppDataKey, (data: AppData) => SheetRow[]> = {
       shift: row.shift,
       cancelledAt: row.cancelledAt,
     })),
+  holidays: (data) =>
+    data.holidays.map((row) => ({
+      id: row.id,
+      date: row.date,
+      name: row.name,
+      note: row.note ?? "",
+    })),
 };
 
 import { generateId } from "@/lib/id";
@@ -182,6 +190,12 @@ async function ensureCorrectSheetStructure() {
     await createSheetWithHeaders(sheets, cancelTitle, SHEET_HEADERS.leaveCancellations);
   }
 
+  // --- Tạo tab holidays nếu chưa có ---
+  const holidayTitle = SHEET_NAMES.holidays;
+  if (!sheetTitles.includes(holidayTitle)) {
+    await createSheetWithHeaders(sheets, holidayTitle, SHEET_HEADERS.holidays);
+  }
+
   isStructureEnsured = true;
 }
 
@@ -233,7 +247,6 @@ function parsePositionIds(row: SheetRow) {
 export async function readAppDataFromSheets(): Promise<AppData> {
   let reqId = "";
   if (process.env.NODE_ENV === "development") {
-    console.log("📊 [Google Sheets] Đang tải dữ liệu thực tế từ spreadsheet...");
     reqId = Math.random().toString(36).substring(7);
     console.time(`read-sheets-${reqId}`);
   }
@@ -246,17 +259,55 @@ export async function readAppDataFromSheets(): Promise<AppData> {
   await ensureCorrectSheetStructure();
 
   const sheets = createSheetsClient();
-  const ranges = [
-    `${SHEET_NAMES.staff}!A:Z`,
-    `${SHEET_NAMES.positions}!A:Z`,
-    `${SHEET_NAMES.scheduleRules}!A:Z`,
-    `${SHEET_NAMES.templateSchedule}!A:Z`,
-    `${SHEET_NAMES.weeklySchedule}!A:Z`,
-    `${SHEET_NAMES.leaveRequests}!A:Z`,
-    `${SHEET_NAMES.positionRules}!A:Z`,
-    `${SHEET_NAMES.accessControl}!A:Z`,
-    `${SHEET_NAMES.leaveCancellations}!A:Z`,
+
+  // 1. Lấy metadata để biết tổng số dòng của từng sheet
+  const spreadsheetMeta = await sheets.spreadsheets.get({
+    spreadsheetId: env.GOOGLE_SHEET_ID,
+  });
+  const sheetStats = new Map<string, number>();
+  spreadsheetMeta.data.sheets?.forEach((s) => {
+    if (s.properties?.title) {
+      sheetStats.set(s.properties.title, s.properties.gridProperties?.rowCount ?? 1000);
+    }
+  });
+
+  // 2. Xây dựng danh sách range động
+  // Với các bảng lớn, chỉ lấy Header (dòng 1) và 10,000 dòng cuối cùng (Partial Fetch)
+  const heavySheets: string[] = [SHEET_NAMES.weeklySchedule, SHEET_NAMES.leaveRequests];
+  const PARTIAL_LIMIT = 10000;
+
+  const targetSheetNames = [
+    SHEET_NAMES.staff,
+    SHEET_NAMES.positions,
+    SHEET_NAMES.scheduleRules,
+    SHEET_NAMES.templateSchedule,
+    SHEET_NAMES.weeklySchedule,
+    SHEET_NAMES.leaveRequests,
+    SHEET_NAMES.positionRules,
+    SHEET_NAMES.accessControl,
+    SHEET_NAMES.leaveCancellations,
+    SHEET_NAMES.holidays,
   ];
+
+  const ranges: string[] = [];
+  const rangeIndicesMap: Record<string, number[]> = {};
+
+  targetSheetNames.forEach((name) => {
+    const rowCount = sheetStats.get(name) ?? 1000;
+    if (heavySheets.includes(name) && rowCount > PARTIAL_LIMIT + 5) {
+      // Lấy Header
+      ranges.push(`${name}!A1:Z1`);
+      const hIdx = ranges.length - 1;
+      // Lấy các dòng cuối
+      const startRow = Math.max(2, rowCount - PARTIAL_LIMIT + 1);
+      ranges.push(`${name}!A${startRow}:Z${rowCount}`);
+      const dIdx = ranges.length - 1;
+      rangeIndicesMap[name] = [hIdx, dIdx];
+    } else {
+      ranges.push(`${name}!A:Z`);
+      rangeIndicesMap[name] = [ranges.length - 1];
+    }
+  });
 
   let batchResponse;
   try {
@@ -274,36 +325,64 @@ export async function readAppDataFromSheets(): Promise<AppData> {
     }
   }
 
-  const parseSheet = (index: number, name: string) => {
-    const values = batchResponse[index]?.values ?? [];
-    if (values.length === 0) return [];
-    const [headerRow, ...rows] = values;
+  const parseSheetData = (name: string) => {
+    const indices = rangeIndicesMap[name];
+    if (!indices) return [];
+
+    let headerRow: any[] = [];
+    let dataRows: any[][] = [];
+
+    indices.forEach((idx, i) => {
+      const values = batchResponse[idx]?.values ?? [];
+      if (values.length === 0) return;
+
+      if (indices.length === 2 && i === 0) {
+        // Đây là header range riêng biệt
+        headerRow = values[0];
+      } else if (indices.length === 2 && i === 1) {
+        // Đây là data range riêng biệt
+        dataRows = values;
+      } else {
+        // Range gộp (A:Z)
+        const [h, ...d] = values;
+        headerRow = h;
+        dataRows = d;
+      }
+    });
+
+    if (!headerRow.length) return [];
     const headers = headerRow.map((v) => `${v}`.trim());
-    const validRows = rows.filter((row) => row.some((cell) => `${cell}`.trim()));
+    const validRows = dataRows.filter((row) => row.some((cell) => `${cell}`.trim()));
 
     if (process.env.NODE_ENV === "development") {
-      console.log(`   - ${name}: ${validRows.length} dòng dữ liệu (tổng ${rows.length} hàng).`);
-      if (validRows.length > 5000) {
-        console.warn(`     🚨 CẢNH BÁO: Bảng ${name} có quá nhiều dữ liệu (>5000 dòng), có thể gây chậm và lỗi cache.`);
-      }
+      const actualCount = sheetStats.get(name) ?? 0;
+      console.log(`   - ${name}: Đã tải ${validRows.length} dòng gần nhất (Tổng sheet: ${actualCount}).`);
     }
 
-    return validRows.map((row) =>
-      Object.fromEntries(headers.map((header, colIndex) => [header, `${row[colIndex] ?? ""}`]))
-    );
+    // Tối ưu hoá: Cache header map để tránh lặp lại map() bên trong loop
+    const hMap = headers.map((h, i) => ({ h, i }));
+
+    return validRows.map((row) => {
+      const obj: Record<string, string> = {};
+      for (const { h, i } of hMap) {
+        obj[h] = `${row[i] ?? ""}`;
+      }
+      return obj;
+    });
   };
 
-  const staffRows = parseSheet(0, "staff");
-  const positionRows = parseSheet(1, "positions");
-  const scheduleRuleRows = parseSheet(2, "schedule_rules");
-  const templateRows = parseSheet(3, "template_schedule");
-  const weeklyRows = parseSheet(4, "weekly_schedule");
-  const leaveRows = parseSheet(5, "leave_requests");
-  const positionRuleRows = parseSheet(6, "position_rules");
-  const accessRows = parseSheet(7, "access_control");
-  const cancellationRows = parseSheet(8, "leave_cancellations");
+  const staffRows = parseSheetData(SHEET_NAMES.staff);
+  const positionRows = parseSheetData(SHEET_NAMES.positions);
+  const scheduleRuleRows = parseSheetData(SHEET_NAMES.scheduleRules);
+  const templateRows = parseSheetData(SHEET_NAMES.templateSchedule);
+  const weeklyRows = parseSheetData(SHEET_NAMES.weeklySchedule);
+  const leaveRows = parseSheetData(SHEET_NAMES.leaveRequests);
+  const positionRuleRows = parseSheetData(SHEET_NAMES.positionRules);
+  const accessRows = parseSheetData(SHEET_NAMES.accessControl);
+  const cancellationRows = parseSheetData(SHEET_NAMES.leaveCancellations);
+  const holidayRows = parseSheetData(SHEET_NAMES.holidays);
 
-  const data = {
+  const data: AppData = {
     staff: staffRows.map((row, index) => ({
       id: ensureId("staff", row.id, row.email || row.name || `${index + 1}`, index),
       name: row.name,
@@ -336,7 +415,7 @@ export async function readAppDataFromSheets(): Promise<AppData> {
       shift: row.shift as "morning" | "afternoon",
       positionId: row.positionId,
       staffId: row.staffId,
-      slotIndex: row.slotIndex ? Number(row.slotIndex) : 0,
+      slotIndex: Number(row.slotIndex || 0),
       note: row.note,
     })),
     weeklySchedule: weeklyRows.map((row) => ({
@@ -346,9 +425,9 @@ export async function readAppDataFromSheets(): Promise<AppData> {
       shift: row.shift as "morning" | "afternoon",
       positionId: row.positionId,
       staffId: row.staffId,
-      slotIndex: row.slotIndex ? Number(row.slotIndex) : 0,
-      source: row.source as "template" | "manual",
-      status: row.status as "draft" | "published" | "adjusted" | "needs-review",
+      slotIndex: Number(row.slotIndex || 0),
+      source: (row.source as any) || "manual",
+      status: (row.status as any) || "draft",
       note: row.note,
     })),
     leaveRequests: leaveRows.map((row) => ({
@@ -356,7 +435,7 @@ export async function readAppDataFromSheets(): Promise<AppData> {
       staffId: row.staffId,
       date: row.date,
       shift: row.shift as "morning" | "afternoon" | "full-day",
-      reason: row.reason as "phep" | "om" | "khac",
+      reason: (row.reason as any) || "personal",
       note: row.note,
     })),
     positionRules: positionRuleRows.map((row) => ({
@@ -374,15 +453,22 @@ export async function readAppDataFromSheets(): Promise<AppData> {
         index,
       ),
       email: row.email,
-      role: row.role as "admin" | "coordinator" | "viewer",
+      role: (row.role as any) || "viewer",
       displayName: row.displayName,
     })),
     leaveCancellations: cancellationRows.map((row, index) => ({
       id: ensureId("cancel", row.id, `${row.staffId}-${row.date}`, index),
+      leaveRequestId: row.leaveRequestId,
       staffId: row.staffId,
       date: row.date,
       shift: row.shift as "morning" | "afternoon" | "full-day",
       cancelledAt: row.cancelledAt,
+    })),
+    holidays: holidayRows.map((row, index) => ({
+      id: ensureId("holiday", row.id, row.date || `${index + 1}`, index),
+      date: row.date,
+      name: row.name,
+      note: row.note,
     })),
   };
 

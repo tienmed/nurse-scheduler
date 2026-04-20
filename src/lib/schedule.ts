@@ -5,7 +5,7 @@ import {
   SHIFT_LABELS,
   WEEKDAY_LABELS,
 } from "@/lib/constants";
-import { getMonthBounds } from "@/lib/date";
+import { getMonthBounds, isOffDay } from "@/lib/date";
 import type {
   LeaveRecord,
   LeaveSummary,
@@ -18,6 +18,7 @@ import type {
   TemplateAssignment,
   WeeklyAssignment,
   WorkloadSummary,
+  Holiday,
 } from "@/lib/types";
 
 /**
@@ -119,6 +120,7 @@ export function buildAssignmentsFromTemplate(
   leaveRequests: LeaveRecord[],
   scheduleRules: ScheduleRule[],
   positionRules: PositionRule[] = [],
+  holidays: Holiday[] = [],
 ) {
   const weekStartDate = parseISO(weekStart);
 
@@ -142,6 +144,10 @@ export function buildAssignmentsFromTemplate(
           addDays(weekStartDate, assignment.dayOfWeek - 1),
           "yyyy-MM-dd",
         );
+
+        const isDayOff = isOffDay(date, assignment.shift, holidays);
+        if (isDayOff) return null; // Không sinh assignment cho ngày nghỉ mặc định
+
         const leave = leaveChecker.check(
           assignment.staffId,
           date,
@@ -167,7 +173,8 @@ export function buildAssignmentsFromTemplate(
             ? `Trùng lịch nghỉ ${LEAVE_REASON_LABELS[effectiveLeave.reason].toLowerCase()}`
             : assignment.note ?? "",
         };
-      }),
+      })
+      .filter((a): a is NonNullable<typeof a> => a !== null),
   );
 }
 
@@ -179,7 +186,6 @@ export function getWeeklyAssignments(
     weeklySchedule.filter((assignment) => assignment.weekStart === weekStart),
   );
 }
-
 export function getWeekBoard(
   weeklySchedule: WeeklyAssignment[],
   positions: Position[],
@@ -188,6 +194,7 @@ export function getWeekBoard(
   weekStart: string,
   scheduleRules: ScheduleRule[],
   positionRules: PositionRule[] = [],
+  holidays: Holiday[] = [],
 ) {
   const assignments = getWeeklyAssignments(weeklySchedule, weekStart);
   const staffMap = new Map(staff.map((member) => [member.id, member]));
@@ -201,13 +208,18 @@ export function getWeekBoard(
       "yyyy-MM-dd",
     );
 
+    const isDayOff = isOffDay(date, slot.shift, holidays);
+
     return {
       date,
       dayOfWeek: slot.dayOfWeek,
       shift: slot.shift,
+      isDayOff,
       title: `${WEEKDAY_LABELS[slot.dayOfWeek]} · ${SHIFT_LABELS[slot.shift]}`,
-      entries: positions
-        .filter((position) => !closedPositionChecker.isClosed(slot.dayOfWeek, slot.shift, position.id))
+      entries: isDayOff
+        ? []
+        : positions
+          .filter((position) => !closedPositionChecker.isClosed(slot.dayOfWeek, slot.shift, position.id))
         .map((position) => {
           const posAssignments = assignments.filter(
             (item) =>
@@ -263,6 +275,7 @@ export function getWeekBoard(
 export function calculateMonthlyWorkload(
   weeklySchedule: WeeklyAssignment[],
   monthKey: string,
+  holidays: Holiday[] = [],
 ): WorkloadSummary[] {
   const { start, end } = getMonthBounds(monthKey);
   const summaries = new Map<string, Set<string>>();
@@ -271,6 +284,7 @@ export function calculateMonthlyWorkload(
 
   weeklySchedule
     .filter((assignment) => assignment.date >= start && assignment.date <= end)
+    .filter((assignment) => !isOffDay(assignment.date, assignment.shift, holidays))
     .forEach((assignment) => {
       const dayBucket = summaries.get(assignment.staffId) ?? new Set<string>();
       dayBucket.add(assignment.date);
@@ -308,12 +322,20 @@ export function calculateMonthlyWorkload(
 export function calculateMonthlyLeaves(
   leaveRequests: LeaveRecord[],
   monthKey: string,
+  holidays: Holiday[] = [],
 ): LeaveSummary[] {
   const { start, end } = getMonthBounds(monthKey);
   const summaries = new Map<string, LeaveSummary>();
 
   leaveRequests
     .filter((leave) => leave.date >= start && leave.date <= end)
+    .filter((leave) => {
+      // Ngày nghỉ lễ/CN/chiều T7 không tính vào ngày nghỉ phép (theo yêu cầu)
+      if (leave.shift === "full-day") {
+        return !isOffDay(leave.date, "morning", holidays) || !isOffDay(leave.date, "afternoon", holidays);
+      }
+      return !isOffDay(leave.date, leave.shift as "morning" | "afternoon", holidays);
+    })
     .forEach((leave) => {
       const current = summaries.get(leave.staffId) ?? {
         staffId: leave.staffId,
@@ -537,7 +559,8 @@ export function buildMonthlyTimesheet(
   positions: Position[],
   scheduleRules: ScheduleRule[],
   positionRules: PositionRule[],
-  monthKey: string
+  monthKey: string,
+  holidays: Holiday[] = []
 ): MonthlyTimesheetStaffRow[] {
   const { start, end } = getMonthBounds(monthKey);
   const startDate = parseISO(start);
@@ -582,7 +605,8 @@ export function buildMonthlyTimesheet(
         row.days[currentDate] = { morning: null, afternoon: null };
       }
 
-      if (mLeave) {
+      // Không tính phép cho các buổi nghỉ mặc định
+      if (mLeave && !isOffDay(currentDate, "morning", holidays)) {
         const mark = mLeave.reason === "dihoc" ? "H" : mLeave.reason === "om" ? "O" : "P";
         row.days[currentDate].morning = mark;
         if (mark === "H") row.totalLeaveH++;
@@ -590,7 +614,7 @@ export function buildMonthlyTimesheet(
         else row.totalLeaveP++;
       }
 
-      if (aLeave) {
+      if (aLeave && !isOffDay(currentDate, "afternoon", holidays)) {
         const mark = aLeave.reason === "dihoc" ? "H" : aLeave.reason === "om" ? "O" : "P";
         row.days[currentDate].afternoon = mark;
         if (mark === "H") row.totalLeaveH++;
@@ -609,7 +633,8 @@ export function buildMonthlyTimesheet(
       leaveRequests,
       weekStart,
       scheduleRules,
-      positionRules
+      positionRules,
+      holidays
     );
 
     // board là array lịch trình từng slot (VD: Sáng T2, Chiều T2...)
@@ -623,8 +648,8 @@ export function buildMonthlyTimesheet(
 
       for (const entry of slot.entries) {
         for (const subslot of entry.slots) {
-          // Bỏ qua nếu bị đóng ca hoặc không có nhân sự
-          if (!subslot.person || subslot.assignment?.staffId === "CLOSED") continue;
+          // Bỏ qua nếu bị đóng ca, không có nhân sự, hoặc là ca nghỉ mặc định
+          if (!subslot.person || subslot.assignment?.staffId === "CLOSED" || isOffDay(dateStr, slot.shift as "morning" | "afternoon", holidays)) continue;
 
           const row = timesheetMap.get(subslot.person.id);
           if (!row) continue;

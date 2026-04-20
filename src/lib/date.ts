@@ -105,3 +105,31 @@ export function isPastShift(dateStr: string, shift: string): boolean {
   return false;
 }
 
+/** Kiểm tra xem một ngày có phải là ngày lễ đã định nghĩa không */
+export function isHoliday(dateStr: string, holidays: { date: string }[]): boolean {
+  return holidays.some((h) => h.date === dateStr);
+}
+
+/**
+ * Kiểm tra xem một ca cụ thể có phải là ca nghỉ mặc định không.
+ * Bao gồm:
+ * - Chủ Nhật (cả ngày)
+ * - Thứ 7 (chiều)
+ * - Các ngày lễ được định nghĩa
+ */
+export function isOffDay(
+  dateStr: string,
+  shift: "morning" | "afternoon",
+  holidays: { date: string }[]
+): boolean {
+  if (isHoliday(dateStr, holidays)) return true;
+
+  const date = parseISO(dateStr);
+  const dayOfWeek = date.getDay();
+
+  if (dayOfWeek === 0) return true; // Chủ Nhật
+  if (dayOfWeek === 6 && shift === "afternoon") return true; // Chiều Thứ 7
+
+  return false;
+}
+
