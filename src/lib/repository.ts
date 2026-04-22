@@ -132,27 +132,54 @@ export async function upsertStaff(input: Omit<StaffMember, "id"> & { id?: string
   const normalizedEmail = entry.email.trim().toLowerCase();
   const previousEmail = existing?.email?.trim().toLowerCase();
 
+  const keysToPersist: (keyof AppData)[] = ["staff"];
+
+  // Nếu Email thay đổi, dọn dẹp Access Control cũ
   if (previousEmail && previousEmail !== normalizedEmail) {
     data.accessControl = data.accessControl.filter(
       (item) => item.email.toLowerCase() !== previousEmail,
     );
+    keysToPersist.push("accessControl");
   }
 
+  // Cập nhật Access Control mới
   if (normalizedEmail) {
     const accessEntry = {
-      id: existing ? `access-${entry.id}` : `access-${entry.id}`,
+      id: `access-${entry.id}`,
       email: normalizedEmail,
       role: entry.role,
       displayName: entry.name,
     };
-
     data.accessControl = data.accessControl.filter(
       (item) => item.email.toLowerCase() !== normalizedEmail,
     );
     data.accessControl.push(accessEntry);
+    if (!keysToPersist.includes("accessControl")) keysToPersist.push("accessControl");
   }
 
-  await persistData(data, normalizedEmail || previousEmail ? ["staff", "accessControl"] : ["staff"]);
+  // --- LOGIC ĐỒNG BỘ KHI ẨN (Soft Delete) ---
+  if (!entry.active) {
+    // 1. Dọn dẹp khỏi Lịch nền (templateSchedule) - Nếu bạn muốn xóa hẳn họ khỏi lịch mặc định
+    const originalTemplateCount = data.templateSchedule.length;
+    data.templateSchedule = data.templateSchedule.filter(ts => ts.staffId !== entry.id);
+    if (data.templateSchedule.length !== originalTemplateCount) {
+      if (!keysToPersist.includes("templateSchedule")) keysToPersist.push("templateSchedule");
+    }
+
+    // 2. Dọn dẹp khỏi Thứ tự ưu tiên (staffOrder) trong các Positions
+    let posChanged = false;
+    data.positions.forEach(p => {
+      if (p.staffOrder && p.staffOrder.includes(entry.id)) {
+        p.staffOrder = p.staffOrder.filter(sid => sid !== entry.id);
+        posChanged = true;
+      }
+    });
+    if (posChanged) {
+      if (!keysToPersist.includes("positions")) keysToPersist.push("positions");
+    }
+  }
+
+  await persistData(data, keysToPersist);
   return entry;
 }
 
