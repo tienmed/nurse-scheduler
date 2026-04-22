@@ -244,6 +244,44 @@ function parsePositionIds(row: SheetRow) {
     .filter(Boolean);
 }
 
+// Cấu hình sắp xếp cho từng tab (0-indexed column)
+const SORT_CONFIG: Partial<Record<AppDataKey, { column: number; ascending: boolean }[]>> = {
+  weeklySchedule: [
+    { column: 2, ascending: true }, // date
+    { column: 3, ascending: true }, // shift
+  ],
+  leaveRequests: [
+    { column: 2, ascending: true }, // date
+    { column: 3, ascending: true }, // shift
+  ],
+  templateSchedule: [
+    { column: 1, ascending: true }, // dayOfWeek
+    { column: 2, ascending: true }, // shift
+  ],
+  scheduleRules: [
+    { column: 1, ascending: true }, // dayOfWeek
+    { column: 2, ascending: true }, // shift
+  ],
+  positionRules: [
+    { column: 1, ascending: true }, // positionId
+    { column: 2, ascending: true }, // dayOfWeek
+    { column: 3, ascending: true }, // shift
+  ],
+  staff: [
+    { column: 1, ascending: true }, // name
+  ],
+  positions: [
+    { column: 1, ascending: true }, // name
+  ],
+  holidays: [
+    { column: 1, ascending: true }, // date
+  ],
+  leaveCancellations: [
+    { column: 2, ascending: true }, // date
+    { column: 3, ascending: true }, // shift
+  ],
+};
+
 export async function readAppDataFromSheets(): Promise<AppData> {
   let reqId = "";
   if (process.env.NODE_ENV === "development") {
@@ -499,7 +537,6 @@ const deduplicatedReadAppData = reactCache(async () => {
     }
     return memoryCache.data;
   }
-
   const data = await readAppDataFromSheets();
   memoryCache = { data, timestamp: now };
   return data;
@@ -530,134 +567,142 @@ export async function writeAppDataKeysToSheets(data: AppData, keys: AppDataKey[]
 
   const sheets = createSheetsClient();
 
-  // 1. Lấy metadata của Spreadsheet (để biết rowCount hiện tại và sheetId của từng tab)
+  // 1. Lấy metadata của Spreadsheet (để biết rowCount hiện tại, sheetId và columnCount)
   const spreadsheetMeta = await sheets.spreadsheets.get({
     spreadsheetId: env.GOOGLE_SHEET_ID,
   });
-  const sheetMetadataMap = new Map<string, { sheetId: number; rowCount: number }>();
+  const sheetMetadataMap = new Map<string, { sheetId: number; rowCount: number; colCount: number }>();
+  let currentTotalCells = 0;
+
   spreadsheetMeta.data.sheets?.forEach((s) => {
     const title = s.properties?.title;
     const sheetId = s.properties?.sheetId;
     if (title && typeof sheetId === "number") {
-      sheetMetadataMap.set(title, {
-        sheetId,
-        rowCount: Number(s.properties?.gridProperties?.rowCount ?? 1000),
-      });
+      const rowCount = Number(s.properties?.gridProperties?.rowCount ?? 1000);
+      const colCount = Number(s.properties?.gridProperties?.columnCount ?? 26);
+      sheetMetadataMap.set(title, { sheetId, rowCount, colCount });
+      currentTotalCells += rowCount * colCount;
     }
   });
 
-  // 2. Lấy toàn bộ cột A (chứa ID) của các Sheet cần cập nhật
-  const getRanges = uniqueKeys.map((key) => `${SHEET_NAMES[APP_DATA_TO_SHEET[key]]}!A:A`);
+  if (process.env.NODE_ENV === "development") {
+    console.log(`📊 [Google Sheets] Tổng số cell hiện tại: ${currentTotalCells.toLocaleString()} / 10,000,000`);
+  }
+
+  // 2. Lấy toàn bộ cột A (chứa ID) của TẤT CẢ các Sheet do app quản lý để tính toán dọn dẹp
+  const allManagedSheetNames = Object.values(SHEET_NAMES);
   const batchGetResponse = await sheets.spreadsheets.values.batchGet({
     spreadsheetId: env.GOOGLE_SHEET_ID,
-    ranges: getRanges,
+    ranges: allManagedSheetNames.map(name => `${name}!A:A`),
   });
 
   const valueRanges = batchGetResponse.data.valueRanges || [];
-  const updateData = [];
+  const sheetAValuesMap = new Map<string, any[][]>();
+  allManagedSheetNames.forEach((name, idx) => {
+    sheetAValuesMap.set(name, valueRanges[idx]?.values || []);
+  });
+
+  const updateData: { range: string; values: any[][] }[] = [];
   const clearRanges: string[] = [];
   const maxRowsNeededPerSheet = new Map<string, number>();
 
-  for (let i = 0; i < uniqueKeys.length; i++) {
-    const key = uniqueKeys[i];
-    const sheetName = APP_DATA_TO_SHEET[key];
-    const actualSheetName = SHEET_NAMES[sheetName];
-    const headers = [...SHEET_HEADERS[sheetName]];
-    const rows = sheetSerializers[key](data);
+  // Danh sách các khóa cần cập nhật dữ liệu
+  const keysToUpdateSet = new Set(uniqueKeys);
 
+  // --- PHẦN 1: Tính toán hàng cần thiết cho TẤT CẢ các sheet quản lý ---
+  allManagedSheetNames.forEach((actualSheetName) => {
+    // Tìm APP_DATA key tương ứng
+    const appDataKey = (Object.keys(APP_DATA_TO_SHEET) as AppDataKey[]).find(
+      k => SHEET_NAMES[APP_DATA_TO_SHEET[k]] === actualSheetName
+    );
+
+    const colA = sheetAValuesMap.get(actualSheetName) || [];
     let maxRowForThisSheet = 1;
 
-    // colA chứa mảng các ID hiện có trên Sheet
-    const colA = valueRanges[i]?.values || [];
-    const existingIds = new Map<string, number>();
+    if (appDataKey && keysToUpdateSet.has(appDataKey)) {
+      // Sheet đang được update dữ liệu mới
+      const sheetNameKey = APP_DATA_TO_SHEET[appDataKey];
+      const headers = [...SHEET_HEADERS[sheetNameKey]];
+      const rows = sheetSerializers[appDataKey](data);
 
-    colA.forEach((rowVal, idx) => {
-      const id = rowVal[0]?.toString().trim();
-      const rowNum = idx + 1;
-      if (id && id !== "id") {
-        if (existingIds.has(id)) {
-          // PHÁT HIỆN TRÙNG LẶP: ID này đã có ở một dòng trước đó
-          // Đánh dấu dòng cũ là "Hole" để hệ thống ghi đè hoặc xoá bỏ
-          holes.push(existingIds.get(id)!);
-          if (process.env.NODE_ENV === "development") {
-            console.warn(`   ⚠️  Phát hiện ID trùng lặp "${id}" tại dòng ${existingIds.get(id)}. Đang đưa vào danh sách dọn dẹp.`);
+      const existingIds = new Map<string, number>();
+      const holes: number[] = [];
+
+      colA.forEach((rowVal, idx) => {
+        const id = rowVal[0]?.toString().trim();
+        const rowNum = idx + 1;
+        if (id && id !== "id") {
+          if (existingIds.has(id)) {
+            holes.push(existingIds.get(id)!);
+          }
+          existingIds.set(id, rowNum);
+        }
+      });
+
+      let nextAvailableRow = colA.length + 1;
+      if (nextAvailableRow === 1) nextAvailableRow = 2;
+
+      const keepIds = new Set(rows.map((r) => r.id));
+      existingIds.forEach((rowNum, id) => {
+        if (id !== "id" && !keepIds.has(id)) {
+          holes.push(rowNum);
+        }
+      });
+
+      holes.sort((a, b) => a - b);
+
+      // Header luôn nạp A1
+      updateData.push({
+        range: `${actualSheetName}!A1`,
+        values: [headers],
+      });
+
+      for (const row of rows) {
+        const id = row.id;
+        let targetRow: number;
+
+        if (id && existingIds.has(id)) {
+          targetRow = existingIds.get(id)!;
+        } else {
+          if (holes.length > 0) {
+            targetRow = holes.shift()!;
+          } else {
+            targetRow = nextAvailableRow++;
           }
         }
-        existingIds.set(id, rowNum);
+        if (targetRow > maxRowForThisSheet) maxRowForThisSheet = targetRow;
+
+        updateData.push({
+          range: `${actualSheetName}!A${targetRow}`,
+          values: [headers.map((header) => row[header] ?? "")],
+        });
       }
-    });
 
-    let nextAvailableRow = colA.length + 1;
-    // Đảm bảo không ghi đè lên hàng Header (nếu sheet trắng tinh)
-    if (nextAvailableRow === 1) nextAvailableRow = 2;
-
-    const holes: number[] = [];
-    const keepIds = new Set(rows.map((r) => r.id));
-
-    // Tìm các dòng "Hole" (ID có trên sheet nhưng đã bị xoá khỏi AppData)
-    existingIds.forEach((rowNum, id) => {
-      // Bỏ qua chữ "id" trên Header
-      if (id !== "id" && !keepIds.has(id)) {
-        holes.push(rowNum);
+      for (const hole of holes) {
+        clearRanges.push(`${actualSheetName}!A${hole}:Z${hole}`);
       }
-    });
-
-    // Ưu tiên lấp Hole từ trên xuống dưới
-    holes.sort((a, b) => a - b);
-
-    // Chuẩn bị dữ liệu ghi (Header luôn được nạp ở A1 nếu cần, nhưng để an toàn cứ upsert rải rác)
-    // Để ghi headers:
-    updateData.push({
-      range: `${actualSheetName}!A1`,
-      values: [headers],
-    });
-
-    for (const row of rows) {
-      const id = row.id;
-      let targetRow: number;
-
-      if (id && existingIds.has(id)) {
-        // Cập nhật dòng cũ
-        targetRow = existingIds.get(id)!;
-      } else {
-        // ID mới -> Xin cấp dòng (tái sử dụng lỗ hổng hoặc nhét xuống dưới)
-        if (holes.length > 0) {
-          targetRow = holes.shift()!;
-        } else {
-          targetRow = nextAvailableRow++;
+    } else {
+      // Sheet KHÔNG update nhưng cần thu gọn hàng trống ở cuối
+      colA.forEach((rowVal, idx) => {
+        if (rowVal[0]?.toString().trim()) {
+          maxRowForThisSheet = idx + 1;
         }
-      }
-
-      if (targetRow > maxRowForThisSheet) maxRowForThisSheet = targetRow;
-
-      updateData.push({
-        range: `${actualSheetName}!A${targetRow}`,
-        values: [headers.map((header) => row[header] ?? "")],
       });
     }
 
     maxRowsNeededPerSheet.set(actualSheetName, maxRowForThisSheet);
-
-    // Nếu vẫn còn thừa Hole (Tức là lượng xoá > lượng thêm mới), thì Clear dọn dẹp các dòng đó
-    for (const hole of holes) {
-      clearRanges.push(`${actualSheetName}!A${hole}:Z${hole}`);
-    }
-
-    if (process.env.NODE_ENV === "development") {
-      console.log(`   - ${key} (${actualSheetName}): Upsert ${rows.length} dòng.`);
-    }
-  }
+  });
 
   // 3. Chuẩn bị các yêu cầu Grid (Dọn dẹp dòng thừa VÀ Mở rộng sheet nếu cần)
-  // Quy tắc: Đưa Cleanup (Xoá dòng) lên TRƯỚC Resize (Thêm dòng) để giải phóng Cell Pool (giới hạn 10 triệu ô của Google)
   const gridRequests: any[] = [];
+  const BUFFER_ROWS = 5; // Giảm xuống 5 hàng dự phòng
 
-  // --- PHẦN 1: Dọn rác (DeleteDimension) ---
+  // --- PHẦN 2: Dọn rác (DeleteDimension) ---
   maxRowsNeededPerSheet.forEach((maxRow, sheetName) => {
     const meta = sheetMetadataMap.get(sheetName);
     const finalMaxRow = Math.max(maxRow, 1);
-    if (meta && meta.rowCount > finalMaxRow + 50) {
-      const startRowIndex = finalMaxRow;
+    if (meta && meta.rowCount > finalMaxRow + BUFFER_ROWS) {
+      const startRowIndex = finalMaxRow + BUFFER_ROWS;
       const endRowIndex = meta.rowCount;
       if (process.env.NODE_ENV === "development") {
         console.log(`🧹 [Google Sheets] Dọn dẹp tab "${sheetName}": Xoá ${endRowIndex - startRowIndex} dòng thừa.`);
@@ -675,11 +720,18 @@ export async function writeAppDataKeysToSheets(data: AppData, keys: AppDataKey[]
     }
   });
 
-  // --- PHẦN 2: Mở rộng (UpdateSheetProperties) ---
+  // --- PHẦN 3: Mở rộng (UpdateSheetProperties) ---
   maxRowsNeededPerSheet.forEach((maxRow, sheetName) => {
     const meta = sheetMetadataMap.get(sheetName);
     if (meta && maxRow > meta.rowCount) {
-      const newRowCount = maxRow + 50; // Giảm buffer xuống 50 để tránh lỗi grid limit 10tr cells
+      const newRowCount = maxRow + BUFFER_ROWS;
+      const addedCells = (newRowCount - meta.rowCount) * meta.colCount;
+      
+      if (currentTotalCells + addedCells > 10000000) {
+        console.error(`🚨 [Google Sheets] KHÔNG THỂ mở rộng tab "${sheetName}". Vượt ngưỡng 10M cells.`);
+        return; 
+      }
+
       if (process.env.NODE_ENV === "development") {
         console.log(`📏 [Google Sheets] Mở rộng tab "${sheetName}" lên ${newRowCount} hàng.`);
       }
@@ -692,27 +744,33 @@ export async function writeAppDataKeysToSheets(data: AppData, keys: AppDataKey[]
           fields: "gridProperties.rowCount",
         },
       });
+      currentTotalCells += addedCells;
     }
   });
 
-  // 4. Thực thi duy nhất 1 lần batchUpdate đối với cấu trúc Grid (tiết kiệm quota và cell pool)
+  // Thực thi Batch 1 (Grid Structure)
   if (gridRequests.length > 0) {
-    await sheets.spreadsheets.batchUpdate({
+    try {
+      await sheets.spreadsheets.batchUpdate({
+        spreadsheetId: env.GOOGLE_SHEET_ID,
+        requestBody: { requests: gridRequests },
+      });
+    } catch (error: any) {
+      console.error("❌ [Google Sheets] Lỗi khi thực hiện batchUpdate Grid:", error?.message);
+    }
+  }
+
+  // --- PHẦN 4: Ghi dữ liệu (Values) ---
+  if (updateData.length > 0) {
+    await sheets.spreadsheets.values.batchUpdate({
       spreadsheetId: env.GOOGLE_SHEET_ID,
-      requestBody: { requests: gridRequests },
+      requestBody: {
+        valueInputOption: "RAW",
+        data: updateData,
+      },
     });
   }
 
-  // 5. Chạy cập nhật dữ liệu (Values)
-  await sheets.spreadsheets.values.batchUpdate({
-    spreadsheetId: env.GOOGLE_SHEET_ID,
-    requestBody: {
-      valueInputOption: "RAW",
-      data: updateData,
-    },
-  });
-
-  // 6. Chạy ClearRanges cho các Hole
   if (clearRanges.length > 0) {
     await sheets.spreadsheets.values.batchClear({
       spreadsheetId: env.GOOGLE_SHEET_ID,
@@ -720,8 +778,49 @@ export async function writeAppDataKeysToSheets(data: AppData, keys: AppDataKey[]
     });
   }
 
+  // --- PHẦN 5: Sắp xếp dữ liệu (SortRange) ---
+  const sortRequests: any[] = [];
+  allManagedSheetNames.forEach((actualSheetName) => {
+    const appDataKey = (Object.keys(APP_DATA_TO_SHEET) as AppDataKey[]).find(
+      k => SHEET_NAMES[APP_DATA_TO_SHEET[k]] === actualSheetName
+    );
+    const meta = sheetMetadataMap.get(actualSheetName);
+    const maxRow = maxRowsNeededPerSheet.get(actualSheetName) || 1;
+
+    if (appDataKey && SORT_CONFIG[appDataKey] && meta && maxRow > 1) {
+      if (process.env.NODE_ENV === "development") {
+        console.log(`🗂️ [Google Sheets] Đang sắp xếp tab "${actualSheetName}"...`);
+      }
+      sortRequests.push({
+        sortRange: {
+          range: {
+            sheetId: meta.sheetId,
+            startRowIndex: 1, // Bỏ qua Header
+            endRowIndex: maxRow,
+            startColumnIndex: 0,
+            endColumnIndex: meta.colCount,
+          },
+          sortSpecs: SORT_CONFIG[appDataKey]!.map(spec => ({
+            dimensionIndex: spec.column,
+            sortOrder: spec.ascending ? "ASCENDING" : "DESCENDING",
+          })),
+        },
+      });
+    }
+  });
+
+  if (sortRequests.length > 0) {
+    try {
+      await sheets.spreadsheets.batchUpdate({
+        spreadsheetId: env.GOOGLE_SHEET_ID,
+        requestBody: { requests: sortRequests },
+      });
+    } catch (error: any) {
+      console.error("❌ [Google Sheets] Lỗi khi thực hiện batchUpdate Sort:", error?.message);
+    }
+  }
+
   if (process.env.NODE_ENV === "development") {
-    console.log(`✅ [Google Sheets] Đã ghi xong cho các khóa: ${uniqueKeys.join(", ")}`);
+    console.log(`✅ [Google Sheets] Đã ghi xong và sắp xếp cho các khóa: ${uniqueKeys.join(", ")}`);
   }
 }
-
