@@ -551,7 +551,7 @@ export async function publishWeek(weekStart: string) {
           finalStaffId = slot.person.id;
         }
 
-        if (finalStaffId === undefined) continue;
+        if (finalStaffId === undefined || slot.leave) continue;
 
         const isPreview = slot.assignment?.id?.startsWith("preview-");
         const finalId = (!slot.assignment || isPreview)

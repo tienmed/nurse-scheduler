@@ -165,12 +165,12 @@ export function buildAssignmentsFromTemplate(
           date,
           shift: assignment.shift,
           positionId: assignment.positionId,
-          staffId: assignment.staffId,
+          staffId: effectiveLeave ? "" : assignment.staffId, // Nếu nghỉ thì để trống ID nhân sự
           slotIndex: assignment.slotIndex,
           source: "template" as const,
           status: effectiveLeave ? ("needs-review" as const) : ("draft" as const),
           note: effectiveLeave
-            ? `Trùng lịch nghỉ ${LEAVE_REASON_LABELS[effectiveLeave.reason].toLowerCase()}`
+            ? `Trống: Trùng lịch nghỉ ${LEAVE_REASON_LABELS[effectiveLeave.reason].toLowerCase()}`
             : assignment.note ?? "",
         };
       })
@@ -253,11 +253,13 @@ export function getWeekBoard(
 
             // Ngoại lệ: Đi học + vị trí KHNV → không coi là xung đột
             const isExempt = rawLeave?.reason === "dihoc" && position.name.toUpperCase().includes("KHNV");
+            // Nếu có lịch nghỉ phép, thực hiện "Tự động ẩn" nhân sự khỏi bảng lịch
             const leave = isExempt ? null : rawLeave;
+            const finalPerson = leave ? null : person;
 
             slots.push({
               assignment,
-              person,
+              person: finalPerson,
               leave,
               slotIndex: i,
             });
@@ -624,64 +626,71 @@ export function buildMonthlyTimesheet(
     }
   }
 
-  // 2. Duyệt qua tất cả các tuần liên quan đến tháng này, dùng getWeekBoard để lấy dữ liệu thực tế hệt như giao diện
-  for (const weekStart of uniqueWeeks) {
-    const board = getWeekBoard(
-      weeklySchedule,
-      positions,
-      staff,
-      leaveRequests,
-      weekStart,
-      scheduleRules,
-      positionRules,
-      holidays
-    );
+  // 2. Gom nhóm assignments theo ngày+ca để tra cứu O(1) thay vì O(N)
+  const assignmentsBySlot = new Map<string, WeeklyAssignment[]>();
+  weeklySchedule.forEach(a => {
+    const key = `${a.date}|${a.shift}`;
+    const list = assignmentsBySlot.get(key) || [];
+    list.push(a);
+    assignmentsBySlot.set(key, list);
+  });
 
-    // board là array lịch trình từng slot (VD: Sáng T2, Chiều T2...)
-    for (const slot of board) {
-      // Chỉ lấy những ngày nằm gọn trong tháng đang xét
-      if (slot.date < start || slot.date > end) continue;
+  const staffMap = new Map(staff.map(s => [s.id, s]));
+  const closedPositionChecker = createClosedPositionChecker(positionRules);
 
-      const dateStr = slot.date;
-      const isMorning = slot.shift === "morning";
-      const isWeekend = parseISO(dateStr).getDay() === 0 || parseISO(dateStr).getDay() === 6;
+  for (let i = 0; i < daysCount; i++) {
+    const currentDate = format(addDays(startDate, i), "yyyy-MM-dd");
+    const dayOfWeek = addDays(startDate, i).getDay();
+    const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
 
-      for (const entry of slot.entries) {
-        for (const subslot of entry.slots) {
-          // Bỏ qua nếu bị đóng ca, không có nhân sự, hoặc là ca nghỉ mặc định
-          if (!subslot.person || subslot.assignment?.staffId === "CLOSED" || isOffDay(dateStr, slot.shift as "morning" | "afternoon", holidays)) continue;
+    for (const shift of ["morning", "afternoon"] as const) {
+      if (isOffDay(currentDate, shift, holidays)) continue;
 
-          const row = timesheetMap.get(subslot.person.id);
-          if (!row) continue;
+      const key = `${currentDate}|${shift}`;
+      const slotAssignments = assignmentsBySlot.get(key) || [];
+      
+      // Xử lý từng vị trí
+      for (const position of positions) {
+        if (closedPositionChecker.isClosed(dayOfWeek === 0 ? 0 : dayOfWeek, shift, position.id)) continue;
 
-          // Nếu đã được đánh dấu phép ở bước Pre-fill thì bỏ qua đếm ca làm
-          const existingMark = isMorning ? row.days[dateStr].morning : row.days[dateStr].afternoon;
-          if (existingMark === "P" || existingMark === "O" || existingMark === "H") {
-            continue; // Đã đánh dấu nghỉ thì bỏ qua không tính vào đi làm
+        const posAssignments = slotAssignments.filter(a => a.positionId === position.id);
+        const quota = position.quota || 1;
+        const iterations = Math.max(quota, posAssignments.length);
+
+        for (let j = 0; j < iterations; j++) {
+          const assignment = posAssignments.find(a => (a.slotIndex || 0) === j);
+          let person = assignment ? staffMap.get(assignment.staffId) : null;
+          
+          if (!assignment) {
+            const defaultStaffId = position.staffOrder?.[j];
+            if (defaultStaffId) person = staffMap.get(defaultStaffId);
           }
 
-          // Cập nhật ca đi làm
-          let mark: "✔" | "T" = "✔";
-          if (isWeekend) {
-            mark = "T";
-            // Kể cả lặp nhiều vị trí trong ca, chỉ cộng khi slot đó chưa được đánh dấu (chống count đúp)
-            if (existingMark !== "T") row.totalOvertime++;
-          } else {
-            mark = "✔";
-            if (existingMark !== "✔") row.totalWork++;
-          }
+          if (person && person.active) {
+            const row = timesheetMap.get(person.id);
+            if (!row) continue;
 
-          if (isMorning) {
-            row.days[dateStr].morning = mark;
-          } else {
-            row.days[dateStr].afternoon = mark;
+            const existingMark = shift === "morning" ? row.days[currentDate].morning : row.days[currentDate].afternoon;
+            if (existingMark === "P" || existingMark === "O" || existingMark === "H") continue;
+
+            let mark: "✔" | "T" = isWeekend ? "T" : "✔";
+            if (shift === "morning") {
+              if (row.days[currentDate].morning !== mark) {
+                if (mark === "T") row.totalOvertime++; else row.totalWork++;
+                row.days[currentDate].morning = mark;
+              }
+            } else {
+              if (row.days[currentDate].afternoon !== mark) {
+                if (mark === "T") row.totalOvertime++; else row.totalWork++;
+                row.days[currentDate].afternoon = mark;
+              }
+            }
           }
         }
       }
     }
   }
 
-  // Trả về danh sách toàn bộ cán bộ (kể cả chưa có dữ kiện để vẽ khung lưới đầy đủ)
   return Array.from(timesheetMap.values())
     .sort((a, b) => a.name.localeCompare(b.name, "vi"));
 }

@@ -94,8 +94,10 @@ export function isPastShift(dateStr: string, shift: string): boolean {
     return false; // Ngày ở tương lai
   }
 
-  // Ngày hiện tại (hôm nay)
-  const currentHour = new Date().getHours();
+  // Ngày hiện tại (hôm nay) - Dùng múi giờ Việt Nam (UTC+7) để đảm bảo đồng nhất
+  const vnTime = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Ho_Chi_Minh" }));
+  const currentHour = vnTime.getHours();
+  
   if (shift === "morning") {
     return currentHour >= 12; // Quá 12h trưa -> khóa ca sáng
   }
