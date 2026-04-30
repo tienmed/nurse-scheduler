@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useTransition, useState } from "react";
-import { ArrowDown, ArrowUp, CheckCircle2, Loader2, Minus, Plus, Users } from "lucide-react";
+import { useEffect, useMemo, useState, useTransition } from "react";
+import { ArrowDown, ArrowUp, Loader2, Minus, Plus, Users } from "lucide-react";
 import { updatePositionQuota, updatePositionStaffOrder } from "@/app/actions";
 import type { Position, StaffMember } from "@/lib/types";
 import { Pill } from "@/components/pill";
@@ -14,20 +14,24 @@ interface PositionCardProps {
 
 export function PositionCard({ position, allStaff, editable }: PositionCardProps) {
   // Những staff có đăng ký vị trí nằm trong chuyên môn của họ
-  const registeredStaff = allStaff.filter(
-    (s) => s.active && s.positionIds.includes(position.id)
+  const registeredStaff = useMemo(
+    () => allStaff.filter((s) => s.active && s.positionIds.includes(position.id)),
+    [allStaff, position.id]
   );
 
   // Xếp hạng: ưu tiên staffOrder từ DB, những người chưa có trong order thì cho xuống cuối list
-  const orderList = position.staffOrder || [];
-  const orderedStaff = [...registeredStaff].sort((a, b) => {
-    const idxA = orderList.indexOf(a.id);
-    const idxB = orderList.indexOf(b.id);
-    if (idxA !== -1 && idxB !== -1) return idxA - idxB;
-    if (idxA !== -1) return -1;
-    if (idxB !== -1) return 1;
-    return a.name.localeCompare(b.name, "vi");
-  });
+  const orderedStaff = useMemo(() => {
+    const orderList = position.staffOrder || [];
+
+    return [...registeredStaff].sort((a, b) => {
+      const idxA = orderList.indexOf(a.id);
+      const idxB = orderList.indexOf(b.id);
+      if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+      if (idxA !== -1) return -1;
+      if (idxB !== -1) return 1;
+      return a.name.localeCompare(b.name, "vi");
+    });
+  }, [position.staffOrder, registeredStaff]);
 
   const [currentStaff, setCurrentStaff] = useState(orderedStaff);
   const [quota, setQuota] = useState(position.quota || 1);
@@ -36,7 +40,7 @@ export function PositionCard({ position, allStaff, editable }: PositionCardProps
   // Sync state khi props thay đổi (server revalidate sau khi cập nhật nhân sự)
   useEffect(() => {
     setCurrentStaff(orderedStaff);
-  }, [allStaff, position.staffOrder]);
+  }, [orderedStaff]);
 
   useEffect(() => {
     setQuota(position.quota || 1);
@@ -45,6 +49,7 @@ export function PositionCard({ position, allStaff, editable }: PositionCardProps
   const handleQuotaChange = (delta: number) => {
     if (!editable) return;
     const q = Math.max(1, quota + delta);
+    if (q === quota) return;
     setQuota(q);
     startTransition(async () => {
       await updatePositionQuota(position.id, q);
@@ -137,7 +142,7 @@ export function PositionCard({ position, allStaff, editable }: PositionCardProps
                     </span>
                   </div>
                   {editable && (
-                    <div className="flex opacity-0 transition group-hover:opacity-100">
+                    <div className="flex opacity-100 transition sm:opacity-0 sm:group-hover:opacity-100">
                       <button
                         onClick={() => handleMove(index, "up")}
                         disabled={index === 0 || isPending}
