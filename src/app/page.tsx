@@ -60,6 +60,32 @@ export default async function HomePage({ searchParams }: HomePageProps) {
     );
   }
   const data = await getAppData();
+  const effectiveLeaves = (() => {
+    const fullDayCancelSet = new Set(
+      data.leaveCancellations
+        .filter((c) => c.shift === "full-day")
+        .map((c) => `${c.staffId}-${c.date}`),
+    );
+    const shiftCancelSet = new Set(
+      data.leaveCancellations.map((c) => `${c.staffId}-${c.date}-${c.shift}`),
+    );
+
+    return data.leaveRequests.flatMap((leave) => {
+      const dayKey = `${leave.staffId}-${leave.date}`;
+      if (fullDayCancelSet.has(dayKey)) return [];
+
+      if (leave.shift === "full-day") {
+        const cancelMorning = shiftCancelSet.has(`${dayKey}-morning`);
+        const cancelAfternoon = shiftCancelSet.has(`${dayKey}-afternoon`);
+        if (cancelMorning && cancelAfternoon) return [];
+        if (cancelMorning) return [{ ...leave, shift: "afternoon" as const }];
+        if (cancelAfternoon) return [{ ...leave, shift: "morning" as const }];
+      }
+
+      if (shiftCancelSet.has(`${dayKey}-${leave.shift}`)) return [];
+      return [leave];
+    });
+  })();
   const currentMonth = getMonthKey();
   const nextWeekStart = getNextWeekStart();
 
@@ -76,13 +102,13 @@ export default async function HomePage({ searchParams }: HomePageProps) {
         data.templateSchedule,
         data.positions,
         nextWeekStart,
-        data.leaveRequests,
+        effectiveLeaves,
         data.scheduleRules,
         data.positionRules,
       );
 
   const monthlyWorkload = calculateMonthlyWorkload(data.weeklySchedule, currentMonth, data.holidays);
-  const monthlyLeaves = calculateMonthlyLeaves(data.leaveRequests, currentMonth, data.holidays);
+  const monthlyLeaves = calculateMonthlyLeaves(effectiveLeaves, currentMonth, data.holidays);
   const pendingConflicts = nextWeekView.filter((item) => {
     if (item.status !== "needs-review") return false;
     // Ngoại lệ: Đi học + vị trí KHNV → không coi là xung đột
@@ -95,7 +121,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
   const today = startOfToday();
   const next7Days = addDays(today, 7);
 
-  const upcomingLeaves = data.leaveRequests
+  const upcomingLeaves = effectiveLeaves
     .filter((leave) => {
       const leaveDate = parseISO(leave.date);
       return leaveDate >= today && leaveDate <= next7Days;
@@ -122,7 +148,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
       data.templateSchedule,
       data.positions,
       currentWeekStart,
-      data.leaveRequests,
+      effectiveLeaves,
       data.scheduleRules,
       data.positionRules,
       data.holidays,
@@ -142,7 +168,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
         data.templateSchedule,
         data.positions,
         endWeekStart,
-        data.leaveRequests,
+        effectiveLeaves,
         data.scheduleRules,
         data.positionRules,
       );
@@ -234,6 +260,41 @@ export default async function HomePage({ searchParams }: HomePageProps) {
     list.push(uSlot);
     unassignedByStaff.set(uSlot.staffId, list);
   }
+
+  const upcomingWindowEnd = addDays(today, 13);
+  const staffUpcomingAssignments = data.staff
+    .filter((staff) => staff.active)
+    .map((staff) => {
+      const shifts = next7DaysAssignments
+        .filter((a) => a.staffId === staff.id)
+        .map((a) => ({
+          date: a.date,
+          shift: a.shift,
+          positionName: data.positions.find((p) => p.id === a.positionId)?.name ?? a.positionId,
+        }));
+
+      const nextWeekAssignmentsLookup = nextWeekView
+        .filter((a) => {
+          const d = parseISO(a.date);
+          return a.staffId === staff.id && d >= today && d <= upcomingWindowEnd;
+        })
+        .map((a) => ({
+          date: a.date,
+          shift: a.shift,
+          positionName: data.positions.find((p) => p.id === a.positionId)?.name ?? a.positionId,
+        }));
+
+      const combined = [...shifts, ...nextWeekAssignmentsLookup]
+        .sort((a, b) => {
+          const dateCompare = compareAsc(parseISO(a.date), parseISO(b.date));
+          if (dateCompare !== 0) return dateCompare;
+          if (a.shift === b.shift) return 0;
+          return a.shift === "morning" ? -1 : 1;
+        });
+
+      return { staff, combined };
+    })
+    .sort((a, b) => b.combined.length - a.combined.length);
 
   // Báo động rủi ro nhân sự (3 mức Đỏ, Cam, Vàng)
   const groupedLeaves = new Map<string, typeof upcomingLeaves>();
@@ -757,6 +818,46 @@ export default async function HomePage({ searchParams }: HomePageProps) {
           )}
         </SurfaceSection>
       </div>
+
+      <SurfaceSection
+        eyebrow="Tra cứu nhanh"
+        title="Lịch làm việc sắp tới theo nhân sự"
+        description="Xem nhanh ca dự kiến trong tuần này + tuần sau để điều phối thay thế tức thời."
+      >
+        <div className="space-y-3">
+          {staffUpcomingAssignments.map(({ staff, combined }) => (
+            <div key={staff.id} className="rounded-2xl border border-slate-200/80 bg-white px-4 py-3">
+              <div className="flex items-center justify-between gap-3">
+                <p className="font-semibold text-slate-900">{staff.name}</p>
+                <Pill tone={combined.length > 0 ? "teal" : "amber"}>
+                  {combined.length > 0 ? `${combined.length} ca sắp tới` : "Chưa có ca dự kiến"}
+                </Pill>
+              </div>
+              {combined.length > 0 ? (
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {combined.slice(0, 8).map((slot, idx) => (
+                    <span
+                      key={`${staff.id}-${slot.date}-${slot.shift}-${idx}`}
+                      className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-medium text-slate-700"
+                    >
+                      {formatDate(slot.date, "dd/MM")} · {SHIFT_LABELS[slot.shift]} · {slot.positionName}
+                    </span>
+                  ))}
+                  {combined.length > 8 && (
+                    <span className="inline-flex items-center rounded-full bg-slate-200 px-2.5 py-1 text-[11px] font-medium text-slate-600">
+                      +{combined.length - 8} ca khác
+                    </span>
+                  )}
+                </div>
+              ) : (
+                <p className="mt-2 text-xs text-amber-700">
+                  Cảnh báo: Không vướng nghỉ phép nhưng chưa được phân công ca làm trong giai đoạn sắp tới.
+                </p>
+              )}
+            </div>
+          ))}
+        </div>
+      </SurfaceSection>
     </AppShell>
   );
 }

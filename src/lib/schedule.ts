@@ -673,7 +673,7 @@ export function buildMonthlyTimesheet(
             const existingMark = shift === "morning" ? row.days[currentDate].morning : row.days[currentDate].afternoon;
             if (existingMark === "P" || existingMark === "O" || existingMark === "H") continue;
 
-            let mark: "✔" | "T" = isWeekend ? "T" : "✔";
+            const mark: "✔" | "T" = isWeekend ? "T" : "✔";
             if (shift === "morning") {
               if (row.days[currentDate].morning !== mark) {
                 if (mark === "T") row.totalOvertime++; else row.totalWork++;
