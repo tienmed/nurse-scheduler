@@ -191,6 +191,24 @@ export function ScheduleBoard({
                         key={`${slot.date}-${slot.shift}-${entry.position.id}`}
                         className={`rounded-[20px] p-3 ring-1 ring-inset shadow-sm transition hover:shadow-md ${theme}`}
                       >
+                        {(() => {
+                          const seenStaff = new Set<string>();
+                          const duplicateNames = new Set<string>();
+                          entry.slots.forEach((subslot) => {
+                            const staffId = subslot.person?.id ?? subslot.assignment?.staffId;
+                            if (!staffId || staffId === "CLOSED") return;
+                            if (seenStaff.has(staffId)) {
+                              duplicateNames.add(subslot.person?.name ?? staffId);
+                            }
+                            seenStaff.add(staffId);
+                          });
+                          if (duplicateNames.size === 0) return null;
+                          return (
+                            <div className="mb-2 rounded-xl border border-rose-300 bg-rose-50 px-3 py-2 text-xs text-rose-800">
+                              ⚠️ Trùng nhân sự trong cùng vị trí: {Array.from(duplicateNames).join(", ")}
+                            </div>
+                          );
+                        })()}
                         <div className="mb-3 flex items-center justify-between border-b border-slate-100 px-3 pb-3 pt-1">
                           <h4 className="font-semibold text-slate-800">{entry.position.name}</h4>
                           <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-600">
