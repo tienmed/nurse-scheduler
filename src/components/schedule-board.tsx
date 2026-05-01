@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
-import { AlertTriangle, CalendarClock, Clock, NotebookPen } from "lucide-react";
+import { useState, useTransition } from "react";
+import { AlertTriangle, CalendarClock, Clock, NotebookPen, X } from "lucide-react";
 import { EmptyState } from "@/components/empty-state";
 import { Pill } from "@/components/pill";
+import { saveSingleTemplateAssignmentAction, saveWeeklyAssignmentAction } from "@/app/actions";
 import { ASSIGNMENT_STATUS_LABELS, LEAVE_REASON_LABELS } from "@/lib/constants";
 import { formatDate } from "@/lib/date";
 import { getStatusTone, isOvertimeSlot } from "@/lib/schedule";
@@ -51,6 +52,7 @@ interface ScheduleBoardProps {
   weekStart?: string;
   editable?: boolean;
   mode?: "weekly" | "template";
+  showEmptySlotSummary?: boolean;
 }
 
 function groupEntriesByArea(entries: BoardEntry[]) {
@@ -85,6 +87,7 @@ export function ScheduleBoard({
   weekStart = "",
   editable = false,
   mode = "weekly",
+  showEmptySlotSummary = false,
 }: ScheduleBoardProps) {
   // Trạng thái modal
   const [editingSlot, setEditingSlot] = useState<{
@@ -93,6 +96,39 @@ export function ScheduleBoard({
     subslot: SlotEntry;
     rect?: DOMRect;
   } | null>(null);
+  const [isPending, startTransition] = useTransition();
+  const [pendingClearKey, setPendingClearKey] = useState<string | null>(null);
+
+  const clearAssignmentQuickly = (
+    slot: BoardSlot,
+    entry: BoardEntry,
+    subslot: SlotEntry,
+  ) => {
+    const key = `${slot.date}-${slot.shift}-${entry.position.id}-${subslot.slotIndex}`;
+    startTransition(async () => {
+      const formData = new FormData();
+      formData.set("returnTo", mode === "template" ? "/template" : `/schedule?week=${weekStart}&day=${slot.dayOfWeek}&shift=${slot.shift}`);
+      formData.set("weekStart", weekStart);
+      formData.set("date", slot.date);
+      formData.set("dayOfWeek", String(slot.dayOfWeek));
+      formData.set("shift", slot.shift);
+      formData.set("status", subslot.assignment ? "adjusted" : "draft");
+      formData.set("positionId", entry.position.id);
+      formData.set("staffId", "");
+      formData.set("slotIndex", String(subslot.slotIndex ?? 0));
+      if (subslot.assignment?.id) formData.set("id", subslot.assignment.id);
+      setPendingClearKey(key);
+      try {
+        if (mode === "template") {
+          await saveSingleTemplateAssignmentAction(formData);
+        } else {
+          await saveWeeklyAssignmentAction(formData);
+        }
+      } finally {
+        setPendingClearKey(null);
+      }
+    });
+  };
 
   if (board.length === 0) {
     return (
@@ -132,7 +168,7 @@ export function ScheduleBoard({
               </div>
             </div>
 
-            {editable && (
+            {showEmptySlotSummary && (
               <div className="rounded-2xl border border-amber-200 bg-amber-50/70 p-3">
                 <p className="mb-2 text-sm font-semibold text-amber-900">Tổng quan slot trống đang mở</p>
                 <div className="flex flex-wrap gap-2">
@@ -140,21 +176,30 @@ export function ScheduleBoard({
                     entry.slots
                       .filter((subslot) => !subslot.person && subslot.assignment?.staffId !== "CLOSED")
                       .map((subslot) => (
-                        <button
-                          key={`quick-${slot.date}-${slot.shift}-${entry.position.id}-${subslot.slotIndex}`}
-                          type="button"
-                          onClick={(e) =>
-                            setEditingSlot({
-                              slot,
-                              entry,
-                              subslot,
-                              rect: e.currentTarget.getBoundingClientRect(),
-                            })
-                          }
-                          className="rounded-full border border-amber-300 bg-white px-3 py-1 text-xs font-medium text-amber-900 hover:bg-amber-100"
-                        >
-                          {entry.position.area ? `${entry.position.area} · ` : ""}{entry.position.name} · Slot {subslot.slotIndex + 1}
-                        </button>
+                        editable ? (
+                          <button
+                            key={`quick-${slot.date}-${slot.shift}-${entry.position.id}-${subslot.slotIndex}`}
+                            type="button"
+                            onClick={(e) =>
+                              setEditingSlot({
+                                slot,
+                                entry,
+                                subslot,
+                                rect: e.currentTarget.getBoundingClientRect(),
+                              })
+                            }
+                            className="rounded-full border border-amber-300 bg-white px-3 py-1 text-xs font-medium text-amber-900 hover:bg-amber-100"
+                          >
+                            {entry.position.area ? `${entry.position.area} · ` : ""}{entry.position.name} · Slot {subslot.slotIndex + 1}
+                          </button>
+                        ) : (
+                          <span
+                            key={`quick-${slot.date}-${slot.shift}-${entry.position.id}-${subslot.slotIndex}`}
+                            className="rounded-full border border-amber-300 bg-white px-3 py-1 text-xs font-medium text-amber-900"
+                          >
+                            {entry.position.area ? `${entry.position.area} · ` : ""}{entry.position.name} · Slot {subslot.slotIndex + 1}
+                          </span>
+                        )
                       )),
                   )}
                   {slot.entries.flatMap((entry) =>
@@ -247,18 +292,19 @@ export function ScheduleBoard({
 
                             if (canEdit) slotBaseClass += " cursor-pointer active:scale-[0.98]";
 
+                            const rowKey = `${slot.date}-${slot.shift}-${entry.position.id}-${subslot.slotIndex}`;
                             return (
-                              <button
-                                type="button"
-                                key={`${slot.date}-${slot.shift}-${entry.position.id}-${subslot.slotIndex}`}
-                                onClick={(e) => {
-                                  if (canEdit) {
-                                    setEditingSlot({ slot, entry, subslot, rect: e.currentTarget.getBoundingClientRect() });
-                                  }
-                                }}
-                                disabled={!canEdit}
-                                className={slotBaseClass}
-                              >
+                              <div key={rowKey} className="flex items-start gap-2">
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    if (canEdit) {
+                                      setEditingSlot({ slot, entry, subslot, rect: e.currentTarget.getBoundingClientRect() });
+                                    }
+                                  }}
+                                  disabled={!canEdit}
+                                  className={`${slotBaseClass} flex-1`}
+                                >
                                 <div className="flex flex-1 flex-col pr-2">
                                   <div className="flex items-center gap-2">
                                     {isClosed ? (
@@ -316,7 +362,19 @@ export function ScheduleBoard({
                                 <div className="shrink-0 scale-90 origin-top-right ml-2">
                                   <Pill tone={tone}>{statusLabel}</Pill>
                                 </div>
-                              </button>
+                                </button>
+                                {canEdit && !isClosed && !!subslot.person && (
+                                  <button
+                                    type="button"
+                                    onClick={() => clearAssignmentQuickly(slot, entry, subslot)}
+                                    disabled={isPending && pendingClearKey === rowKey}
+                                    title="Bỏ trống nhanh"
+                                    className="mt-1 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-rose-200 bg-rose-50 text-rose-600 transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-60"
+                                  >
+                                    <X className="h-4 w-4" />
+                                  </button>
+                                )}
+                              </div>
                             );
                           })}
                         </div>

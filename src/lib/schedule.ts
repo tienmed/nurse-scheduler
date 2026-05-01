@@ -135,6 +135,7 @@ export function buildAssignmentsFromTemplate(
 
   return sortAssignments(
     templateSchedule
+      .filter((assignment) => assignment.dayOfWeek !== 6)
       .filter((assignment) =>
         allowedSlots.has(`${assignment.dayOfWeek}-${assignment.shift}`),
       )

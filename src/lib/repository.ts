@@ -390,6 +390,7 @@ export async function applyPrioritizedStaffToTemplate() {
   // Duyệt qua tất cả các cấu hình ca mặc định (nếu data.scheduleRules trống, coi như lấy từ hằng số bên UI, nhưng repository thì phải tự định nghĩa hoặc lặp qua 1-6 * sáng/chiều)
   // Thực tế: Lịch nền sẽ áp dụng cho Tuần T2-T7, ca Sáng/Chiều
   for (let dayOfWeek = 1; dayOfWeek <= 6; dayOfWeek++) {
+    if (dayOfWeek === 6) continue; // Thứ 7 để trống toàn bộ, không sinh lịch nền
     for (const shift of ["morning", "afternoon"] as const) {
       // Bỏ qua nếu rules bị đóng (nếu có scheduleRules)
       const rule = data.scheduleRules.find(r => r.dayOfWeek === dayOfWeek && r.shift === shift);
