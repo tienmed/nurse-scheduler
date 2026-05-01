@@ -18,6 +18,7 @@ import { ConflictList } from "@/components/conflict-list";
 import { EmptyState } from "@/components/empty-state";
 import { Pill } from "@/components/pill";
 import { SurfaceSection } from "@/components/surface-section";
+import { StaffUpcomingLookup } from "@/components/staff-upcoming-lookup";
 import { LEAVE_REASON_LABELS, LEAVE_SHIFT_LABELS, SHIFT_LABELS, WEEKDAY_LABELS } from "@/lib/constants";
 import { formatDate, getMonthKey, getNextWeekStart, getWeekStart } from "@/lib/date";
 import { isSheetsConfigured } from "@/lib/env";
@@ -125,14 +126,6 @@ export default async function HomePage({ searchParams }: HomePageProps) {
     .filter((leave) => {
       const leaveDate = parseISO(leave.date);
       return leaveDate >= today && leaveDate <= next7Days;
-    })
-    .sort((a, b) => compareAsc(parseISO(a.date), parseISO(b.date)));
-
-  // Nhân sự huỷ phép (trống việc) trong 7 ngày gần nhất
-  const recentCancellations = data.leaveCancellations
-    .filter((c) => {
-      const cDate = parseISO(c.date);
-      return cDate >= today && cDate <= next7Days;
     })
     .sort((a, b) => compareAsc(parseISO(a.date), parseISO(b.date)));
 
@@ -659,43 +652,10 @@ export default async function HomePage({ searchParams }: HomePageProps) {
         <SurfaceSection
           eyebrow="Cập nhật"
           title="Nhân sự trống việc (7 ngày tới)"
-          description="Nhân sự huỷ phép quay lại và nhân sự chưa được phân công vị trí trong 7 ngày tới."
+          description="Nhân sự chưa được phân công vị trí trong 7 ngày tới."
         >
-          {recentCancellations.length > 0 || unassignedByStaff.size > 0 ? (
+          {unassignedByStaff.size > 0 ? (
             <div className="space-y-5">
-              {/* Nhân sự huỷ phép */}
-              {recentCancellations.length > 0 && (
-                <div className="space-y-3">
-                  <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Huỷ phép — Sẵn sàng quay lại</p>
-                  {recentCancellations.map((cancel) => {
-                    const person = data.staff.find((s) => s.id === cancel.staffId);
-                    const cancelTime = cancel.cancelledAt ? formatDate(cancel.cancelledAt.slice(0, 10)) : "";
-                    return (
-                      <div
-                        key={cancel.id}
-                        className="flex flex-col gap-3 rounded-[22px] border border-emerald-200/80 bg-emerald-50/60 px-4 py-4 md:flex-row md:items-center md:justify-between"
-                      >
-                        <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-100 border border-emerald-200 text-emerald-600 shadow-sm">
-                            <Briefcase className="h-4 w-4" />
-                          </div>
-                          <div>
-                            <p className="font-bold text-slate-900">{person?.name ?? cancel.staffId}</p>
-                            <p className="text-sm text-slate-500">
-                              Quay lại làm ngày {cancel.date} · {LEAVE_SHIFT_LABELS[cancel.shift]}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="flex flex-wrap gap-2">
-                          <Pill tone="teal">Sẵn sàng</Pill>
-                          {cancelTime && <Pill tone="slate">Huỷ lúc {cancelTime}</Pill>}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-
               {/* Nhân sự chưa phân công — theo từng ca */}
               {unassignedByStaff.size > 0 && (
                 <div className="space-y-3">
@@ -747,7 +707,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
             <EmptyState
               icon={Briefcase}
               title="Chưa có thay đổi"
-              description="Không có nhân sự nào huỷ nghỉ phép hoặc trống việc trong 7 ngày tới."
+              description="Không có nhân sự nào trống việc trong 7 ngày tới."
               tone="slate"
             />
           )}
@@ -824,39 +784,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
         title="Lịch làm việc sắp tới theo nhân sự"
         description="Xem nhanh ca dự kiến trong tuần này + tuần sau để điều phối thay thế tức thời."
       >
-        <div className="space-y-3">
-          {staffUpcomingAssignments.map(({ staff, combined }) => (
-            <div key={staff.id} className="rounded-2xl border border-slate-200/80 bg-white px-4 py-3">
-              <div className="flex items-center justify-between gap-3">
-                <p className="font-semibold text-slate-900">{staff.name}</p>
-                <Pill tone={combined.length > 0 ? "teal" : "amber"}>
-                  {combined.length > 0 ? `${combined.length} ca sắp tới` : "Chưa có ca dự kiến"}
-                </Pill>
-              </div>
-              {combined.length > 0 ? (
-                <div className="mt-2 flex flex-wrap gap-1.5">
-                  {combined.slice(0, 8).map((slot, idx) => (
-                    <span
-                      key={`${staff.id}-${slot.date}-${slot.shift}-${idx}`}
-                      className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-medium text-slate-700"
-                    >
-                      {formatDate(slot.date, "dd/MM")} · {SHIFT_LABELS[slot.shift]} · {slot.positionName}
-                    </span>
-                  ))}
-                  {combined.length > 8 && (
-                    <span className="inline-flex items-center rounded-full bg-slate-200 px-2.5 py-1 text-[11px] font-medium text-slate-600">
-                      +{combined.length - 8} ca khác
-                    </span>
-                  )}
-                </div>
-              ) : (
-                <p className="mt-2 text-xs text-amber-700">
-                  Cảnh báo: Không vướng nghỉ phép nhưng chưa được phân công ca làm trong giai đoạn sắp tới.
-                </p>
-              )}
-            </div>
-          ))}
-        </div>
+        <StaffUpcomingLookup items={staffUpcomingAssignments} />
       </SurfaceSection>
     </AppShell>
   );

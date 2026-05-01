@@ -123,11 +123,48 @@ export function ScheduleBoard({
               </div>
               <div className="flex gap-2">
                 <Pill tone="teal">{slot.entries.flatMap(e => e.slots).filter((s) => s.assignment).length} vị trí đã gán</Pill>
+                <Pill tone="amber">
+                  {slot.entries.flatMap((e) => e.slots).filter((s) => !s.person && s.assignment?.staffId !== "CLOSED").length} slot trống
+                </Pill>
                 {isOvertimeSlot(slot.date, slot.shift) ? (
                   <Pill tone="amber">Tăng ca</Pill>
                 ) : null}
               </div>
             </div>
+
+            {editable && (
+              <div className="rounded-2xl border border-amber-200 bg-amber-50/70 p-3">
+                <p className="mb-2 text-sm font-semibold text-amber-900">Tổng quan slot trống đang mở</p>
+                <div className="flex flex-wrap gap-2">
+                  {slot.entries.flatMap((entry) =>
+                    entry.slots
+                      .filter((subslot) => !subslot.person && subslot.assignment?.staffId !== "CLOSED")
+                      .map((subslot) => (
+                        <button
+                          key={`quick-${slot.date}-${slot.shift}-${entry.position.id}-${subslot.slotIndex}`}
+                          type="button"
+                          onClick={(e) =>
+                            setEditingSlot({
+                              slot,
+                              entry,
+                              subslot,
+                              rect: e.currentTarget.getBoundingClientRect(),
+                            })
+                          }
+                          className="rounded-full border border-amber-300 bg-white px-3 py-1 text-xs font-medium text-amber-900 hover:bg-amber-100"
+                        >
+                          {entry.position.area ? `${entry.position.area} · ` : ""}{entry.position.name} · Slot {subslot.slotIndex + 1}
+                        </button>
+                      )),
+                  )}
+                  {slot.entries.flatMap((entry) =>
+                    entry.slots.filter((subslot) => !subslot.person && subslot.assignment?.staffId !== "CLOSED"),
+                  ).length === 0 && (
+                    <span className="text-xs text-amber-700">Không có slot trống trong ca này.</span>
+                  )}
+                </div>
+              </div>
+            )}
 
             {[...areaGroups.entries()].map(([areaName, entries], areaIndex) => {
               const themeColors = [
@@ -154,6 +191,24 @@ export function ScheduleBoard({
                         key={`${slot.date}-${slot.shift}-${entry.position.id}`}
                         className={`rounded-[20px] p-3 ring-1 ring-inset shadow-sm transition hover:shadow-md ${theme}`}
                       >
+                        {(() => {
+                          const seenStaff = new Set<string>();
+                          const duplicateNames = new Set<string>();
+                          entry.slots.forEach((subslot) => {
+                            const staffId = subslot.person?.id ?? subslot.assignment?.staffId;
+                            if (!staffId || staffId === "CLOSED") return;
+                            if (seenStaff.has(staffId)) {
+                              duplicateNames.add(subslot.person?.name ?? staffId);
+                            }
+                            seenStaff.add(staffId);
+                          });
+                          if (duplicateNames.size === 0) return null;
+                          return (
+                            <div className="mb-2 rounded-xl border border-rose-300 bg-rose-50 px-3 py-2 text-xs text-rose-800">
+                              ⚠️ Trùng nhân sự trong cùng vị trí: {Array.from(duplicateNames).join(", ")}
+                            </div>
+                          );
+                        })()}
                         <div className="mb-3 flex items-center justify-between border-b border-slate-100 px-3 pb-3 pt-1">
                           <h4 className="font-semibold text-slate-800">{entry.position.name}</h4>
                           <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-600">

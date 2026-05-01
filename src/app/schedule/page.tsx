@@ -1,6 +1,7 @@
 import Link from "next/link";
 import {
   CalendarClock,
+  ExternalLink,
   Download,
   RefreshCcw,
   SendHorizontal,
@@ -173,6 +174,13 @@ export default async function SchedulePage({ searchParams }: SchedulePageProps) 
             >
               <Download className="h-4 w-4" />
               Xuất Excel
+            </Link>
+            <Link
+              href="/board"
+              className="inline-flex items-center gap-2 rounded-2xl border border-teal-200 bg-teal-50 px-4 py-3 text-sm font-medium text-teal-800 transition hover:border-teal-300 hover:bg-teal-100"
+            >
+              <ExternalLink className="h-4 w-4" />
+              Lịch Public
             </Link>
             {currentUser.role === "admin" && canPlan && (
               <form action={generateWeekAction}>
