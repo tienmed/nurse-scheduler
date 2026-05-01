@@ -250,6 +250,7 @@ export default async function SchedulePage({ searchParams }: SchedulePageProps) 
           weeklySchedule={actualAssignments}
           weekStart={weekStart}
           editable={editable}
+          showEmptySlotSummary
         />
       </SurfaceSection>
 
