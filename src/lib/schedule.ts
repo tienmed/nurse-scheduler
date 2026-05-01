@@ -477,10 +477,19 @@ export function suggestStaffForSlot(
       } else {
         reasons.push(`Đã xếp: ${busyPositions.join(", ")}`);
       }
-      score -= 50;
+      score -= 120;
     } else {
-      reasons.push("Rảnh ca này");
-      score += 20;
+      reasons.push("Rảnh chưa có ca");
+      score += 220;
+    }
+
+    // Ưu tiên nhân sự có phạm vi vị trí hẹp hơn (ít vị trí) để giữ người đa năng cho các khe khó
+    const positionCoverage = member.positionIds.length || 99;
+    if (positionCoverage <= 2) {
+      reasons.push("Ít vị trí");
+      score += 50 - positionCoverage * 5;
+    } else {
+      score += Math.max(0, 20 - positionCoverage);
     }
 
     // Nếu là ngày tăng ca
