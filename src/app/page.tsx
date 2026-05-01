@@ -128,14 +128,6 @@ export default async function HomePage({ searchParams }: HomePageProps) {
     })
     .sort((a, b) => compareAsc(parseISO(a.date), parseISO(b.date)));
 
-  // Nhân sự huỷ phép (trống việc) trong 7 ngày gần nhất
-  const recentCancellations = data.leaveCancellations
-    .filter((c) => {
-      const cDate = parseISO(c.date);
-      return cDate >= today && cDate <= next7Days;
-    })
-    .sort((a, b) => compareAsc(parseISO(a.date), parseISO(b.date)));
-
   // Nhân sự active nhưng không được phân công trong 7 ngày tới
   const currentWeekStart = getWeekStart();
   const endWeekStart = getWeekStart(addDays(today, 7));
@@ -659,43 +651,10 @@ export default async function HomePage({ searchParams }: HomePageProps) {
         <SurfaceSection
           eyebrow="Cập nhật"
           title="Nhân sự trống việc (7 ngày tới)"
-          description="Nhân sự huỷ phép quay lại và nhân sự chưa được phân công vị trí trong 7 ngày tới."
+          description="Nhân sự chưa được phân công vị trí trong 7 ngày tới."
         >
-          {recentCancellations.length > 0 || unassignedByStaff.size > 0 ? (
+          {unassignedByStaff.size > 0 ? (
             <div className="space-y-5">
-              {/* Nhân sự huỷ phép */}
-              {recentCancellations.length > 0 && (
-                <div className="space-y-3">
-                  <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Huỷ phép — Sẵn sàng quay lại</p>
-                  {recentCancellations.map((cancel) => {
-                    const person = data.staff.find((s) => s.id === cancel.staffId);
-                    const cancelTime = cancel.cancelledAt ? formatDate(cancel.cancelledAt.slice(0, 10)) : "";
-                    return (
-                      <div
-                        key={cancel.id}
-                        className="flex flex-col gap-3 rounded-[22px] border border-emerald-200/80 bg-emerald-50/60 px-4 py-4 md:flex-row md:items-center md:justify-between"
-                      >
-                        <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-100 border border-emerald-200 text-emerald-600 shadow-sm">
-                            <Briefcase className="h-4 w-4" />
-                          </div>
-                          <div>
-                            <p className="font-bold text-slate-900">{person?.name ?? cancel.staffId}</p>
-                            <p className="text-sm text-slate-500">
-                              Quay lại làm ngày {cancel.date} · {LEAVE_SHIFT_LABELS[cancel.shift]}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="flex flex-wrap gap-2">
-                          <Pill tone="teal">Sẵn sàng</Pill>
-                          {cancelTime && <Pill tone="slate">Huỷ lúc {cancelTime}</Pill>}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-
               {/* Nhân sự chưa phân công — theo từng ca */}
               {unassignedByStaff.size > 0 && (
                 <div className="space-y-3">
@@ -747,7 +706,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
             <EmptyState
               icon={Briefcase}
               title="Chưa có thay đổi"
-              description="Không có nhân sự nào huỷ nghỉ phép hoặc trống việc trong 7 ngày tới."
+              description="Không có nhân sự nào trống việc trong 7 ngày tới."
               tone="slate"
             />
           )}
