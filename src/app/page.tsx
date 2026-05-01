@@ -18,6 +18,7 @@ import { ConflictList } from "@/components/conflict-list";
 import { EmptyState } from "@/components/empty-state";
 import { Pill } from "@/components/pill";
 import { SurfaceSection } from "@/components/surface-section";
+import { StaffUpcomingLookup } from "@/components/staff-upcoming-lookup";
 import { LEAVE_REASON_LABELS, LEAVE_SHIFT_LABELS, SHIFT_LABELS, WEEKDAY_LABELS } from "@/lib/constants";
 import { formatDate, getMonthKey, getNextWeekStart, getWeekStart } from "@/lib/date";
 import { isSheetsConfigured } from "@/lib/env";
@@ -783,39 +784,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
         title="Lịch làm việc sắp tới theo nhân sự"
         description="Xem nhanh ca dự kiến trong tuần này + tuần sau để điều phối thay thế tức thời."
       >
-        <div className="space-y-3">
-          {staffUpcomingAssignments.map(({ staff, combined }) => (
-            <div key={staff.id} className="rounded-2xl border border-slate-200/80 bg-white px-4 py-3">
-              <div className="flex items-center justify-between gap-3">
-                <p className="font-semibold text-slate-900">{staff.name}</p>
-                <Pill tone={combined.length > 0 ? "teal" : "amber"}>
-                  {combined.length > 0 ? `${combined.length} ca sắp tới` : "Chưa có ca dự kiến"}
-                </Pill>
-              </div>
-              {combined.length > 0 ? (
-                <div className="mt-2 flex flex-wrap gap-1.5">
-                  {combined.slice(0, 8).map((slot, idx) => (
-                    <span
-                      key={`${staff.id}-${slot.date}-${slot.shift}-${idx}`}
-                      className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-medium text-slate-700"
-                    >
-                      {formatDate(slot.date, "dd/MM")} · {SHIFT_LABELS[slot.shift]} · {slot.positionName}
-                    </span>
-                  ))}
-                  {combined.length > 8 && (
-                    <span className="inline-flex items-center rounded-full bg-slate-200 px-2.5 py-1 text-[11px] font-medium text-slate-600">
-                      +{combined.length - 8} ca khác
-                    </span>
-                  )}
-                </div>
-              ) : (
-                <p className="mt-2 text-xs text-amber-700">
-                  Cảnh báo: Không vướng nghỉ phép nhưng chưa được phân công ca làm trong giai đoạn sắp tới.
-                </p>
-              )}
-            </div>
-          ))}
-        </div>
+        <StaffUpcomingLookup items={staffUpcomingAssignments} />
       </SurfaceSection>
     </AppShell>
   );
