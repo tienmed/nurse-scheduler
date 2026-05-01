@@ -1,14 +1,13 @@
 "use client";
 
-import { useState, useTransition, useEffect } from "react";
+import { useState } from "react";
 import { CheckCircle2, X } from "lucide-react";
 import { Pill } from "@/components/pill";
 import { SubmitButton } from "@/components/submit-button";
-import { ASSIGNMENT_STATUS_LABELS, SHIFT_LABELS, WEEKDAY_LABELS } from "@/lib/constants";
-import { suggestStaffForSlot, type SuggestionResult } from "@/lib/schedule";
+import { SHIFT_LABELS, WEEKDAY_LABELS } from "@/lib/constants";
+import { suggestStaffForSlot } from "@/lib/schedule";
 import type { LeaveRecord, Position, StaffMember, WeeklyAssignment, WorkloadSummary, ShiftType } from "@/lib/types";
 import { saveWeeklyAssignmentAction, saveSingleTemplateAssignmentAction } from "@/app/actions";
-import { parseISO } from "date-fns";
 
 interface ShiftEditDialogProps {
   isOpen: boolean;
@@ -54,6 +53,7 @@ export function ShiftEditDialog({
   const [selectedStaffId, setSelectedStaffId] = useState<string>(
     currentAssignment?.staffId ?? defaultPerson?.id ?? ""
   );
+  void anchorRect;
 
   if (!isOpen) return null;
 

@@ -20,7 +20,7 @@ import { Pill } from "@/components/pill";
 import { SurfaceSection } from "@/components/surface-section";
 import { StaffUpcomingLookup } from "@/components/staff-upcoming-lookup";
 import { LEAVE_REASON_LABELS, LEAVE_SHIFT_LABELS, SHIFT_LABELS, WEEKDAY_LABELS } from "@/lib/constants";
-import { formatDate, getMonthKey, getNextWeekStart, getWeekStart } from "@/lib/date";
+import { getMonthKey, getNextWeekStart, getWeekStart } from "@/lib/date";
 import { isSheetsConfigured } from "@/lib/env";
 import { getAppData } from "@/lib/repository";
 import {
@@ -28,7 +28,6 @@ import {
   calculateMonthlyLeaves,
   calculateMonthlyWorkload,
   getActiveScheduleRules,
-  getWeekBoard,
   getWeeklyAssignments,
 } from "@/lib/schedule";
 import { isOffDay } from "@/lib/date";
