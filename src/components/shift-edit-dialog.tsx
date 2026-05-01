@@ -241,9 +241,13 @@ export function ShiftEditDialog({
                                 ? "bg-indigo-100 text-indigo-700"
                                 : r === "Ít ca"
                                   ? "bg-emerald-100 text-emerald-700"
-                                  : r === "Sẵn sàng TC"
-                                    ? "bg-amber-100 text-amber-700"
-                                    : "bg-slate-100 text-slate-600"
+                                  : r === "Ít vị trí"
+                                    ? "bg-fuchsia-100 text-fuchsia-700"
+                                    : r === "Rảnh chưa có ca"
+                                      ? "bg-teal-100 text-teal-700"
+                                    : r === "Sẵn sàng TC"
+                                      ? "bg-amber-100 text-amber-700"
+                                      : "bg-slate-100 text-slate-600"
                                 }`}
                             >
                               {r}

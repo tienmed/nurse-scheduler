@@ -123,11 +123,48 @@ export function ScheduleBoard({
               </div>
               <div className="flex gap-2">
                 <Pill tone="teal">{slot.entries.flatMap(e => e.slots).filter((s) => s.assignment).length} vị trí đã gán</Pill>
+                <Pill tone="amber">
+                  {slot.entries.flatMap((e) => e.slots).filter((s) => !s.person && s.assignment?.staffId !== "CLOSED").length} slot trống
+                </Pill>
                 {isOvertimeSlot(slot.date, slot.shift) ? (
                   <Pill tone="amber">Tăng ca</Pill>
                 ) : null}
               </div>
             </div>
+
+            {editable && (
+              <div className="rounded-2xl border border-amber-200 bg-amber-50/70 p-3">
+                <p className="mb-2 text-sm font-semibold text-amber-900">Tổng quan slot trống đang mở</p>
+                <div className="flex flex-wrap gap-2">
+                  {slot.entries.flatMap((entry) =>
+                    entry.slots
+                      .filter((subslot) => !subslot.person && subslot.assignment?.staffId !== "CLOSED")
+                      .map((subslot) => (
+                        <button
+                          key={`quick-${slot.date}-${slot.shift}-${entry.position.id}-${subslot.slotIndex}`}
+                          type="button"
+                          onClick={(e) =>
+                            setEditingSlot({
+                              slot,
+                              entry,
+                              subslot,
+                              rect: e.currentTarget.getBoundingClientRect(),
+                            })
+                          }
+                          className="rounded-full border border-amber-300 bg-white px-3 py-1 text-xs font-medium text-amber-900 hover:bg-amber-100"
+                        >
+                          {entry.position.area ? `${entry.position.area} · ` : ""}{entry.position.name} · Slot {subslot.slotIndex + 1}
+                        </button>
+                      )),
+                  )}
+                  {slot.entries.flatMap((entry) =>
+                    entry.slots.filter((subslot) => !subslot.person && subslot.assignment?.staffId !== "CLOSED"),
+                  ).length === 0 && (
+                    <span className="text-xs text-amber-700">Không có slot trống trong ca này.</span>
+                  )}
+                </div>
+              </div>
+            )}
 
             {[...areaGroups.entries()].map(([areaName, entries], areaIndex) => {
               const themeColors = [

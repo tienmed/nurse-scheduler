@@ -683,7 +683,11 @@ export async function writeAppDataKeysToSheets(data: AppData, keys: AppDataKey[]
         }
       });
 
-      let nextAvailableRow = Math.max(2, colA.length + 1);
+      const lastUsedRow = colA.reduce((maxRow, rowVal, idx) => {
+        const id = rowVal[0]?.toString().trim();
+        return id ? idx + 1 : maxRow;
+      }, 1);
+      let nextAvailableRow = Math.max(2, lastUsedRow + 1);
 
       const keepIds = new Set(rows.map((r) => r.id));
       existingIds.forEach((rowNum, id) => {
