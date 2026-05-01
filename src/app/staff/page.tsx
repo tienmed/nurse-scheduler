@@ -1,8 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { PencilLine, ShieldCheck, Stethoscope, Users, X } from "lucide-react";
+import { PencilLine, Stethoscope, Users, X } from "lucide-react";
 import {
-  saveAccessControlAction,
   savePositionAction,
   saveStaffAction,
 } from "@/app/actions";
@@ -13,9 +12,6 @@ import { MultiSelectCombobox } from "@/components/multi-select-combobox";
 import { Pill } from "@/components/pill";
 import { SubmitButton } from "@/components/submit-button";
 import { SurfaceSection } from "@/components/surface-section";
-import {
-  ROLE_LABELS,
-} from "@/lib/constants";
 import { getAppData } from "@/lib/repository";
 import { canEdit, getUserContext } from "@/lib/session";
 

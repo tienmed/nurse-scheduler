@@ -24,7 +24,7 @@ import {
   upsertHoliday,
   deleteHoliday,
 } from "@/lib/repository";
-import { isHoliday, isOffDay } from "@/lib/date";
+import { isHoliday } from "@/lib/date";
 import { canEdit, getUserContext } from "@/lib/session";
 
 function getValue(formData: FormData, key: string) {
@@ -324,7 +324,7 @@ export async function saveLeaveAction(formData: FormData) {
     }
 
     // Tạo danh sách ngày từ fromDate → toDate
-    const { addDays, parseISO, format, differenceInCalendarDays, isWeekend } = await import("date-fns");
+    const { addDays, parseISO, format, differenceInCalendarDays } = await import("date-fns");
     const start = parseISO(fromDate);
     const end = parseISO(toDate);
     const dayCount = differenceInCalendarDays(end, start) + 1;

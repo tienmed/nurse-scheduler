@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, Fragment } from "react";
-import { Check, X, CheckSquare, Square, Columns, Rows } from "lucide-react";
+import { Check, X, CheckSquare, Square, Rows } from "lucide-react";
 import { SubmitButton } from "@/components/submit-button";
 import { WEEKDAY_LABELS } from "@/lib/constants";
 import type { Position, PositionRule, ScheduleRule } from "@/lib/types";

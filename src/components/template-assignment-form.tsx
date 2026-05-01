@@ -4,7 +4,7 @@ import { useRef, useState } from "react";
 import { History } from "lucide-react";
 import { MultiSelectCombobox } from "@/components/multi-select-combobox";
 import { SubmitButton } from "@/components/submit-button";
-import { SHIFT_LABELS, WEEKDAY_LABELS } from "@/lib/constants";
+import { WEEKDAY_LABELS } from "@/lib/constants";
 import type { TemplateAssignment } from "@/lib/types";
 
 interface StaffOption {

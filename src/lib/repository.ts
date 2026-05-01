@@ -3,7 +3,6 @@ import { isSheetsConfigured } from "@/lib/env";
 import {
   getCachedAppData,
   invalidateAppDataCache,
-  readAppDataFromSheets,
   writeAppDataKeysToSheets,
 } from "@/lib/google-sheets";
 import { MOCK_DATA } from "@/lib/mock-data";
@@ -32,7 +31,7 @@ async function getHorizonDays(): Promise<number> {
     if (horizon && horizon !== "all") {
       return parseInt(horizon, 10);
     }
-  } catch (e) {
+  } catch {
     // ignore
   }
   return 60; // Mặc định là 60 ngày để tối ưu hiệu năng

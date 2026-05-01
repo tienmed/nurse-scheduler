@@ -1,6 +1,5 @@
 import Link from "next/link";
 import {
-  CalendarClock,
   ExternalLink,
   Download,
   RefreshCcw,
@@ -12,17 +11,14 @@ import {
 } from "@/app/actions";
 import { AppShell } from "@/components/app-shell";
 import { AuthRequiredState } from "@/components/auth-required-state";
-import { EmptyState } from "@/components/empty-state";
 import { Pill } from "@/components/pill";
 import { ScheduleBoard } from "@/components/schedule-board";
 import { SubmitButton } from "@/components/submit-button";
 import { SurfaceSection } from "@/components/surface-section";
 import {
-  ASSIGNMENT_STATUS_LABELS,
-  SHIFT_LABELS,
   WEEKDAY_LABELS,
 } from "@/lib/constants";
-import { formatDate, getWeekDates, getWeekStartFromInput, isCurrentOrNextWeek, isOffDay } from "@/lib/date";
+import { formatDate, getWeekStartFromInput, isCurrentOrNextWeek, isOffDay } from "@/lib/date";
 import { getAppData } from "@/lib/repository";
 import {
   buildAssignmentsFromTemplate,
@@ -133,9 +129,6 @@ export default async function SchedulePage({ searchParams }: SchedulePageProps) 
   const filteredBoard = fullBoard.filter(
     (slot) => slot.dayOfWeek === selectedDay && slot.shift === selectedShift,
   );
-
-  const dayOptions = getWeekDates(weekStart);
-  const activeStaff = data.staff.filter((member) => member.active);
 
   // Build danh sách tabs cho điều hướng buổi
   const slotTabs = activeRules.map((rule) => {

@@ -135,8 +135,6 @@ const sheetSerializers: Record<AppDataKey, (data: AppData) => SheetRow[]> = {
     })),
 };
 
-import { generateId } from "@/lib/id";
-
 function ensureId(prefix: string, rawId: string | undefined, fallbackSeed: string, index: number) {
   const trimmed = `${rawId ?? ""}`.trim();
   if (trimmed) {
@@ -548,7 +546,6 @@ export async function readAppDataFromSheets(): Promise<AppData> {
   };
 
   // --- PHẦN 6: Bảo vệ tham chiếu (Reference Protection) ---
-  const validStaffIds = new Set(data.staff.map(s => s.id));
   const validPositionIds = new Set(data.positions.map(p => p.id));
 
   // Lọc lịch nền: Chỉ giữ các bản ghi có Vị trí tồn tại
