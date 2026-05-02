@@ -25,7 +25,6 @@ import { isSheetsConfigured } from "@/lib/env";
 import { getAppData } from "@/lib/repository";
 import {
   buildAssignmentsFromTemplate,
-  calculateMonthlyLeaves,
   calculateMonthlyWorkload,
   getActiveScheduleRules,
   getWeeklyAssignments,
@@ -92,7 +91,6 @@ export default async function HomePage({ searchParams }: HomePageProps) {
   const hasStaff = data.staff.length > 0;
   const hasPositions = data.positions.length > 0;
   const hasTemplate = data.templateSchedule.length > 0;
-  const hasWeeklySchedule = data.weeklySchedule.length > 0;
 
   const nextWeekAssignments = getWeeklyAssignments(data.weeklySchedule, nextWeekStart);
   const nextWeekView =
@@ -108,7 +106,6 @@ export default async function HomePage({ searchParams }: HomePageProps) {
       );
 
   const monthlyWorkload = calculateMonthlyWorkload(data.weeklySchedule, currentMonth, data.holidays);
-  const monthlyLeaves = calculateMonthlyLeaves(effectiveLeaves, currentMonth, data.holidays);
   const pendingConflicts = nextWeekView.filter((item) => {
     if (item.status !== "needs-review") return false;
     // Ngoại lệ: Đi học + vị trí KHNV → không coi là xung đột
@@ -707,71 +704,6 @@ export default async function HomePage({ searchParams }: HomePageProps) {
               icon={Briefcase}
               title="Chưa có thay đổi"
               description="Không có nhân sự nào trống việc trong 7 ngày tới."
-              tone="slate"
-            />
-          )}
-        </SurfaceSection>
-        <SurfaceSection
-          eyebrow="Phân tích tháng"
-          title="Chỉ số tháng hiện tại"
-          description="Bản tóm tắt để nhìn nhanh nhân sự có nhiều ca và các trường hợp nghỉ trong tháng trước khi vào báo cáo chi tiết."
-          action={
-            <Link
-              href={`/reports?month=${currentMonth}`}
-              className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 px-4 py-3 text-sm font-medium text-slate-700 transition hover:border-slate-300 hover:bg-slate-100"
-            >
-              Mở báo cáo tháng
-              <ArrowRight className="h-4 w-4" />
-            </Link>
-          }
-        >
-          {hasWeeklySchedule ? (
-            <div className="grid gap-4 lg:grid-cols-2">
-              <div className="rounded-[24px] border border-slate-200/80 bg-slate-50/80 p-4">
-                <p className="text-sm font-semibold text-slate-950">Nhân sự có nhiều ca nhất</p>
-                <div className="mt-4 space-y-3">
-                  {monthlyWorkload
-                    .sort((left: any, right: any) => right.shifts - left.shifts)
-                    .slice(0, 5)
-                    .map((item) => {
-                      const person = data.staff.find((staff) => staff.id === item.staffId);
-                      return (
-                        <div key={item.staffId} className="flex items-center justify-between gap-3 text-sm">
-                          <div>
-                            <p className="font-medium text-slate-900">{person?.name ?? item.staffId}</p>
-                            <p className="text-slate-500">{item.workDays} ngày làm</p>
-                          </div>
-                          <Pill tone="teal">{item.shifts} ca</Pill>
-                        </div>
-                      );
-                    })}
-                </div>
-              </div>
-              <div className="rounded-[24px] border border-slate-200/80 bg-slate-50/80 p-4">
-                <p className="text-sm font-semibold text-slate-950">Nhân sự nghỉ nhiều trong tháng</p>
-                <div className="mt-4 space-y-3">
-                  {monthlyLeaves
-                    .sort((a: any, b: any) => (b.phep + b.om + b.khac) - (a.phep + a.om + a.khac))
-                    .slice(0, 5).map((item) => {
-                      const person = data.staff.find((staff) => staff.id === item.staffId);
-                      return (
-                        <div key={item.staffId} className="flex items-center justify-between gap-3 text-sm">
-                          <div>
-                            <p className="font-medium text-slate-900">{person?.name ?? item.staffId}</p>
-                            <p className="text-slate-500">{item.days} ngày nghỉ quy đổi</p>
-                          </div>
-                          <Pill tone="amber">{item.phep + item.om + item.khac} lượt</Pill>
-                        </div>
-                      );
-                    })}
-                </div>
-              </div>
-            </div>
-          ) : (
-            <EmptyState
-              icon={FileSpreadsheet}
-              title="Chưa có báo cáo tháng"
-              description="Hệ thống sẽ tổng hợp khi có dữ liệu chính thức của tuần làm việc."
               tone="slate"
             />
           )}
