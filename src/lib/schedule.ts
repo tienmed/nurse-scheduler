@@ -5,7 +5,7 @@ import {
   SHIFT_LABELS,
   WEEKDAY_LABELS,
 } from "@/lib/constants";
-import { getMonthBounds, isOffDay } from "@/lib/date";
+import { getMonthBounds, getNextWeekStart, getWeekStart, getWeekStartFromInput, isOffDay } from "@/lib/date";
 import type {
   LeaveRecord,
   LeaveSummary,
@@ -579,7 +579,6 @@ export function buildMonthlyTimesheet(
   const endDate = parseISO(end);
   const daysCount = differenceInCalendarDays(endDate, startDate) + 1;
 
-  const { getWeekStartFromInput } = require("@/lib/date");
   const uniqueWeeks = new Set<string>();
   for (let i = 0; i < daysCount; i++) {
     uniqueWeeks.add(getWeekStartFromInput(format(addDays(startDate, i), "yyyy-MM-dd")));
@@ -647,9 +646,21 @@ export function buildMonthlyTimesheet(
 
   const staffMap = new Map(staff.map(s => [s.id, s]));
   const closedPositionChecker = createClosedPositionChecker(positionRules);
+  const currentWeekStart = getWeekStart();
+  const nextWeekStart = getNextWeekStart();
+  const hasPublishedNextWeek = weeklySchedule.some(
+    (assignment) => assignment.weekStart === nextWeekStart && assignment.status === "published",
+  );
 
   for (let i = 0; i < daysCount; i++) {
     const currentDate = format(addDays(startDate, i), "yyyy-MM-dd");
+    const dateWeekStart = getWeekStartFromInput(currentDate);
+    const isPastWeek = dateWeekStart < currentWeekStart;
+    const isNextWeek = dateWeekStart === nextWeekStart;
+
+    if (!isPastWeek && !isNextWeek) continue;
+
+    const allowTemplateFallback = isNextWeek && !hasPublishedNextWeek;
     const dayOfWeek = addDays(startDate, i).getDay();
     const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
 
@@ -657,7 +668,11 @@ export function buildMonthlyTimesheet(
       if (isOffDay(currentDate, shift, holidays)) continue;
 
       const key = `${currentDate}|${shift}`;
-      const slotAssignments = assignmentsBySlot.get(key) || [];
+      const slotAssignments = (assignmentsBySlot.get(key) || []).filter((assignment) => {
+        if (isPastWeek) return true;
+        if (!isNextWeek) return false;
+        return hasPublishedNextWeek ? assignment.status === "published" : false;
+      });
       
       // Xử lý từng vị trí
       for (const position of positions) {
@@ -671,7 +686,7 @@ export function buildMonthlyTimesheet(
           const assignment = posAssignments.find(a => (a.slotIndex || 0) === j);
           let person = assignment ? staffMap.get(assignment.staffId) : null;
           
-          if (!assignment) {
+          if (!assignment && allowTemplateFallback) {
             const defaultStaffId = position.staffOrder?.[j];
             if (defaultStaffId) person = staffMap.get(defaultStaffId);
           }
