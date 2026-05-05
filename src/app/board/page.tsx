@@ -1,4 +1,6 @@
 import { BoardTabs } from "@/components/board-tabs";
+import { LeaveCalendar } from "@/components/leave-calendar";
+
 
 import { addDays, format, parseISO } from "date-fns";
 import { ChevronLeft, ChevronRight } from "lucide-react";
@@ -77,6 +79,8 @@ function getDefaultDayAndShift(weekStart: string): { day: number; shift: "mornin
 export default async function BoardPage({ searchParams }: BoardPageProps) {
   const { week, day: dayParam, shift: shiftParam, view } = await searchParams;
   const isPersonnelView = view === "personnel";
+  const isLeaveView = view === "leave";
+  const isCalendarView = !isPersonnelView && !isLeaveView;
   const weekStart = getWeekStartFromInput(week);
   const currentWeekStart = getWeekStartFromInput(); // Tuần hiện tại thực tế
   const isCurrentWeek = weekStart === currentWeekStart;
@@ -215,6 +219,22 @@ export default async function BoardPage({ searchParams }: BoardPageProps) {
   };
   const defaultColor = { bg: "bg-slate-50", border: "border-slate-200", badge: "bg-slate-600" };
 
+  // Dữ liệu cho lịch nghỉ phép
+  const calendarStaff = data.staff.map((s) => ({
+      id: s.id,
+      name: s.name,
+      code: s.code,
+  }));
+
+  const calendarLeaves = data.leaveRequests.map((l) => ({
+      id: l.id,
+      staffId: l.staffId,
+      date: l.date,
+      shift: l.shift,
+      reason: l.reason,
+      note: l.note,
+  }));
+
   return (
     <div className="min-h-screen bg-slate-100">
       {/* Header */}
@@ -236,10 +256,10 @@ export default async function BoardPage({ searchParams }: BoardPageProps) {
               <div className="flex h-8 items-center rounded-full bg-slate-200 p-1">
                 <Link
                   href={`/board?week=${weekStart}&day=${selectedDay}&shift=${selectedShift}&view=calendar`}
-                  className={`flex h-full items-center rounded-full px-4 font-semibold transition-colors ${!isPersonnelView ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-900"
+                  className={`flex h-full items-center rounded-full px-4 font-semibold transition-colors ${isCalendarView ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-900"
                     }`}
                 >
-                  Lịch
+                  Lịch trực
                 </Link>
                 <Link
                   href={`/board?week=${weekStart}&day=${selectedDay}&shift=${selectedShift}&view=personnel`}
@@ -248,10 +268,17 @@ export default async function BoardPage({ searchParams }: BoardPageProps) {
                 >
                   Nhân sự
                 </Link>
+                <Link
+                  href={`/board?week=${weekStart}&day=${selectedDay}&shift=${selectedShift}&view=leave`}
+                  className={`flex h-full items-center rounded-full px-4 font-semibold transition-colors ${isLeaveView ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-900"
+                    }`}
+                >
+                  Nghỉ phép
+                </Link>
               </div>
               {isCurrentWeek ? (
                 <Link
-                  href={`/board?week=${format(addDays(parseISO(currentWeekStart), 7), "yyyy-MM-dd")}${isPersonnelView ? "&view=personnel" : ""}`}
+                  href={`/board?week=${format(addDays(parseISO(currentWeekStart), 7), "yyyy-MM-dd")}${isPersonnelView ? "&view=personnel" : isLeaveView ? "&view=leave" : ""}`}
                   className="flex items-center gap-1 rounded-full bg-slate-900 px-3 py-1.5 font-semibold text-white shadow-sm transition-all hover:bg-slate-700 active:scale-95"
                 >
                   Tuần sau
@@ -259,7 +286,7 @@ export default async function BoardPage({ searchParams }: BoardPageProps) {
                 </Link>
               ) : (
                 <Link
-                  href={`/board?week=${currentWeekStart}${isPersonnelView ? "&view=personnel" : ""}`}
+                  href={`/board?week=${currentWeekStart}${isPersonnelView ? "&view=personnel" : isLeaveView ? "&view=leave" : ""}`}
                   className="flex items-center gap-1 rounded-full bg-teal-600 px-3 py-1.5 font-semibold text-white shadow-sm transition-all hover:bg-teal-500 active:scale-95"
                 >
                   <ChevronLeft className="h-3.5 w-3.5" />
@@ -272,11 +299,15 @@ export default async function BoardPage({ searchParams }: BoardPageProps) {
       </header>
 
       {/* Tab bar */}
-      <BoardTabs tabs={slotTabs} />
+      {!isLeaveView && <BoardTabs tabs={slotTabs} />}
 
       {/* Content */}
       <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6">
-        {isPersonnelView ? (
+        {isLeaveView ? (
+          <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+            <LeaveCalendar leaveRequests={calendarLeaves} staff={calendarStaff} />
+          </div>
+        ) : isPersonnelView ? (
           personnelList.length > 0 ? (
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {personnelList.map((data) => (
