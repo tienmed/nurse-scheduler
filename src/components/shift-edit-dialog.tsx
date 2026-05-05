@@ -1,14 +1,13 @@
 "use client";
 
-import { useState, useTransition, useEffect } from "react";
+import { useState } from "react";
 import { CheckCircle2, X } from "lucide-react";
 import { Pill } from "@/components/pill";
 import { SubmitButton } from "@/components/submit-button";
-import { ASSIGNMENT_STATUS_LABELS, SHIFT_LABELS, WEEKDAY_LABELS } from "@/lib/constants";
-import { suggestStaffForSlot, type SuggestionResult } from "@/lib/schedule";
+import { SHIFT_LABELS, WEEKDAY_LABELS } from "@/lib/constants";
+import { suggestStaffForSlot } from "@/lib/schedule";
 import type { LeaveRecord, Position, StaffMember, WeeklyAssignment, WorkloadSummary, ShiftType } from "@/lib/types";
 import { saveWeeklyAssignmentAction, saveSingleTemplateAssignmentAction } from "@/app/actions";
-import { parseISO } from "date-fns";
 
 interface ShiftEditDialogProps {
   isOpen: boolean;
@@ -54,6 +53,7 @@ export function ShiftEditDialog({
   const [selectedStaffId, setSelectedStaffId] = useState<string>(
     currentAssignment?.staffId ?? defaultPerson?.id ?? ""
   );
+  void anchorRect;
 
   if (!isOpen) return null;
 
@@ -241,9 +241,13 @@ export function ShiftEditDialog({
                                 ? "bg-indigo-100 text-indigo-700"
                                 : r === "Ít ca"
                                   ? "bg-emerald-100 text-emerald-700"
-                                  : r === "Sẵn sàng TC"
-                                    ? "bg-amber-100 text-amber-700"
-                                    : "bg-slate-100 text-slate-600"
+                                  : r === "Ít vị trí"
+                                    ? "bg-fuchsia-100 text-fuchsia-700"
+                                    : r === "Rảnh chưa có ca"
+                                      ? "bg-teal-100 text-teal-700"
+                                    : r === "Sẵn sàng TC"
+                                      ? "bg-amber-100 text-amber-700"
+                                      : "bg-slate-100 text-slate-600"
                                 }`}
                             >
                               {r}

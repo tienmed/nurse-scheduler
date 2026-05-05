@@ -8,6 +8,11 @@ import type { AppData } from "@/lib/types";
 type SheetName = keyof typeof SHEET_NAMES;
 type SheetRow = Record<string, string>;
 type AppDataKey = keyof AppData;
+type SheetsClient = ReturnType<typeof createSheetsClient>;
+
+const GOOGLE_SHEETS_RETRYABLE_STATUS = new Set([408, 425, 429, 500, 502, 503, 504]);
+const GOOGLE_SHEETS_MAX_RETRIES = 4;
+const GOOGLE_SHEETS_INITIAL_RETRY_DELAY_MS = 400;
 
 const APP_DATA_TO_SHEET: Record<AppDataKey, SheetName> = {
   staff: "staff",
@@ -130,8 +135,6 @@ const sheetSerializers: Record<AppDataKey, (data: AppData) => SheetRow[]> = {
     })),
 };
 
-import { generateId } from "@/lib/id";
-
 function ensureId(prefix: string, rawId: string | undefined, fallbackSeed: string, index: number) {
   const trimmed = `${rawId ?? ""}`.trim();
   if (trimmed) {
@@ -155,9 +158,10 @@ async function ensureCorrectSheetStructure() {
   if (!isSheetsConfigured() || isStructureEnsured) return;
 
   const sheets = createSheetsClient();
-  const spreadsheet = await sheets.spreadsheets.get({
-    spreadsheetId: env.GOOGLE_SHEET_ID,
-  });
+  const spreadsheet = await withSheetsRetry(
+    "ensureCorrectSheetStructure:spreadsheets.get",
+    () => sheets.spreadsheets.get({ spreadsheetId: env.GOOGLE_SHEET_ID }),
+  );
 
   const existingSheets = spreadsheet.data.sheets ?? [];
   const sheetTitles = existingSheets.map(s => s.properties?.title);
@@ -207,24 +211,28 @@ async function ensureCorrectSheetStructure() {
 }
 
 async function createSheetWithHeaders(
-  sheets: ReturnType<typeof createSheetsClient>,
+  sheets: SheetsClient,
   title: string,
   headers: readonly string[],
 ) {
   console.log(`🪄 [Google Sheets] Đang tạo mới tab "${title}"...`);
-  await sheets.spreadsheets.batchUpdate({
-    spreadsheetId: env.GOOGLE_SHEET_ID,
-    requestBody: {
-      requests: [{ addSheet: { properties: { title } } }],
-    },
-  });
+  await withSheetsRetry("createSheetWithHeaders:batchUpdate:addSheet", () =>
+    sheets.spreadsheets.batchUpdate({
+      spreadsheetId: env.GOOGLE_SHEET_ID,
+      requestBody: {
+        requests: [{ addSheet: { properties: { title } } }],
+      },
+    }),
+  );
 
-  await sheets.spreadsheets.values.update({
-    spreadsheetId: env.GOOGLE_SHEET_ID,
-    range: `${title}!A1`,
-    valueInputOption: "USER_ENTERED",
-    requestBody: { values: [[...headers]] },
-  });
+  await withSheetsRetry("createSheetWithHeaders:values.update:headers", () =>
+    sheets.spreadsheets.values.update({
+      spreadsheetId: env.GOOGLE_SHEET_ID,
+      range: `${title}!A1`,
+      valueInputOption: "USER_ENTERED",
+      requestBody: { values: [[...headers]] },
+    }),
+  );
 }
 
 function createSheetsClient() {
@@ -235,6 +243,40 @@ function createSheetsClient() {
   });
 
   return google.sheets({ version: "v4", auth });
+}
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function isRetryableSheetsError(error: unknown) {
+  const status = (error as { status?: number; code?: number })?.status
+    ?? (error as { status?: number; code?: number })?.code;
+  if (typeof status === "number" && GOOGLE_SHEETS_RETRYABLE_STATUS.has(status)) {
+    return true;
+  }
+
+  const message = `${(error as { message?: string })?.message ?? ""}`.toLowerCase();
+  return message.includes("quota") || message.includes("rate limit") || message.includes("timed out");
+}
+
+async function withSheetsRetry<T>(label: string, action: () => Promise<T>) {
+  for (let attempt = 0; attempt <= GOOGLE_SHEETS_MAX_RETRIES; attempt += 1) {
+    try {
+      return await action();
+    } catch (error) {
+      const isLastAttempt = attempt === GOOGLE_SHEETS_MAX_RETRIES;
+      if (!isRetryableSheetsError(error) || isLastAttempt) {
+        throw error;
+      }
+
+      const delayMs = GOOGLE_SHEETS_INITIAL_RETRY_DELAY_MS * (2 ** attempt) + Math.floor(Math.random() * 250);
+      console.warn(`⚠️ [Google Sheets] ${label} thất bại lần ${attempt + 1}, thử lại sau ${delayMs}ms.`);
+      await sleep(delayMs);
+    }
+  }
+
+  throw new Error(`Google Sheets retry exhausted for ${label}`);
 }
 
 function asBoolean(value: string) {
@@ -304,9 +346,11 @@ export async function readAppDataFromSheets(): Promise<AppData> {
   const sheets = createSheetsClient();
 
   // 1. Lấy metadata để biết tổng số dòng của từng sheet
-  const spreadsheetMeta = await sheets.spreadsheets.get({
-    spreadsheetId: env.GOOGLE_SHEET_ID,
-  });
+  const spreadsheetMeta = await withSheetsRetry("readAppDataFromSheets:spreadsheets.get", () =>
+    sheets.spreadsheets.get({
+      spreadsheetId: env.GOOGLE_SHEET_ID,
+    }),
+  );
   const sheetStats = new Map<string, number>();
   spreadsheetMeta.data.sheets?.forEach((s) => {
     if (s.properties?.title) {
@@ -353,10 +397,12 @@ export async function readAppDataFromSheets(): Promise<AppData> {
 
   let batchResponse;
   try {
-    const res = await sheets.spreadsheets.values.batchGet({
-      spreadsheetId: env.GOOGLE_SHEET_ID,
-      ranges,
-    });
+    const res = await withSheetsRetry("readAppDataFromSheets:values.batchGet", () =>
+      sheets.spreadsheets.values.batchGet({
+        spreadsheetId: env.GOOGLE_SHEET_ID,
+        ranges,
+      }),
+    );
     batchResponse = res.data.valueRanges ?? [];
   } catch (error: any) {
     if (error?.status === 400 || (error?.message && error.message.includes("Unable to parse range"))) {
@@ -500,7 +546,6 @@ export async function readAppDataFromSheets(): Promise<AppData> {
   };
 
   // --- PHẦN 6: Bảo vệ tham chiếu (Reference Protection) ---
-  const validStaffIds = new Set(data.staff.map(s => s.id));
   const validPositionIds = new Set(data.positions.map(p => p.id));
 
   // Lọc lịch nền: Chỉ giữ các bản ghi có Vị trí tồn tại
@@ -569,7 +614,9 @@ export async function writeAppDataKeysToSheets(data: AppData, keys: AppDataKey[]
 
   const sheets = createSheetsClient();
 
-  const spreadsheetMeta = await sheets.spreadsheets.get({ spreadsheetId: env.GOOGLE_SHEET_ID });
+  const spreadsheetMeta = await withSheetsRetry("writeAppDataKeysToSheets:spreadsheets.get", () =>
+    sheets.spreadsheets.get({ spreadsheetId: env.GOOGLE_SHEET_ID }),
+  );
   const sheetMetadataMap = new Map<string, { sheetId: number; rowCount: number; colCount: number }>();
   let currentTotalCells = 0;
 
@@ -589,10 +636,12 @@ export async function writeAppDataKeysToSheets(data: AppData, keys: AppDataKey[]
   }
 
   const allManagedSheetNames = Object.values(SHEET_NAMES);
-  const batchGetResponse = await sheets.spreadsheets.values.batchGet({
-    spreadsheetId: env.GOOGLE_SHEET_ID,
-    ranges: allManagedSheetNames.map(name => `${name}!A:A`),
-  });
+  const batchGetResponse = await withSheetsRetry("writeAppDataKeysToSheets:values.batchGet:A-column", () =>
+    sheets.spreadsheets.values.batchGet({
+      spreadsheetId: env.GOOGLE_SHEET_ID,
+      ranges: allManagedSheetNames.map(name => `${name}!A:A`),
+    }),
+  );
 
   const valueRanges = batchGetResponse.data.valueRanges || [];
   const sheetAValuesMap = new Map<string, any[][]>();
@@ -631,7 +680,11 @@ export async function writeAppDataKeysToSheets(data: AppData, keys: AppDataKey[]
         }
       });
 
-      let nextAvailableRow = Math.max(2, colA.length + 1);
+      const lastUsedRow = colA.reduce((maxRow, rowVal, idx) => {
+        const id = rowVal[0]?.toString().trim();
+        return id ? idx + 1 : maxRow;
+      }, 1);
+      let nextAvailableRow = Math.max(2, lastUsedRow + 1);
 
       const keepIds = new Set(rows.map((r) => r.id));
       existingIds.forEach((rowNum, id) => {
@@ -643,7 +696,7 @@ export async function writeAppDataKeysToSheets(data: AppData, keys: AppDataKey[]
       updateData.push({ range: `${actualSheetName}!A1`, values: [headers] });
 
       for (const row of rows) {
-        let targetRow: number = (row.id && existingIds.has(row.id)) 
+        const targetRow: number = (row.id && existingIds.has(row.id)) 
           ? existingIds.get(row.id)! 
           : (holes.length > 0 ? holes.shift()! : nextAvailableRow++);
         

@@ -4,7 +4,7 @@ import { LeaveCalendar } from "@/components/leave-calendar";
 
 import { addDays, format, parseISO } from "date-fns";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { getWeekStartFromInput } from "@/lib/date";
+import { getWeekStartFromInput, isOffDay } from "@/lib/date";
 import { getAppData } from "@/lib/repository";
 import {
   buildAssignmentsFromTemplate,
@@ -97,6 +97,7 @@ export default async function BoardPage({ searchParams }: BoardPageProps) {
         data.leaveRequests,
         data.scheduleRules,
         data.positionRules,
+        data.holidays,
       );
 
   const fullBoard = getWeekBoard(
@@ -107,6 +108,7 @@ export default async function BoardPage({ searchParams }: BoardPageProps) {
     weekStart,
     data.scheduleRules,
     data.positionRules,
+    data.holidays,
   );
 
   const activeRules = getActiveScheduleRules(data.scheduleRules);
@@ -123,16 +125,20 @@ export default async function BoardPage({ searchParams }: BoardPageProps) {
   );
 
   // Build tabs
-  const slotTabs = activeRules.map((rule) => {
-    const isActive = rule.dayOfWeek === selectedDay && rule.shift === selectedShift;
-    return {
-      dayOfWeek: rule.dayOfWeek,
-      shift: rule.shift,
-      label: `${rule.shift === "morning" ? "S" : "C"} ${WEEKDAY_LABELS[rule.dayOfWeek].replace("Thứ ", "T")}`,
-      href: `/board?week=${weekStart}&day=${rule.dayOfWeek}&shift=${rule.shift}${isPersonnelView ? '&view=personnel' : ''}`,
-      isActive,
-    };
-  });
+  const slotTabs = activeRules
+    .map((rule) => {
+      const date = format(addDays(parseISO(weekStart), rule.dayOfWeek - 1), "yyyy-MM-dd");
+      const isActive = rule.dayOfWeek === selectedDay && rule.shift === selectedShift;
+      return {
+        dayOfWeek: rule.dayOfWeek,
+        shift: rule.shift,
+        label: `${rule.shift === "morning" ? "S" : "C"} ${WEEKDAY_LABELS[rule.dayOfWeek].replace("Thứ ", "T")}`,
+        href: `/board?week=${weekStart}&day=${rule.dayOfWeek}&shift=${rule.shift}${isPersonnelView ? "&view=personnel" : ""}`,
+        isActive,
+        date,
+      };
+    })
+    .filter((tab) => !isOffDay(tab.date, tab.shift as "morning" | "afternoon", data.holidays));
 
   // Ngày hiển thị
   const startDate = parseISO(weekStart);

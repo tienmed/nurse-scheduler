@@ -4,7 +4,7 @@ import { AuthRequiredState } from "@/components/auth-required-state";
 import { EmptyState } from "@/components/empty-state";
 import { Pill } from "@/components/pill";
 import { SurfaceSection } from "@/components/surface-section";
-import { formatDate, getMonthKey, getMonthBounds, isOffDay } from "@/lib/date";
+import { getMonthKey, getMonthBounds, isOffDay } from "@/lib/date";
 import { format, parseISO, addDays, differenceInCalendarDays } from "date-fns";
 import { getAppData } from "@/lib/repository";
 import {

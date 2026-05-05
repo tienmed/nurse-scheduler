@@ -3,11 +3,11 @@ import { isSheetsConfigured } from "@/lib/env";
 import {
   getCachedAppData,
   invalidateAppDataCache,
-  readAppDataFromSheets,
   writeAppDataKeysToSheets,
 } from "@/lib/google-sheets";
 import { MOCK_DATA } from "@/lib/mock-data";
 import { buildAssignmentsFromTemplate, getWeekBoard } from "@/lib/schedule";
+import { isPastShift } from "@/lib/date";
 import type {
   AccessControlEntry,
   AppData,
@@ -31,7 +31,7 @@ async function getHorizonDays(): Promise<number> {
     if (horizon && horizon !== "all") {
       return parseInt(horizon, 10);
     }
-  } catch (e) {
+  } catch {
     // ignore
   }
   return 60; // Mặc định là 60 ngày để tối ưu hiệu năng
@@ -112,6 +112,53 @@ async function persistData(data: AppData, keys: (keyof AppData)[]) {
 }
 
 export { writeAppDataKeysToSheets, invalidateAppDataCache };
+
+function getEffectiveLeaveRequests(data: AppData): LeaveRecord[] {
+  if (data.leaveCancellations.length === 0) {
+    return data.leaveRequests;
+  }
+
+  const fullDayCancelSet = new Set(
+    data.leaveCancellations
+      .filter((c) => c.shift === "full-day")
+      .map((c) => `${c.staffId}-${c.date}`),
+  );
+  const shiftCancelSet = new Set(
+    data.leaveCancellations.map((c) => `${c.staffId}-${c.date}-${c.shift}`),
+  );
+
+  const effective: LeaveRecord[] = [];
+  data.leaveRequests.forEach((leave) => {
+    const dayKey = `${leave.staffId}-${leave.date}`;
+    if (fullDayCancelSet.has(dayKey)) {
+      return;
+    }
+
+    if (leave.shift === "full-day") {
+      const cancelMorning = shiftCancelSet.has(`${dayKey}-morning`);
+      const cancelAfternoon = shiftCancelSet.has(`${dayKey}-afternoon`);
+
+      if (cancelMorning && cancelAfternoon) return;
+      if (cancelMorning) {
+        effective.push({ ...leave, shift: "afternoon" });
+        return;
+      }
+      if (cancelAfternoon) {
+        effective.push({ ...leave, shift: "morning" });
+        return;
+      }
+      effective.push(leave);
+      return;
+    }
+
+    if (shiftCancelSet.has(`${dayKey}-${leave.shift}`)) {
+      return;
+    }
+    effective.push(leave);
+  });
+
+  return effective;
+}
 
 function sortByName<T extends { name: string }>(items: T[]) {
   return [...items].sort((left, right) => left.name.localeCompare(right.name, "vi"));
@@ -342,6 +389,7 @@ export async function applyPrioritizedStaffToTemplate() {
   // Duyệt qua tất cả các cấu hình ca mặc định (nếu data.scheduleRules trống, coi như lấy từ hằng số bên UI, nhưng repository thì phải tự định nghĩa hoặc lặp qua 1-6 * sáng/chiều)
   // Thực tế: Lịch nền sẽ áp dụng cho Tuần T2-T7, ca Sáng/Chiều
   for (let dayOfWeek = 1; dayOfWeek <= 6; dayOfWeek++) {
+    if (dayOfWeek === 6) continue; // Thứ 7 để trống toàn bộ, không sinh lịch nền
     for (const shift of ["morning", "afternoon"] as const) {
       // Bỏ qua nếu rules bị đóng (nếu có scheduleRules)
       const rule = data.scheduleRules.find(r => r.dayOfWeek === dayOfWeek && r.shift === shift);
@@ -397,6 +445,10 @@ export async function upsertWeeklyAssignment(
     source?: WeeklyAssignment["source"];
   },
 ) {
+  if (isPastShift(input.date, input.shift)) {
+    throw new Error("Ca làm đã qua nên không thể điều chỉnh.");
+  }
+
   const data = await getAppData();
   const existing = data.weeklySchedule.find(
     (item) =>
@@ -486,11 +538,12 @@ export async function upsertManyPositionRules(rules: (Omit<PositionRule, "id"> &
 
 export async function generateWeekFromTemplate(weekStart: string) {
   const data = await getAppData();
+  const effectiveLeaves = getEffectiveLeaveRequests(data);
   const generated = buildAssignmentsFromTemplate(
     data.templateSchedule,
     data.positions,
     weekStart,
-    data.leaveRequests,
+    effectiveLeaves,
     data.scheduleRules,
     data.positionRules,
     data.holidays,
@@ -507,6 +560,7 @@ export async function generateWeekFromTemplate(weekStart: string) {
 
 export async function publishWeek(weekStart: string) {
   const data = await getAppData();
+  const effectiveLeaves = getEffectiveLeaveRequests(data);
 
   // 1. Phục hồi mảng dự kiến hiện tại (trên màn hình đang có gì)
   let displayedAssignments = data.weeklySchedule.filter(
@@ -518,7 +572,7 @@ export async function publishWeek(weekStart: string) {
       data.templateSchedule,
       data.positions,
       weekStart,
-      data.leaveRequests,
+      effectiveLeaves,
       data.scheduleRules,
       data.positionRules,
       data.holidays,
@@ -530,7 +584,7 @@ export async function publishWeek(weekStart: string) {
     displayedAssignments,
     data.positions,
     data.staff,
-    data.leaveRequests,
+    effectiveLeaves,
     weekStart,
     data.scheduleRules,
     data.positionRules,
