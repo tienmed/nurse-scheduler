@@ -149,20 +149,89 @@ async function main() {
     }
   }
 
+  // --- LOGIC 3: NHÂN SỰ CHƯA PHÂN VỊ TRÍ (KHÔNG CÓ PHÉP) ---
+  // Lấy danh sách nhân sự active
+  const sActiveIdx = staffHeaders.indexOf("active");
+  const activeStaffIds = [];
+  for (let i = 1; i < staffValues.length; i++) {
+    const row = staffValues[i];
+    const id = row[sIdIdx];
+    const active = row[sActiveIdx];
+    // active có thể là "true", "TRUE", "1", hoặc thiếu cột (mặc định active)
+    if (id && (active === undefined || active === "true" || active === "TRUE" || active === "1")) {
+      activeStaffIds.push(id);
+    }
+  }
+
+  // Tìm nhân sự không có assignment và không có leave cho từng ca hôm nay
+  const shifts = ["morning", "afternoon"];
+  const unassignedStaff = []; // { name, shift }
+
+  // Xây dựng set nhân sự đã được phân công hôm nay (theo ca)
+  const assignedByShift = new Map(); // shift -> Set<staffId>
+  for (const s of shifts) {
+    assignedByShift.set(s, new Set());
+  }
+  for (let i = 1; i < scheduleValues.length; i++) {
+    const row = scheduleValues[i];
+    if (row[scDateIdx] === todayStr) {
+      const staffId = row[scStaffIdIdx];
+      const shift = row[scShiftIdx];
+      if (staffId && staffId.trim() !== "" && assignedByShift.has(shift)) {
+        assignedByShift.get(shift).add(staffId);
+      }
+    }
+  }
+
+  // Chủ nhật (0) hoặc Thứ 7 chiều → bỏ qua ca đó
+  const dayOfWeek = now.getDay();
+  const shiftsToCheck = dayOfWeek === 0
+    ? [] // Chủ nhật: không kiểm tra
+    : dayOfWeek === 6
+      ? ["morning"] // Thứ 7: chỉ ca sáng
+      : ["morning", "afternoon"];
+
+  for (const shift of shiftsToCheck) {
+    const assignedSet = assignedByShift.get(shift) || new Set();
+    for (const staffId of activeStaffIds) {
+      // Đã có assignment? → skip
+      if (assignedSet.has(staffId)) continue;
+      // Đang nghỉ phép? → skip
+      if (leaveSet.has(`${staffId}_${shift}`) || leaveSet.has(`${staffId}_full-day`)) continue;
+      
+      const name = staffMap.get(staffId) || "Không rõ";
+      const shiftLabel = shift === "morning" ? "Sáng" : "Chiều";
+      unassignedStaff.push({ name, shiftLabel });
+    }
+  }
+
   // --- TỔNG HỢP THÔNG BÁO ---
   let messageParts = [];
 
-  // 1. Nghỉ phép
+  // 1. Nhân sự chưa phân vị trí (MỚI - hiển thị đầu tiên vì quan trọng)
+  if (unassignedStaff.length > 0) {
+    const grouped = {};
+    for (const u of unassignedStaff) {
+      if (!grouped[u.shiftLabel]) grouped[u.shiftLabel] = [];
+      grouped[u.shiftLabel].push(u.name);
+    }
+    const lines = Object.entries(grouped)
+      .map(([shift, names]) => `Ca ${shift}: ${names.join(", ")}`)
+      .join("\n");
+    messageParts.push(`🟡 Chưa phân vị trí (${unassignedStaff.length}):\n${lines}`);
+  }
+
+  // 2. Nghỉ phép
   if (todayLeaves.length > 0) {
     messageParts.push(`📋 Nhân sự nghỉ (${todayLeaves.length}):\n${todayLeaves.join(", ")}`);
   }
 
-  // 2. Xung đột
+  // 3. Xung đột
   if (conflicts.length > 0) {
     messageParts.push(`⚠️ XUNG ĐỘT (Trực vs Nghỉ):\n${conflicts.join("\n")}`);
   }
 
-  // 3. Vị trí trống (Không có ai trực)
+  // 4. Vị trí trống (Không có ai trực)
   if (!hasScheduleToday) {
     messageParts.push("🔴 CẢNH BÁO: Hôm nay chưa có dữ liệu lịch trực!");
   } else if (criticalEmpty.length > 0) {

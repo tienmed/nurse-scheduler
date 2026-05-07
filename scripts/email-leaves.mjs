@@ -157,9 +157,69 @@ async function main() {
     }
   }
 
+  // --- LOGIC 3: NHÂN SỰ CHƯA PHÂN VỊ TRÍ NGÀY MAI (KHÔNG CÓ PHÉP) ---
+  const sActiveIdx = staffHeaders.indexOf("active");
+  const activeStaffIds = [];
+  for (let i = 1; i < staffValues.length; i++) {
+    const row = staffValues[i];
+    const id = row[sIdIdx];
+    const active = row[sActiveIdx];
+    if (id && (active === undefined || active === "true" || active === "TRUE" || active === "1")) {
+      activeStaffIds.push(id);
+    }
+  }
+
+  // Build leave set for tomorrow
+  const tomorrowLeaveSet = new Set();
+  for (let i = 1; i < leaveValues.length; i++) {
+    const row = leaveValues[i];
+    if (row[leaveDateIdx] === tomorrowStr) {
+      const staffId = row[leaveStaffIdIdx];
+      const shift = row[leaveShiftIdx] || "full-day";
+      tomorrowLeaveSet.add(`${staffId}_${shift}`);
+    }
+  }
+
+  // Build assigned set for tomorrow (theo ca)
+  const assignedByShift = new Map();
+  for (const s of ["morning", "afternoon"]) {
+    assignedByShift.set(s, new Set());
+  }
+  for (let i = 1; i < scheduleValues.length; i++) {
+    const row = scheduleValues[i];
+    if (row[scDateIdx] === tomorrowStr) {
+      const staffId = row[scStaffIdIdx];
+      const shift = row[scShiftIdx];
+      if (staffId && staffId.trim() !== "" && assignedByShift.has(shift)) {
+        assignedByShift.get(shift).add(staffId);
+      }
+    }
+  }
+
+  // Xác định ca cần kiểm tra (Chủ nhật=0 → skip, Thứ 7=6 → chỉ sáng)
+  const tomorrowDayOfWeek = tomorrow.getDay();
+  const shiftsToCheck = tomorrowDayOfWeek === 0
+    ? []
+    : tomorrowDayOfWeek === 6
+      ? ["morning"]
+      : ["morning", "afternoon"];
+
+  const unassignedStaff = [];
+  for (const shift of shiftsToCheck) {
+    const assignedSet = assignedByShift.get(shift) || new Set();
+    for (const staffId of activeStaffIds) {
+      if (assignedSet.has(staffId)) continue;
+      if (tomorrowLeaveSet.has(`${staffId}_${shift}`) || tomorrowLeaveSet.has(`${staffId}_full-day`)) continue;
+
+      const name = staffMap.get(staffId) || "Không rõ";
+      const shiftLabel = shift === "morning" ? "Sáng" : "Chiều";
+      unassignedStaff.push({ name, shiftLabel });
+    }
+  }
+
   // --- QUYẾT ĐỊNH GỬI EMAIL ---
-  // Chỉ gửi khi: (1) Có nghỉ phép khác đi học, HOẶC (2) Có phòng trống hoàn toàn
-  const shouldSend = hasNonStudyLeave || criticalEmpty.length > 0;
+  // Gửi khi: (1) Có nghỉ phép khác đi học, HOẶC (2) Có phòng trống, HOẶC (3) Có nhân sự chưa phân vị trí
+  const shouldSend = hasNonStudyLeave || criticalEmpty.length > 0 || unassignedStaff.length > 0;
 
   if (!shouldSend) {
     if (tomorrowLeavesList.length > 0) {
@@ -170,6 +230,9 @@ async function main() {
     if (hasScheduleTomorrow && criticalEmpty.length === 0) {
       console.log("Tất cả phòng mở đều đã bố trí ít nhất 1 nhân sự.");
     }
+    if (unassignedStaff.length === 0) {
+      console.log("Tất cả nhân sự đều đã được phân vị trí hoặc có phép.");
+    }
     console.log("Theo cấu hình, hệ thống sẽ KHÔNG gửi email.");
     return;
   }
@@ -178,6 +241,34 @@ async function main() {
 
   // --- TẠO NỘI DUNG EMAIL ---
   let htmlSections = [];
+
+  // Phần 0 (MỚI): Nhân sự chưa phân vị trí
+  if (unassignedStaff.length > 0) {
+    const grouped = {};
+    for (const u of unassignedStaff) {
+      if (!grouped[u.shiftLabel]) grouped[u.shiftLabel] = [];
+      grouped[u.shiftLabel].push(u.name);
+    }
+    const unassignedRows = Object.entries(grouped)
+      .map(([shift, names]) =>
+        `<tr>
+          <td style="padding:6px 12px;border:1px solid #e5e7eb;font-weight:600;color:#b45309;">${shift}</td>
+          <td style="padding:6px 12px;border:1px solid #e5e7eb;">${names.join(", ")}</td>
+        </tr>`)
+      .join("");
+
+    htmlSections.push(`
+      <h3 style="color:#b45309;">🟡 Nhân sự chưa phân vị trí (${unassignedStaff.length} lượt)</h3>
+      <p>Các nhân sự sau <b>không có lịch nghỉ phép</b> nhưng <b>chưa được gán vào vị trí</b> nào:</p>
+      <table style="border-collapse:collapse;width:100%;font-size:14px;">
+        <thead><tr style="background:#fffbeb;">
+          <th style="padding:8px 12px;border:1px solid #e5e7eb;text-align:left;">Ca</th>
+          <th style="padding:8px 12px;border:1px solid #e5e7eb;text-align:left;">Nhân sự</th>
+        </tr></thead>
+        <tbody>${unassignedRows}</tbody>
+      </table>
+    `);
+  }
 
   // Phần 1: Danh sách nghỉ phép (chỉ hiện nếu có người nghỉ không phải đi học)
   if (hasNonStudyLeave) {
@@ -240,7 +331,7 @@ async function main() {
   const mailOptions = {
     from: `"Nusres System" <${smtpUser}>`,
     to: "tienmed@gmail.com",
-    subject: `[Nusres] Báo cáo vận hành ngày mai (${displayDate})`,
+    subject: `[Nusres] Báo cáo vận hành ngày mai (${displayDate})${unassignedStaff.length > 0 ? ` — ⚠️ ${unassignedStaff.length} chưa phân công` : ""}`,
     html: htmlContent,
   };
 
