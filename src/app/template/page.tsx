@@ -136,6 +136,7 @@ export default async function TemplatePage({ searchParams }: TemplatePageProps) 
             scheduleRules={scheduleRules}
             positionRules={data.positionRules}
             editable={editable}
+            returnTo={`/template?day=${selectedDay}&shift=${selectedShift}`}
           />
         </SurfaceSection>
 
@@ -191,6 +192,8 @@ export default async function TemplatePage({ searchParams }: TemplatePageProps) 
             workload={[]}
             weeklySchedule={[]}
             weekStart={previewWeekStart}
+            templateDay={selectedDay}
+            templateShift={selectedShift}
           />
         </SurfaceSection>
 
@@ -220,7 +223,7 @@ export default async function TemplatePage({ searchParams }: TemplatePageProps) 
               ))}
             </div>
             <form action={saveScheduleRuleAction} className="mt-5 grid gap-4 border-t border-slate-200 pt-5">
-              <input type="hidden" name="returnTo" value="/template" />
+              <input type="hidden" name="returnTo" value={`/template?day=${selectedDay}&shift=${selectedShift}`} />
               <div className="grid grid-cols-2 gap-4">
                 <label className="space-y-2 text-sm text-slate-700">
                   <span className="font-medium">Ngày trong tuần</span>
@@ -298,6 +301,7 @@ export default async function TemplatePage({ searchParams }: TemplatePageProps) 
                 activeStaff={activeStaff.map((m) => ({ id: m.id, name: m.name }))}
                 templateSchedule={data.templateSchedule}
                 editable={editable}
+                returnTo={`/template?day=${selectedDay}&shift=${selectedShift}`}
               />
             ) : (
               <EmptyState
@@ -348,7 +352,7 @@ export default async function TemplatePage({ searchParams }: TemplatePageProps) 
                           <td className="px-4 py-3 text-right">
                             <form action={deleteHolidayAction}>
                               <input type="hidden" name="id" value={holiday.id} />
-                              <input type="hidden" name="returnTo" value="/template" />
+                              <input type="hidden" name="returnTo" value={`/template?day=${selectedDay}&shift=${selectedShift}`} />
                               <button
                                 type="submit"
                                 className="inline-flex h-8 w-8 items-center justify-center rounded-full text-slate-400 transition hover:bg-rose-50 hover:text-rose-600"
@@ -370,7 +374,7 @@ export default async function TemplatePage({ searchParams }: TemplatePageProps) 
               )}
 
               <form action={saveHolidayAction} className="mt-4 grid gap-4 border-t border-slate-200 pt-5">
-                <input type="hidden" name="returnTo" value="/template" />
+                <input type="hidden" name="returnTo" value={`/template?day=${selectedDay}&shift=${selectedShift}`} />
                 <div className="grid grid-cols-2 gap-4">
                   <label className="space-y-2 text-sm text-slate-700">
                     <span className="font-medium">Ngày</span>

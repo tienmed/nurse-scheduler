@@ -26,6 +26,7 @@ interface TemplateAssignmentFormProps {
   activeStaff: StaffOption[];
   templateSchedule: TemplateAssignment[];
   editable: boolean;
+  returnTo?: string;
 }
 
 export function TemplateAssignmentForm({
@@ -36,6 +37,7 @@ export function TemplateAssignmentForm({
   activeStaff,
   templateSchedule,
   editable,
+  returnTo = "/template",
 }: TemplateAssignmentFormProps) {
   const [selectedStaffId, setSelectedStaffId] = useState("");
   const [checkedDays, setCheckedDays] = useState<number[]>([]);
@@ -89,7 +91,7 @@ export function TemplateAssignmentForm({
 
   return (
     <form ref={formRef} action={action} className="grid gap-4">
-      <input type="hidden" name="returnTo" value="/template" />
+      <input type="hidden" name="returnTo" value={returnTo} />
 
       {/* Nhân sự mặc định — Đưa lên đầu */}
       <div className="space-y-2 text-sm text-slate-700">

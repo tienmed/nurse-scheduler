@@ -53,6 +53,9 @@ interface ScheduleBoardProps {
   editable?: boolean;
   mode?: "weekly" | "template";
   showEmptySlotSummary?: boolean;
+  // Giữ nguyên ngày/buổi đang xem khi redirect (template mode)
+  templateDay?: number;
+  templateShift?: "morning" | "afternoon";
 }
 
 function groupEntriesByArea(entries: BoardEntry[]) {
@@ -88,7 +91,13 @@ export function ScheduleBoard({
   editable = false,
   mode = "weekly",
   showEmptySlotSummary = false,
+  templateDay,
+  templateShift,
 }: ScheduleBoardProps) {
+  // Build returnTo cho template mode, giữ nguyên ngày/buổi đang xem
+  const templateReturnTo = templateDay != null && templateShift
+    ? `/template?day=${templateDay}&shift=${templateShift}`
+    : "/template";
   // Trạng thái modal
   const [editingSlot, setEditingSlot] = useState<{
     slot: BoardSlot;
@@ -107,7 +116,7 @@ export function ScheduleBoard({
     const key = `${slot.date}-${slot.shift}-${entry.position.id}-${subslot.slotIndex}`;
     startTransition(async () => {
       const formData = new FormData();
-      formData.set("returnTo", mode === "template" ? "/template" : `/schedule?week=${weekStart}&day=${slot.dayOfWeek}&shift=${slot.shift}`);
+      formData.set("returnTo", mode === "template" ? templateReturnTo : `/schedule?week=${weekStart}&day=${slot.dayOfWeek}&shift=${slot.shift}`);
       formData.set("weekStart", weekStart);
       formData.set("date", slot.date);
       formData.set("dayOfWeek", String(slot.dayOfWeek));
@@ -408,7 +417,7 @@ export function ScheduleBoard({
           workload={workload}
           weeklySchedule={weeklySchedule}
           weekStart={weekStart}
-          returnTo={mode === "template" ? "/template" : `/schedule?week=${weekStart}&day=${editingSlot.slot.dayOfWeek}&shift=${editingSlot.slot.shift}`}
+          returnTo={mode === "template" ? templateReturnTo : `/schedule?week=${weekStart}&day=${editingSlot.slot.dayOfWeek}&shift=${editingSlot.slot.shift}`}
         />
       )}
     </div>

@@ -12,6 +12,7 @@ interface PositionMatrixProps {
   scheduleRules: ScheduleRule[];
   positionRules: PositionRule[];
   editable: boolean;
+  returnTo?: string;
 }
 
 export function PositionMatrix({
@@ -19,6 +20,7 @@ export function PositionMatrix({
   scheduleRules,
   positionRules,
   editable,
+  returnTo = "/template",
 }: PositionMatrixProps) {
   const activeRules = scheduleRules.filter((r) => r.active);
   
@@ -77,7 +79,7 @@ export function PositionMatrix({
 
   return (
     <form action={savePositionRulesBatchAction} className="space-y-6">
-      <input type="hidden" name="returnTo" value="/template" />
+      <input type="hidden" name="returnTo" value={returnTo} />
       
       {/* Toolbar điều khiển nhanh */}
       <div className="flex flex-wrap gap-2">
