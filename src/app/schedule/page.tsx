@@ -5,9 +5,7 @@ import {
   RefreshCcw,
   SendHorizontal,
 } from "lucide-react";
-import {
   generateWeekAction,
-  publishWeekAction,
 } from "@/app/actions";
 import { AppShell } from "@/components/app-shell";
 import { AuthRequiredState } from "@/components/auth-required-state";
@@ -188,24 +186,12 @@ export default async function SchedulePage({ searchParams }: SchedulePageProps) 
                 </SubmitButton>
               </form>
             )}
-            {editable && canPlan && (
-              <form action={publishWeekAction}>
-                <input type="hidden" name="weekStart" value={weekStart} />
-                <input type="hidden" name="returnTo" value={returnTo} />
-                <SubmitButton
-                  pendingText="Đang chốt lịch..."
-                >
-                  <SendHorizontal className="h-4 w-4" />
-                  Chốt lịch tuần
-                </SubmitButton>
-              </form>
-            )}
           </div>
         }
       >
         <div className="mb-5 flex flex-wrap gap-2">
           <Pill tone={actualAssignments.length > 0 ? "teal" : "amber"}>
-            {actualAssignments.length > 0 ? "Đang xem lịch đã lưu" : "Đang xem trước từ lịch nền"}
+            {actualAssignments.length > 0 ? "Lịch chính thức" : "Đang xem trước từ lịch nền"}
           </Pill>
           <Pill tone="slate">{displayedAssignments.length} dòng phân công</Pill>
           <Pill tone="rose">

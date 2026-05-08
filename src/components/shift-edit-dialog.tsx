@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { CheckCircle2, X } from "lucide-react";
+import { CheckCircle2, X, Search } from "lucide-react";
 import { Pill } from "@/components/pill";
 import { SubmitButton } from "@/components/submit-button";
 import { SHIFT_LABELS, WEEKDAY_LABELS } from "@/lib/constants";
@@ -53,6 +53,7 @@ export function ShiftEditDialog({
   const [selectedStaffId, setSelectedStaffId] = useState<string>(
     currentAssignment?.staffId ?? defaultPerson?.id ?? ""
   );
+  const [searchQuery, setSearchQuery] = useState("");
   void anchorRect;
 
   if (!isOpen) return null;
@@ -71,6 +72,17 @@ export function ShiftEditDialog({
 
   // Lấy staff cũ để nhỡ không có trong list gợi ý vẫn show đc tên
   const currentStaff = staff.find((s) => s.id === (currentAssignment?.staffId ?? defaultPerson?.id));
+
+  // Lọc theo từ khóa tìm kiếm
+  const normalizedQuery = searchQuery.trim().toLowerCase();
+  const filteredSuggestions = suggestions.filter((sug) =>
+    sug.staff.name.toLowerCase().includes(normalizedQuery) ||
+    (sug.staff.code && sug.staff.code.toLowerCase().includes(normalizedQuery))
+  );
+  const filteredCurrentStaff = currentStaff && (
+    currentStaff.name.toLowerCase().includes(normalizedQuery) ||
+    (currentStaff.code && currentStaff.code.toLowerCase().includes(normalizedQuery))
+  ) ? currentStaff : null;
 
   const { isPastShift } = require("@/lib/date");
   const isPast = mode !== "template" && isPastShift(date, shift);
@@ -124,13 +136,24 @@ export function ShiftEditDialog({
           <input type="hidden" name="date" value={date} />
           <input type="hidden" name="dayOfWeek" value={dayOfWeek} />
           <input type="hidden" name="shift" value={shift} />
-          <input type="hidden" name="status" value={currentAssignment ? "adjusted" : "draft"} />
+          <input type="hidden" name="status" value={mode === "template" ? "draft" : "published"} />
           <input type="hidden" name="positionId" value={position.id} />
           <input type="hidden" name="staffId" value={selectedStaffId} />
           <input type="hidden" name="slotIndex" value={slotIndex ?? 0} />
 
           <div className="space-y-3">
             <h3 className="text-sm font-semibold text-slate-900">Chọn nhân sự mới</h3>
+            <div className="flex items-center gap-2 mb-2 px-3 py-2 bg-slate-50 border border-slate-200 rounded-[14px]">
+              <Search className="w-4 h-4 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Tìm theo tên hoặc mã nhân sự..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full bg-transparent text-sm outline-none text-slate-700 placeholder:text-slate-400"
+                disabled={isPast}
+              />
+            </div>
             <div className="grid gap-2 max-h-[260px] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-slate-200">
 
               {/* Tùy chọn Khoá Vị Trí (Chỉ dành cho Lịch tuần) */}
@@ -182,16 +205,16 @@ export function ShiftEditDialog({
                 {!isPast && <X className="h-4 w-4 text-slate-400 group-has-[:checked]:text-rose-500" />}
               </label>
 
-              {/* Danh sách Suggestions */}
-              {suggestions.length === 0 ? (
+                  {/* Danh sách Suggestions */}
+              {filteredSuggestions.length === 0 && !filteredCurrentStaff ? (
                 <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500 mb-2">
-                  Không tìm thấy nhân sự phù hợp / Đã hết người rảnh.
+                  Không tìm thấy nhân sự phù hợp.
                 </div>
               ) : (
                 <>
 
                   {/* Đưa nhân sự hiện tại nổi bật nếu vẫn trong list gợi ý, hoặc mặc định nếu ko có */}
-                  {currentStaff && !suggestions.find(s => s.staff.id === currentStaff.id) && (
+                  {filteredCurrentStaff && !filteredSuggestions.find(s => s.staff.id === filteredCurrentStaff.id) && (
                     <label
                       className={`group relative flex items-center justify-between rounded-[22px] border border-slate-200 bg-white px-4 py-3 transition ${isPast ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:border-slate-300 has-[:checked]:border-teal-600 has-[:checked]:bg-teal-50'}`}
                     >
@@ -199,20 +222,20 @@ export function ShiftEditDialog({
                         <input
                           type="radio"
                           name="_dummyStaffId"
-                          value={currentStaff.id}
-                          checked={selectedStaffId === currentStaff.id}
+                          value={filteredCurrentStaff.id}
+                          checked={selectedStaffId === filteredCurrentStaff.id}
                           onChange={(e) => setSelectedStaffId(e.target.value)}
                           disabled={isPast}
                           className="h-4 w-4 border-slate-300 text-teal-600 focus:ring-teal-600"
                         />
                         <span className="font-medium text-slate-900">
-                          {currentStaff.name} <span className="text-xs text-rose-500">(Ca hiện tại - có thể bận/nghỉ)</span>
+                          {filteredCurrentStaff.name} <span className="text-xs text-rose-500">(Ca hiện tại)</span>
                         </span>
                       </div>
                     </label>
                   )}
 
-                  {suggestions.map((sug) => {
+                  {filteredSuggestions.map((sug) => {
                     const isChecked = selectedStaffId === sug.staff.id;
                     return (
                       <label

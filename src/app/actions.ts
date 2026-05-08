@@ -4,7 +4,6 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import {
   generateWeekFromTemplate,
-  publishWeek,
   upsertLeaveRequest,
   upsertAccessControl,
   upsertPosition,
@@ -448,23 +447,6 @@ export async function generateWeekAction(formData: FormData) {
   }
 }
 
-export async function publishWeekAction(formData: FormData) {
-  const returnTo = getValue(formData, "returnTo") || "/schedule";
-
-  try {
-    await assertEditor();
-    await publishWeek(getValue(formData, "weekStart"));
-    revalidateWorkspace();
-    redirectWithState(returnTo, { message: "Đã chốt lịch tuần chính thức." });
-  } catch (error: any) {
-    if (error?.message === "NEXT_REDIRECT" || error?.digest?.startsWith("NEXT_REDIRECT")) {
-      throw error;
-    }
-    redirectWithState(returnTo, {
-      error: error instanceof Error ? error.message : "Không thể chốt lịch tuần.",
-    });
-  }
-}
 
 export async function updatePositionQuota(id: string, quota: number) {
   await assertEditor();

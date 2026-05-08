@@ -112,7 +112,7 @@ export function ScheduleBoard({
       formData.set("date", slot.date);
       formData.set("dayOfWeek", String(slot.dayOfWeek));
       formData.set("shift", slot.shift);
-      formData.set("status", subslot.assignment ? "adjusted" : "draft");
+      formData.set("status", mode === "template" ? "draft" : "published");
       formData.set("positionId", entry.position.id);
       formData.set("staffId", "");
       formData.set("slotIndex", String(subslot.slotIndex ?? 0));

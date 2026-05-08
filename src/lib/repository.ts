@@ -450,6 +450,27 @@ export async function upsertWeeklyAssignment(
   }
 
   const data = await getAppData();
+
+  // --- AUTO MATERIALIZE ---
+  // Nếu chưa có bất kỳ phân công nào cho tuần này (tuần chưa được tạo), tự động sinh từ lịch nền
+  const weekAssignments = data.weeklySchedule.filter((item) => item.weekStart === input.weekStart);
+  if (weekAssignments.length === 0) {
+    const effectiveLeaves = getEffectiveLeaveRequests(data);
+    const generated = buildAssignmentsFromTemplate(
+      data.templateSchedule,
+      data.positions,
+      input.weekStart,
+      effectiveLeaves,
+      data.scheduleRules,
+      data.positionRules,
+      data.holidays,
+    ).map((item) => ({
+      ...item,
+      id: generateId("weekly")
+    }));
+    data.weeklySchedule.push(...generated);
+  }
+  // --- END AUTO MATERIALIZE ---
   const existing = data.weeklySchedule.find(
     (item) =>
       item.date === input.date &&
@@ -558,82 +579,7 @@ export async function generateWeekFromTemplate(weekStart: string) {
   return generated;
 }
 
-export async function publishWeek(weekStart: string) {
-  const data = await getAppData();
-  const effectiveLeaves = getEffectiveLeaveRequests(data);
 
-  // 1. Phục hồi mảng dự kiến hiện tại (trên màn hình đang có gì)
-  let displayedAssignments = data.weeklySchedule.filter(
-    (item) => item.weekStart === weekStart
-  );
-
-  if (displayedAssignments.length === 0) {
-    displayedAssignments = buildAssignmentsFromTemplate(
-      data.templateSchedule,
-      data.positions,
-      weekStart,
-      effectiveLeaves,
-      data.scheduleRules,
-      data.positionRules,
-      data.holidays,
-    );
-  }
-
-  // 2. Dựng fullBoard tương tự UI để lấy những người tự điền qua Định mức (staffOrder)
-  const fullBoard = getWeekBoard(
-    displayedAssignments,
-    data.positions,
-    data.staff,
-    effectiveLeaves,
-    weekStart,
-    data.scheduleRules,
-    data.positionRules,
-    data.holidays,
-  );
-
-  const publishedAssignments: WeeklyAssignment[] = [];
-
-  // 3. Quét tóm tất cả những slot có người để chốt
-  for (const day of fullBoard) {
-    for (const entry of day.entries) {
-      for (const slot of entry.slots) {
-        let finalStaffId: string | undefined;
-
-        if (slot.assignment) {
-          finalStaffId = slot.assignment.staffId;
-        } else if (slot.person) {
-          finalStaffId = slot.person.id;
-        }
-
-        if (finalStaffId === undefined || slot.leave) continue;
-
-        const isPreview = slot.assignment?.id?.startsWith("preview-");
-        const finalId = (!slot.assignment || isPreview)
-          ? generateId("weekly")
-          : slot.assignment.id;
-
-        publishedAssignments.push({
-          id: finalId,
-          weekStart,
-          date: day.date,
-          shift: day.shift,
-          positionId: entry.position.id,
-          staffId: finalStaffId,
-          slotIndex: slot.slotIndex,
-          source: slot.assignment?.source || "template",
-          status: "published",
-          note: slot.assignment?.note ?? "",
-        });
-      }
-    }
-  }
-
-  // 4. Lưu đè đợt assignment mới này vào Database
-  const remaining = data.weeklySchedule.filter((item) => item.weekStart !== weekStart);
-  data.weeklySchedule = [...remaining, ...publishedAssignments];
-
-  await persistData(data, ["weeklySchedule"]);
-}
 
 export async function deleteLeaveRequest(leaveId: string) {
   const data = await getAppData();

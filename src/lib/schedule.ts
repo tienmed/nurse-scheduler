@@ -169,7 +169,7 @@ export function buildAssignmentsFromTemplate(
           staffId: effectiveLeave ? "" : assignment.staffId, // Nếu nghỉ thì để trống ID nhân sự
           slotIndex: assignment.slotIndex,
           source: "template" as const,
-          status: effectiveLeave ? ("needs-review" as const) : ("draft" as const),
+          status: effectiveLeave ? ("needs-review" as const) : ("published" as const),
           note: effectiveLeave
             ? `Trống: Trùng lịch nghỉ ${LEAVE_REASON_LABELS[effectiveLeave.reason].toLowerCase()}`
             : assignment.note ?? "",
@@ -579,11 +579,6 @@ export function buildMonthlyTimesheet(
   const endDate = parseISO(end);
   const daysCount = differenceInCalendarDays(endDate, startDate) + 1;
 
-  const uniqueWeeks = new Set<string>();
-  for (let i = 0; i < daysCount; i++) {
-    uniqueWeeks.add(getWeekStartFromInput(format(addDays(startDate, i), "yyyy-MM-dd")));
-  }
-
   // Khởi tạo map cho mỗi nhân sự
   const timesheetMap = new Map<string, MonthlyTimesheetStaffRow>();
   for (const member of staff) {
@@ -600,8 +595,17 @@ export function buildMonthlyTimesheet(
     });
   }
 
-  // 1. Phủ trước tất cả dữ liệu nghỉ phép cho toàn bộ nhân sự
+  // 1. Ghi nhận dữ liệu làm thêm T7 (Overtime)
+  // Quét qua weeklySchedule để tìm những staff có lịch vào Sáng Thứ 7
+  const overtimeStaffSet = new Set<string>();
+  weeklySchedule.forEach(a => {
+    if (a.date >= start && a.date <= end && isOvertimeSlot(a.date, a.shift) && a.status === "published") {
+      overtimeStaffSet.add(`${a.staffId}|${a.date}`);
+    }
+  });
+
   const leaveChecker = createLeaveConflictChecker(leaveRequests);
+
   for (const member of staff) {
     if (!member.active) continue;
     const row = timesheetMap.get(member.id);
@@ -609,107 +613,44 @@ export function buildMonthlyTimesheet(
 
     for (let i = 0; i < daysCount; i++) {
       const currentDate = format(addDays(startDate, i), "yyyy-MM-dd");
-      const mLeave = leaveChecker.check(member.id, currentDate, "morning");
-      const aLeave = leaveChecker.check(member.id, currentDate, "afternoon");
+      const dayOfWeek = addDays(startDate, i).getDay(); // 0=CN, 6=T7
 
       if (!row.days[currentDate]) {
         row.days[currentDate] = { morning: null, afternoon: null };
       }
 
-      // Không tính phép cho các buổi nghỉ mặc định
-      if (mLeave && !isOffDay(currentDate, "morning", holidays)) {
-        const mark = mLeave.reason === "dihoc" ? "H" : mLeave.reason === "om" ? "O" : "P";
-        row.days[currentDate].morning = mark;
-        if (mark === "H") row.totalLeaveH++;
-        else if (mark === "O") row.totalLeaveO++;
-        else row.totalLeaveP++;
-      }
+      for (const shift of ["morning", "afternoon"] as const) {
+        // Kiểm tra nghỉ lễ
+        if (isOffDay(currentDate, shift, holidays)) {
+          continue; // Bỏ tick
+        }
 
-      if (aLeave && !isOffDay(currentDate, "afternoon", holidays)) {
-        const mark = aLeave.reason === "dihoc" ? "H" : aLeave.reason === "om" ? "O" : "P";
-        row.days[currentDate].afternoon = mark;
-        if (mark === "H") row.totalLeaveH++;
-        else if (mark === "O") row.totalLeaveO++;
-        else row.totalLeaveP++;
-      }
-    }
-  }
+        // Kiểm tra chiều T7 hoặc CN
+        if (dayOfWeek === 0 || (dayOfWeek === 6 && shift === "afternoon")) {
+          continue; // Bỏ tick
+        }
 
-  // 2. Gom nhóm assignments theo ngày+ca để tra cứu O(1) thay vì O(N)
-  const assignmentsBySlot = new Map<string, WeeklyAssignment[]>();
-  weeklySchedule.forEach(a => {
-    const key = `${a.date}|${a.shift}`;
-    const list = assignmentsBySlot.get(key) || [];
-    list.push(a);
-    assignmentsBySlot.set(key, list);
-  });
+        // Kiểm tra phép
+        const leave = leaveChecker.check(member.id, currentDate, shift);
+        if (leave) {
+          const mark = leave.reason === "dihoc" ? "H" : leave.reason === "om" ? "O" : "P";
+          row.days[currentDate][shift] = mark;
+          if (mark === "H") row.totalLeaveH++;
+          else if (mark === "O") row.totalLeaveO++;
+          else row.totalLeaveP++;
+          continue;
+        }
 
-  const staffMap = new Map(staff.map(s => [s.id, s]));
-  const closedPositionChecker = createClosedPositionChecker(positionRules);
-  const currentWeekStart = getWeekStart();
-  const nextWeekStart = getNextWeekStart();
-  const hasPublishedNextWeek = weeklySchedule.some(
-    (assignment) => assignment.weekStart === nextWeekStart && assignment.status === "published",
-  );
-
-  for (let i = 0; i < daysCount; i++) {
-    const currentDate = format(addDays(startDate, i), "yyyy-MM-dd");
-    const dateWeekStart = getWeekStartFromInput(currentDate);
-    const isPastWeek = dateWeekStart < currentWeekStart;
-    const isNextWeek = dateWeekStart === nextWeekStart;
-
-    if (!isPastWeek && !isNextWeek) continue;
-
-    const allowTemplateFallback = isNextWeek && !hasPublishedNextWeek;
-    const dayOfWeek = addDays(startDate, i).getDay();
-    const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
-
-    for (const shift of ["morning", "afternoon"] as const) {
-      if (isOffDay(currentDate, shift, holidays)) continue;
-
-      const key = `${currentDate}|${shift}`;
-      const slotAssignments = (assignmentsBySlot.get(key) || []).filter((assignment) => {
-        if (isPastWeek) return true;
-        if (!isNextWeek) return false;
-        return hasPublishedNextWeek ? assignment.status === "published" : false;
-      });
-      
-      // Xử lý từng vị trí
-      for (const position of positions) {
-        if (closedPositionChecker.isClosed(dayOfWeek === 0 ? 0 : dayOfWeek, shift, position.id)) continue;
-
-        const posAssignments = slotAssignments.filter(a => a.positionId === position.id);
-        const quota = position.quota || 1;
-        const iterations = Math.max(quota, posAssignments.length);
-
-        for (let j = 0; j < iterations; j++) {
-          const assignment = posAssignments.find(a => (a.slotIndex || 0) === j);
-          let person = assignment ? staffMap.get(assignment.staffId) : null;
-          
-          if (!assignment && allowTemplateFallback) {
-            const defaultStaffId = position.staffOrder?.[j];
-            if (defaultStaffId) person = staffMap.get(defaultStaffId);
-          }
-
-          if (person && person.active) {
-            const row = timesheetMap.get(person.id);
-            if (!row) continue;
-
-            const existingMark = shift === "morning" ? row.days[currentDate].morning : row.days[currentDate].afternoon;
-            if (existingMark === "P" || existingMark === "O" || existingMark === "H") continue;
-
-            const mark: "✔" | "T" = isWeekend ? "T" : "✔";
-            if (shift === "morning") {
-              if (row.days[currentDate].morning !== mark) {
-                if (mark === "T") row.totalOvertime++; else row.totalWork++;
-                row.days[currentDate].morning = mark;
-              }
-            } else {
-              if (row.days[currentDate].afternoon !== mark) {
-                if (mark === "T") row.totalOvertime++; else row.totalWork++;
-                row.days[currentDate].afternoon = mark;
-              }
-            }
+        // Ghi nhận đi làm
+        if (dayOfWeek >= 1 && dayOfWeek <= 5) {
+          // Từ T2 tới T6: mặc định tick ✔
+          row.days[currentDate][shift] = "✔";
+          row.totalWork++;
+        } else if (dayOfWeek === 6 && shift === "morning") {
+          // T7 sáng: ghi T nếu có dữ liệu đi làm thêm
+          if (overtimeStaffSet.has(`${member.id}|${currentDate}`)) {
+            row.days[currentDate].morning = "T";
+            row.totalOvertime++;
           }
         }
       }
