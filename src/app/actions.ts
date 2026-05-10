@@ -1,5 +1,6 @@
 "use server";
 
+import { addDays, parseISO, format, differenceInCalendarDays } from "date-fns";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import {
@@ -40,6 +41,12 @@ function redirectWithState(returnTo: string, params: Record<string, string>) {
   });
 
   redirect(`${url.pathname}${url.search}`);
+}
+
+/** Kiểm tra lỗi redirect của Next.js (không phải lỗi thật, cần re-throw) */
+function isRedirectError(error: unknown): boolean {
+  const err = error as { message?: string; digest?: string };
+  return err?.message === "NEXT_REDIRECT" || err?.digest?.startsWith("NEXT_REDIRECT") === true;
 }
 
 async function assertEditor() {
@@ -92,7 +99,7 @@ export async function saveStaffAction(formData: FormData) {
     revalidateWorkspace();
     redirectWithState(returnTo, { message: "Đã cập nhật danh sách điều dưỡng." });
   } catch (error: any) {
-    if (error?.message === "NEXT_REDIRECT" || error?.digest?.startsWith("NEXT_REDIRECT")) {
+    if (isRedirectError(error)) {
       throw error;
     }
     redirectWithState(returnTo, {
@@ -115,7 +122,7 @@ export async function saveAccessControlAction(formData: FormData) {
     revalidateWorkspace();
     redirectWithState(returnTo, { message: "Đã cập nhật quyền truy cập." });
   } catch (error: any) {
-    if (error?.message === "NEXT_REDIRECT" || error?.digest?.startsWith("NEXT_REDIRECT")) {
+    if (isRedirectError(error)) {
       throw error;
     }
     redirectWithState(returnTo, {
@@ -138,7 +145,7 @@ export async function savePositionAction(formData: FormData) {
     revalidateWorkspace();
     redirectWithState(returnTo, { message: "Đã cập nhật danh mục vị trí." });
   } catch (error: any) {
-    if (error?.message === "NEXT_REDIRECT" || error?.digest?.startsWith("NEXT_REDIRECT")) {
+    if (isRedirectError(error)) {
       throw error;
     }
     redirectWithState(returnTo, {
@@ -162,7 +169,7 @@ export async function saveScheduleRuleAction(formData: FormData) {
     revalidateWorkspace();
     redirectWithState(returnTo, { message: "Đã cập nhật quy tắc ca làm." });
   } catch (error: any) {
-    if (error?.message === "NEXT_REDIRECT" || error?.digest?.startsWith("NEXT_REDIRECT")) {
+    if (isRedirectError(error)) {
       throw error;
     }
     redirectWithState(returnTo, {
@@ -208,7 +215,7 @@ export async function saveTemplateAssignmentAction(formData: FormData) {
     revalidateWorkspace();
     redirectWithState(returnTo, { message: `Đã cập nhật ${totalSlots} ca × ${positionIds.length} vị trí vào lịch nền.` });
   } catch (error: any) {
-    if (error?.message === "NEXT_REDIRECT" || error?.digest?.startsWith("NEXT_REDIRECT")) {
+    if (isRedirectError(error)) {
       throw error;
     }
     redirectWithState(returnTo, {
@@ -241,7 +248,7 @@ export async function saveSingleTemplateAssignmentAction(formData: FormData) {
     revalidateWorkspace();
     redirectWithState(returnTo, { message: "Đã cập nhật nhân sự trên lịch nền." });
   } catch (error: any) {
-    if (error?.message === "NEXT_REDIRECT" || error?.digest?.startsWith("NEXT_REDIRECT")) throw error;
+    if (isRedirectError(error)) throw error;
     redirectWithState(returnTo, { error: error instanceof Error ? error.message : "Lỗi lưu lịch nền." });
   }
 }
@@ -254,7 +261,7 @@ export async function applyPrioritizedStaffToTemplateAction(formData: FormData) 
     revalidateWorkspace();
     redirectWithState(returnTo, { message: `Đã áp dụng thành công ${assignments.length} vị trí phân công mặc định từ thiết lập.` });
   } catch (error: any) {
-    if (error?.message === "NEXT_REDIRECT" || error?.digest?.startsWith("NEXT_REDIRECT")) throw error;
+    if (isRedirectError(error)) throw error;
     redirectWithState(returnTo, { error: error instanceof Error ? error.message : "Lỗi áp dụng nhân sự mặc định." });
   }
 }
@@ -283,7 +290,7 @@ export async function saveWeeklyAssignmentAction(formData: FormData) {
     revalidateWorkspace();
     redirectWithState(returnTo, { message: "Đã cập nhật lịch tuần." });
   } catch (error: any) {
-    if (error?.message === "NEXT_REDIRECT" || error?.digest?.startsWith("NEXT_REDIRECT")) {
+    if (isRedirectError(error)) {
       throw error;
     }
     redirectWithState(returnTo, {
@@ -323,8 +330,6 @@ export async function saveLeaveAction(formData: FormData) {
       }
     }
 
-    // Tạo danh sách ngày từ fromDate → toDate
-    const { addDays, parseISO, format, differenceInCalendarDays } = await import("date-fns");
     const start = parseISO(fromDate);
     const end = parseISO(toDate);
     const dayCount = differenceInCalendarDays(end, start) + 1;
@@ -419,7 +424,7 @@ export async function saveLeaveAction(formData: FormData) {
       ...(duplicateDates.length > 0 && { warning: `Các ngày đã có lịch nghỉ: ${duplicateDates.join(", ")}` }),
     });
   } catch (error: any) {
-    if (error?.message === "NEXT_REDIRECT" || error?.digest?.startsWith("NEXT_REDIRECT")) {
+    if (isRedirectError(error)) {
       throw error;
     }
     redirectWithState(returnTo, {
@@ -439,7 +444,7 @@ export async function generateWeekAction(formData: FormData) {
     revalidateWorkspace();
     redirectWithState(returnTo, { message: "Đã tạo lịch dự thảo từ lịch nền." });
   } catch (error: any) {
-    if (error?.message === "NEXT_REDIRECT" || error?.digest?.startsWith("NEXT_REDIRECT")) {
+    if (isRedirectError(error)) {
       throw error;
     }
     redirectWithState(returnTo, {
@@ -529,7 +534,7 @@ export async function savePositionRuleAction(formData: FormData) {
     revalidateWorkspace();
     redirectWithState(returnTo, { message: `Đã cập nhật trạng thái cho ${positionIds.length} vị trí.` });
   } catch (error: any) {
-    if (error?.message === "NEXT_REDIRECT" || error?.digest?.startsWith("NEXT_REDIRECT")) throw error;
+    if (isRedirectError(error)) throw error;
     redirectWithState(returnTo, { error: error instanceof Error ? error.message : "Lỗi cập nhật vị trí." });
   }
 }
@@ -564,7 +569,7 @@ export async function savePositionRulesBatchAction(formData: FormData) {
     revalidateWorkspace();
     redirectWithState(returnTo, { message: "Đã cập nhật cấu hình ma trận vị trí." });
   } catch (error: any) {
-    if (error?.message === "NEXT_REDIRECT" || error?.digest?.startsWith("NEXT_REDIRECT")) throw error;
+    if (isRedirectError(error)) throw error;
     redirectWithState(returnTo, { error: error instanceof Error ? error.message : "Lỗi lưu cấu hình vị trí." });
   }
 }
@@ -641,7 +646,7 @@ export async function cancelLeaveAction(formData: FormData) {
       message: messageStr,
     });
   } catch (error: any) {
-    if (error?.message === "NEXT_REDIRECT" || error?.digest?.startsWith("NEXT_REDIRECT")) throw error;
+    if (isRedirectError(error)) throw error;
     redirectWithState(returnTo, {
       error: error instanceof Error ? error.message : "Không thể huỷ đăng ký nghỉ phép.",
     });
@@ -668,7 +673,7 @@ export async function saveHolidayAction(formData: FormData) {
       message: `Đã lưu ngày nghỉ: ${name} (${date})`,
     });
   } catch (error: any) {
-    if (error?.message === "NEXT_REDIRECT" || error?.digest?.startsWith("NEXT_REDIRECT")) throw error;
+    if (isRedirectError(error)) throw error;
     redirectWithState(returnTo, {
       error: error instanceof Error ? error.message : "Không thể lưu ngày nghỉ.",
     });
@@ -693,7 +698,7 @@ export async function deleteHolidayAction(formData: FormData) {
       message: `Đã xóa ngày nghỉ: ${holidayName}`,
     });
   } catch (error: any) {
-    if (error?.message === "NEXT_REDIRECT" || error?.digest?.startsWith("NEXT_REDIRECT")) throw error;
+    if (isRedirectError(error)) throw error;
     redirectWithState(returnTo, {
       error: error instanceof Error ? error.message : "Không thể xóa ngày nghỉ.",
     });
@@ -719,7 +724,7 @@ export async function saveSaturdayOvertimeAction(formData: FormData) {
     
     redirectWithState(returnTo, { message: `Đã lưu danh sách ${staffIds.length} nhân sự tăng ca Sáng Thứ 7.` });
   } catch (error: any) {
-    if (error?.message === "NEXT_REDIRECT" || error?.digest?.startsWith("NEXT_REDIRECT")) {
+    if (isRedirectError(error)) {
       throw error;
     }
     redirectWithState(returnTo, {

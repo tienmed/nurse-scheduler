@@ -99,6 +99,7 @@ export interface AccessControlEntry {
 
 export interface LeaveCancellation {
   id: string;
+  leaveRequestId?: string;
   staffId: string;
   date: string;
   shift: LeaveShift;

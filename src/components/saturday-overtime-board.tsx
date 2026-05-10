@@ -3,11 +3,11 @@
 import { useState, useMemo } from "react";
 import { Check, Search, Users } from "lucide-react";
 import { SubmitButton } from "@/components/submit-button";
-import type { Staff, WeeklyAssignment } from "@/lib/types";
+import type { StaffMember, WeeklyAssignment } from "@/lib/types";
 import { saveSaturdayOvertimeAction } from "@/app/actions";
 
 interface SaturdayOvertimeBoardProps {
-  staff: Staff[];
+  staff: StaffMember[];
   weeklySchedule: WeeklyAssignment[];
   date: string;
   shift: "morning" | "afternoon";
@@ -52,7 +52,7 @@ export function SaturdayOvertimeBoard({
     setSelectedIds(newSet);
   };
 
-  const filterStaff = (list: Staff[]) => {
+  const filterStaff = (list: StaffMember[]) => {
     if (!searchTerm) return list;
     return list.filter((s) => s.name.toLowerCase().includes(searchTerm.toLowerCase()));
   };
@@ -60,7 +60,7 @@ export function SaturdayOvertimeBoard({
   const filteredWilling = filterStaff(willingStaff);
   const filteredOther = filterStaff(otherStaff);
 
-  const StaffGroup = ({ title, list }: { title: string; list: Staff[] }) => {
+  const StaffGroup = ({ title, list }: { title: string; list: StaffMember[] }) => {
     if (list.length === 0) return null;
 
     return (

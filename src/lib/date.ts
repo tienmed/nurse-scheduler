@@ -1,10 +1,12 @@
 import {
   addDays,
+  compareAsc,
   endOfMonth,
   format,
   isValid,
   parseISO,
   startOfMonth,
+  startOfToday,
   startOfWeek,
 } from "date-fns";
 
@@ -82,7 +84,6 @@ export function isCurrentOrNextWeek(weekStart: string): boolean {
 /** Tương tự như kiểm tra khóa ca làm, nhận biết ca đã qua so với hiện tại (theo giờ) */
 export function isPastShift(dateStr: string, shift: string): boolean {
   if (!dateStr) return false;
-  const { parseISO, compareAsc, startOfToday } = require("date-fns");
   const parsedDate = parseISO(dateStr);
   const today = startOfToday();
   const dateDiff = compareAsc(parsedDate, today);

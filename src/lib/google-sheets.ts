@@ -1,3 +1,4 @@
+import { parseISO, subDays, isAfter, startOfToday } from "date-fns";
 import { google } from "googleapis";
 import { cache as reactCache } from "react";
 import { revalidateTag } from "next/cache";
@@ -69,7 +70,6 @@ const sheetSerializers: Record<AppDataKey, (data: AppData) => SheetRow[]> = {
     })),
   weeklySchedule: (data) => {
     // Tự động làm gọn: Chỉ lưu 180 ngày lịch sử gần nhất để tránh phình to DB (10 triệu cells)
-    const { parseISO, subDays, isAfter, startOfToday } = require("date-fns");
     const cutoff = subDays(startOfToday(), 180);
 
     return data.weeklySchedule

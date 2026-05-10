@@ -1,3 +1,4 @@
+import { subDays, parseISO, isAfter, startOfToday } from "date-fns";
 import { DEMO_ACCESS_CONTROL } from "@/lib/constants";
 import { isSheetsConfigured } from "@/lib/env";
 import {
@@ -56,7 +57,6 @@ export async function getAppData(): Promise<AppData> {
 
   // Áp dụng bộ lọc thời gian nếu có cấu hình chân trời dữ liệu (Horizon)
   if (horizonDays > 0) {
-    const { subDays, parseISO, isAfter, startOfToday } = await import("date-fns");
     const cutoffDate = subDays(startOfToday(), horizonDays);
 
     const filterByDate = (items: any[]) =>
@@ -113,7 +113,7 @@ async function persistData(data: AppData, keys: (keyof AppData)[]) {
 
 export { writeAppDataKeysToSheets, invalidateAppDataCache };
 
-function getEffectiveLeaveRequests(data: AppData): LeaveRecord[] {
+export function getEffectiveLeaveRequests(data: AppData): LeaveRecord[] {
   if (data.leaveCancellations.length === 0) {
     return data.leaveRequests;
   }
@@ -331,7 +331,8 @@ export async function upsertTemplateAssignment(
     }
 
     // 2. Cập nhật position.staffOrder
-    if (staffUpdated || true) { // Always check posOrder
+    // Kiểm tra posOrder khi staff mới được thêm vào position
+    if (staffUpdated) {
       const posIndex = data.positions.findIndex(p => p.id === entry.positionId);
       if (posIndex !== -1) {
         const pos = data.positions[posIndex];

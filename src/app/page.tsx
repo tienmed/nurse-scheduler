@@ -22,7 +22,7 @@ import { StaffUpcomingLookup } from "@/components/staff-upcoming-lookup";
 import { LEAVE_REASON_LABELS, LEAVE_SHIFT_LABELS, SHIFT_LABELS, WEEKDAY_LABELS } from "@/lib/constants";
 import { getMonthKey, getNextWeekStart, getWeekStart } from "@/lib/date";
 import { isSheetsConfigured } from "@/lib/env";
-import { getAppData } from "@/lib/repository";
+import { getAppData, getEffectiveLeaveRequests } from "@/lib/repository";
 import {
   buildAssignmentsFromTemplate,
   calculateMonthlyWorkload,
@@ -59,32 +59,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
     );
   }
   const data = await getAppData();
-  const effectiveLeaves = (() => {
-    const fullDayCancelSet = new Set(
-      data.leaveCancellations
-        .filter((c) => c.shift === "full-day")
-        .map((c) => `${c.staffId}-${c.date}`),
-    );
-    const shiftCancelSet = new Set(
-      data.leaveCancellations.map((c) => `${c.staffId}-${c.date}-${c.shift}`),
-    );
-
-    return data.leaveRequests.flatMap((leave) => {
-      const dayKey = `${leave.staffId}-${leave.date}`;
-      if (fullDayCancelSet.has(dayKey)) return [];
-
-      if (leave.shift === "full-day") {
-        const cancelMorning = shiftCancelSet.has(`${dayKey}-morning`);
-        const cancelAfternoon = shiftCancelSet.has(`${dayKey}-afternoon`);
-        if (cancelMorning && cancelAfternoon) return [];
-        if (cancelMorning) return [{ ...leave, shift: "afternoon" as const }];
-        if (cancelAfternoon) return [{ ...leave, shift: "morning" as const }];
-      }
-
-      if (shiftCancelSet.has(`${dayKey}-${leave.shift}`)) return [];
-      return [leave];
-    });
-  })();
+  const effectiveLeaves = getEffectiveLeaveRequests(data);
   const currentMonth = getMonthKey();
   const nextWeekStart = getNextWeekStart();
 
@@ -325,9 +300,9 @@ export default async function HomePage({ searchParams }: HomePageProps) {
       const dateCompare = compareAsc(parseISO(a.date), parseISO(b.date));
       if (dateCompare !== 0) return dateCompare;
 
-      const shiftOrder = { "S": 1, "C": 2, "K": 3 };
-      const sA = shiftOrder[a.shift as keyof typeof shiftOrder] || 99;
-      const sB = shiftOrder[b.shift as keyof typeof shiftOrder] || 99;
+      const shiftOrder: Record<string, number> = { "morning": 1, "afternoon": 2, "full-day": 3 };
+      const sA = shiftOrder[a.shift] ?? 99;
+      const sB = shiftOrder[b.shift] ?? 99;
       if (sA !== sB) return sA - sB;
 
       const levelRank = { red: 3, orange: 2, yellow: 1 };
