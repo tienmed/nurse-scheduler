@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { createPortal } from "react-dom";
 import { CheckCircle2, X, Search } from "lucide-react";
 import { Pill } from "@/components/pill";
 import { SubmitButton } from "@/components/submit-button";
@@ -87,10 +88,10 @@ export function ShiftEditDialog({
   const { isPastShift } = require("@/lib/date");
   const isPast = mode !== "template" && isPastShift(date, shift);
 
-  return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+  const dialogContent = (
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0 }}>
       <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm transition-all duration-300" onClick={onClose} />
-      <div className="relative z-[100] w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-[2rem] bg-white p-6 md:p-8 shadow-[0_24px_60px_rgba(15,23,42,0.18)] animate-in fade-in zoom-in-95 duration-200">
+      <div className="relative z-[9999] w-full max-w-lg max-h-[85vh] overflow-y-auto rounded-[2rem] bg-white p-5 md:p-6 shadow-[0_24px_60px_rgba(15,23,42,0.18)] animate-in fade-in zoom-in-95 duration-200">
         <button
           type="button"
           onClick={onClose}
@@ -316,4 +317,9 @@ export function ShiftEditDialog({
       </div>
     </div>
   );
+
+  if (typeof document !== "undefined") {
+    return createPortal(dialogContent, document.body);
+  }
+  return dialogContent;
 }
