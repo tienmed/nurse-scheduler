@@ -146,7 +146,7 @@ export default async function TemplatePage({ searchParams }: TemplatePageProps) 
         <SurfaceSection
           eyebrow="Xem trước"
           title="Lịch nền của tuần kế tiếp"
-          description="Bảng này cho bạn thấy lịch nền sẽ hiển thị ra sao khi áp vào một tuần thật theo đúng cấu hình ca làm hiện tại."
+          description="Lịch này chỉ được điều chỉnh tại đây, không bị ảnh hưởng bởi sự thay đổi lịch của tuần hiện tại hay tuần kế tiếp."
           action={
             editable ? (
               <form action={applyPrioritizedStaffToTemplateAction}>
