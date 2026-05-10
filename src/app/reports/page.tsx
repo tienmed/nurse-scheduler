@@ -289,6 +289,7 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
                     <th className="px-4 py-3 font-medium">Ngày nghỉ</th>
                     <th className="px-4 py-3 font-medium">Phép</th>
                     <th className="px-4 py-3 font-medium">Ốm</th>
+                    <th className="px-4 py-3 font-medium">Đi học</th>
                     <th className="px-4 py-3 font-medium">Khác</th>
                   </tr>
                 </thead>
@@ -301,6 +302,7 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
                         <td className="px-4 py-3 text-slate-500">{item.days}</td>
                         <td className="px-4 py-3 text-slate-500">{item.phep}</td>
                         <td className="px-4 py-3 text-slate-500">{item.om}</td>
+                        <td className="px-4 py-3 text-slate-500">{item.dihoc}</td>
                         <td className="px-4 py-3 text-slate-500">{item.khac}</td>
                       </tr>
                     );

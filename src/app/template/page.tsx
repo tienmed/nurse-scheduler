@@ -130,6 +130,8 @@ export default async function TemplatePage({ searchParams }: TemplatePageProps) 
           eyebrow="Tùy chỉnh vị trí"
           title="Ma trận Đóng/Mở vị trí"
           description="Tích chọn (check) để Mở vị trí, bỏ chọn để Đóng vị trí. Hệ thống sẽ không xếp lịch cho các vị trí bị đóng."
+          collapsible
+          defaultOpen={false}
         >
           <PositionMatrix
             positions={data.positions}
