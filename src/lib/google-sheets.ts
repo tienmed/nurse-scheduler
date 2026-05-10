@@ -636,6 +636,10 @@ export async function writeAppDataKeysToSheets(data: AppData, keys: AppDataKey[]
   }
 
   const allManagedSheetNames = Object.values(SHEET_NAMES);
+
+  // Các sheet lớn cần upsert theo từng dòng (giữ hiệu năng, tránh ghi lại toàn bộ mỗi lần)
+  const LARGE_SHEETS = new Set<string>([SHEET_NAMES.weeklySchedule, SHEET_NAMES.leaveRequests]);
+
   const batchGetResponse = await withSheetsRetry("writeAppDataKeysToSheets:values.batchGet:A-column", () =>
     sheets.spreadsheets.values.batchGet({
       spreadsheetId: env.GOOGLE_SHEET_ID,
@@ -654,6 +658,9 @@ export async function writeAppDataKeysToSheets(data: AppData, keys: AppDataKey[]
   const maxRowsNeededPerSheet = new Map<string, number>();
   const keysToUpdateSet = new Set(uniqueKeys);
 
+  // Danh sách các sheet nhỏ cần clear toàn bộ trước khi ghi
+  const sheetsToFullClear: string[] = [];
+
   // --- PHẦN 1: Tính toán rows cần thiết ---
   allManagedSheetNames.forEach((actualSheetName) => {
     const appDataKey = (Object.keys(APP_DATA_TO_SHEET) as AppDataKey[]).find(
@@ -668,47 +675,67 @@ export async function writeAppDataKeysToSheets(data: AppData, keys: AppDataKey[]
       const headers = [...SHEET_HEADERS[sheetNameKey]];
       const rows = sheetSerializers[appDataKey](data);
 
-      const existingIds = new Map<string, number>();
-      const holes: number[] = [];
+      // Sheet nhỏ: Clear toàn bộ rồi ghi lại tuần tự từ dòng 2
+      if (!LARGE_SHEETS.has(actualSheetName)) {
+        sheetsToFullClear.push(actualSheetName);
 
-      colA.forEach((rowVal, idx) => {
-        const id = rowVal[0]?.toString().trim();
-        const rowNum = idx + 1;
-        if (id && id !== "id") {
-          if (existingIds.has(id)) holes.push(existingIds.get(id)!);
-          existingIds.set(id, rowNum);
+        // Header ở dòng 1
+        updateData.push({ range: `${actualSheetName}!A1`, values: [headers] });
+
+        // Data từ dòng 2 trở đi, ghi liền khối
+        if (rows.length > 0) {
+          const bulkValues = rows.map(row => headers.map((h) => row[h] ?? ""));
+          updateData.push({
+            range: `${actualSheetName}!A2`,
+            values: bulkValues,
+          });
         }
-      });
 
-      const lastUsedRow = colA.reduce((maxRow, rowVal, idx) => {
-        const id = rowVal[0]?.toString().trim();
-        return id ? idx + 1 : maxRow;
-      }, 1);
-      let nextAvailableRow = Math.max(2, lastUsedRow + 1);
+        maxRowForThisSheet = 1 + rows.length; // header + data rows
+      } else {
+        // Sheet lớn: Giữ chiến lược upsert theo từng dòng
+        const existingIds = new Map<string, number>();
+        const holes: number[] = [];
 
-      const keepIds = new Set(rows.map((r) => r.id));
-      existingIds.forEach((rowNum, id) => {
-        if (id !== "id" && !keepIds.has(id)) holes.push(rowNum);
-      });
-
-      holes.sort((a, b) => a - b);
-
-      updateData.push({ range: `${actualSheetName}!A1`, values: [headers] });
-
-      for (const row of rows) {
-        const targetRow: number = (row.id && existingIds.has(row.id)) 
-          ? existingIds.get(row.id)! 
-          : (holes.length > 0 ? holes.shift()! : nextAvailableRow++);
-        
-        if (targetRow > maxRowForThisSheet) maxRowForThisSheet = targetRow;
-
-        updateData.push({
-          range: `${actualSheetName}!A${targetRow}`,
-          values: [headers.map((h) => row[h] ?? "")],
+        colA.forEach((rowVal, idx) => {
+          const id = rowVal[0]?.toString().trim();
+          const rowNum = idx + 1;
+          if (id && id !== "id") {
+            if (existingIds.has(id)) holes.push(existingIds.get(id)!);
+            existingIds.set(id, rowNum);
+          }
         });
-      }
 
-      for (const hole of holes) clearRanges.push(`${actualSheetName}!A${hole}:Z${hole}`);
+        const lastUsedRow = colA.reduce((maxRow, rowVal, idx) => {
+          const id = rowVal[0]?.toString().trim();
+          return id ? idx + 1 : maxRow;
+        }, 1);
+        let nextAvailableRow = Math.max(2, lastUsedRow + 1);
+
+        const keepIds = new Set(rows.map((r) => r.id));
+        existingIds.forEach((rowNum, id) => {
+          if (id !== "id" && !keepIds.has(id)) holes.push(rowNum);
+        });
+
+        holes.sort((a, b) => a - b);
+
+        updateData.push({ range: `${actualSheetName}!A1`, values: [headers] });
+
+        for (const row of rows) {
+          const targetRow: number = (row.id && existingIds.has(row.id)) 
+            ? existingIds.get(row.id)! 
+            : (holes.length > 0 ? holes.shift()! : nextAvailableRow++);
+          
+          if (targetRow > maxRowForThisSheet) maxRowForThisSheet = targetRow;
+
+          updateData.push({
+            range: `${actualSheetName}!A${targetRow}`,
+            values: [headers.map((h) => row[h] ?? "")],
+          });
+        }
+
+        for (const hole of holes) clearRanges.push(`${actualSheetName}!A${hole}:Z${hole}`);
+      }
     } else {
       colA.forEach((rowVal, idx) => { if (rowVal[0]?.toString().trim()) maxRowForThisSheet = idx + 1; });
     }
@@ -774,6 +801,17 @@ export async function writeAppDataKeysToSheets(data: AppData, keys: AppDataKey[]
     } catch (e: any) {
       throw new Error(`Lỗi cấu hình Grid: ${e.message}`);
     }
+  }
+  // --- PHẦN 3: Clear toàn bộ sheet nhỏ trước khi ghi lại ---
+  if (sheetsToFullClear.length > 0) {
+    // Clear từ dòng 2 trở đi (giữ header dòng 1 sẽ bị overwrite bởi updateData)
+    const fullClearRanges = sheetsToFullClear.map(name => `${name}!A2:Z`);
+    await withSheetsRetry("writeAppDataKeysToSheets:values.batchClear:fullClear", () =>
+      sheets.spreadsheets.values.batchClear({
+        spreadsheetId: env.GOOGLE_SHEET_ID,
+        requestBody: { ranges: fullClearRanges },
+      }),
+    );
   }
 
   // --- PHẦN 4: Ghi Values ---
