@@ -5,6 +5,7 @@ import {
   RefreshCcw,
   SendHorizontal,
 } from "lucide-react";
+import {
   generateWeekAction,
 } from "@/app/actions";
 import { AppShell } from "@/components/app-shell";
