@@ -22,7 +22,8 @@ export function PositionMatrix({
   editable,
   returnTo = "/template",
 }: PositionMatrixProps) {
-  const activeRules = scheduleRules.filter((r) => r.active);
+  // Loại bỏ Thứ 7 khỏi lịch nền theo yêu cầu
+  const activeRules = scheduleRules.filter((r) => r.active && r.dayOfWeek !== 6);
   
   // Khởi tạo state từ dữ liệu ban đầu
   const [matrix, setMatrix] = useState<Record<string, boolean>>(() => {

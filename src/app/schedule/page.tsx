@@ -12,6 +12,7 @@ import { AppShell } from "@/components/app-shell";
 import { AuthRequiredState } from "@/components/auth-required-state";
 import { Pill } from "@/components/pill";
 import { ScheduleBoard } from "@/components/schedule-board";
+import { SaturdayOvertimeBoard } from "@/components/saturday-overtime-board";
 import { SubmitButton } from "@/components/submit-button";
 import { SurfaceSection } from "@/components/surface-section";
 import {
@@ -219,19 +220,30 @@ export default async function SchedulePage({ searchParams }: SchedulePageProps) 
           ))}
         </div>
 
-        <ScheduleBoard
-          board={filteredBoard}
-          positions={data.positions}
-          emptyTitle="Tuần này chưa có ca nào để điều phối"
-          emptyDescription="Bạn cần ít nhất một vị trí, một điều dưỡng đang hoạt động và một ca làm đang bật để tạo lịch tuần."
-          staff={data.staff}
-          leaveRequests={data.leaveRequests}
-          workload={workload}
-          weeklySchedule={actualAssignments}
-          weekStart={weekStart}
-          editable={editable}
-          showEmptySlotSummary
-        />
+        {selectedDay === 6 && selectedShift === "morning" ? (
+          <SaturdayOvertimeBoard
+            staff={data.staff}
+            weeklySchedule={actualAssignments}
+            date={format(addDays(parseISO(weekStart), 5), "yyyy-MM-dd")}
+            shift={selectedShift}
+            weekStart={weekStart}
+            editable={editable}
+          />
+        ) : (
+          <ScheduleBoard
+            board={filteredBoard}
+            positions={data.positions}
+            emptyTitle="Tuần này chưa có ca nào để điều phối"
+            emptyDescription="Bạn cần ít nhất một vị trí, một điều dưỡng đang hoạt động và một ca làm đang bật để tạo lịch tuần."
+            staff={data.staff}
+            leaveRequests={data.leaveRequests}
+            workload={workload}
+            weeklySchedule={actualAssignments}
+            weekStart={weekStart}
+            editable={editable}
+            showEmptySlotSummary
+          />
+        )}
       </SurfaceSection>
 
 

@@ -621,3 +621,38 @@ export async function deleteHoliday(id: string) {
   data.holidays = data.holidays.filter((h) => h.id !== id);
   await persistData(data, ["holidays"]);
 }
+
+export async function syncSaturdayOvertime(
+  date: string,
+  shift: "morning" | "afternoon",
+  weekStart: string,
+  staffIds: string[]
+) {
+  if (isPastShift(date, shift)) {
+    throw new Error("Ca làm đã qua nên không thể điều chỉnh.");
+  }
+
+  const data = await getAppData();
+
+  // 1. Lọc bỏ các bản ghi cũ của ngày/ca này thuộc loại Tăng ca (positionId: "SAT_OT")
+  const remainingSchedule = data.weeklySchedule.filter(
+    (item) => !(item.date === date && item.shift === shift && item.positionId === "SAT_OT")
+  );
+
+  // 2. Tạo bản ghi mới cho từng nhân sự được chọn
+  const newAssignments = staffIds.map((staffId, index) => ({
+    id: generateId("weekly"),
+    weekStart,
+    date,
+    shift,
+    positionId: "SAT_OT", // Vị trí ẩn dành riêng cho Tăng ca T7
+    staffId,
+    slotIndex: index,
+    source: "manual" as const,
+    status: "published" as const,
+  }));
+
+  data.weeklySchedule = [...remainingSchedule, ...newAssignments];
+  await persistData(data, ["weeklySchedule"]);
+  return newAssignments;
+}

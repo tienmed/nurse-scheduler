@@ -22,6 +22,7 @@ import {
   addLeaveCancellation,
   upsertHoliday,
   deleteHoliday,
+  syncSaturdayOvertime,
 } from "@/lib/repository";
 import { isHoliday } from "@/lib/date";
 import { canEdit, getUserContext } from "@/lib/session";
@@ -695,6 +696,34 @@ export async function deleteHolidayAction(formData: FormData) {
     if (error?.message === "NEXT_REDIRECT" || error?.digest?.startsWith("NEXT_REDIRECT")) throw error;
     redirectWithState(returnTo, {
       error: error instanceof Error ? error.message : "Không thể xóa ngày nghỉ.",
+    });
+  }
+}
+
+export async function saveSaturdayOvertimeAction(formData: FormData) {
+  const returnTo = getValue(formData, "returnTo") || "/schedule";
+
+  try {
+    await assertEditor();
+    const date = getValue(formData, "date");
+    const shift = getValue(formData, "shift") as "morning" | "afternoon";
+    const weekStart = getValue(formData, "weekStart");
+    const staffIds = formData.getAll("staffIds").map((v) => String(v)).filter(Boolean);
+
+    if (!date || !shift || !weekStart) {
+      throw new Error("Thiếu thông tin ngày hoặc ca trực.");
+    }
+
+    await syncSaturdayOvertime(date, shift, weekStart, staffIds);
+    revalidateWorkspace();
+    
+    redirectWithState(returnTo, { message: `Đã lưu danh sách ${staffIds.length} nhân sự tăng ca Sáng Thứ 7.` });
+  } catch (error: any) {
+    if (error?.message === "NEXT_REDIRECT" || error?.digest?.startsWith("NEXT_REDIRECT")) {
+      throw error;
+    }
+    redirectWithState(returnTo, {
+      error: error instanceof Error ? error.message : "Không thể lưu danh sách tăng ca.",
     });
   }
 }

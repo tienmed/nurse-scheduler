@@ -37,6 +37,12 @@ const auth = new google.auth.JWT({
 const sheets = google.sheets({ version: "v4", auth });
 
 async function main() {
+  const currentDay = new Date().getDay();
+  if (currentDay === 5 || currentDay === 6) {
+    console.log("Hệ thống được cấu hình không gửi email vào tối Thứ 6 và Thứ 7. Đang thoát...");
+    return;
+  }
+
   console.log("Đang kiểm tra dữ liệu ngày mai...");
 
   // Lấy ngày MAI

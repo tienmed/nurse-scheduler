@@ -80,9 +80,11 @@ export default async function TemplatePage({ searchParams }: TemplatePageProps) 
     data.positionRules,
   );
 
-  const activeRules = scheduleRules.filter((r) => r.active);
+  const activeRules = scheduleRules.filter((r) => r.active && r.dayOfWeek !== 6);
   const defaults = getDefaultDayAndShift(previewWeekStart);
-  const selectedDay = dayParam ? Number(dayParam) : defaults.day;
+  let selectedDay = dayParam ? Number(dayParam) : defaults.day;
+  if (selectedDay === 6) selectedDay = 1; // Bỏ qua T7 trên lịch nền
+
   const selectedShift: "morning" | "afternoon" =
     shiftParam === "morning" || shiftParam === "afternoon" ? shiftParam : defaults.shift;
 
@@ -207,7 +209,7 @@ export default async function TemplatePage({ searchParams }: TemplatePageProps) 
             description="Dùng phần này để mô tả thực tế của khoa hoặc phòng. Khi một ca bị tắt, hệ thống sẽ không sinh ca đó trong tuần mới."
           >
             <div className="space-y-3">
-              {scheduleRules.map((rule) => (
+              {scheduleRules.filter(r => r.dayOfWeek !== 6).map((rule) => (
                 <div
                   key={rule.id}
                   className="flex items-center justify-between rounded-[22px] border border-slate-200/80 bg-slate-50/80 px-4 py-4 text-sm"
@@ -235,7 +237,7 @@ export default async function TemplatePage({ searchParams }: TemplatePageProps) 
                     defaultValue="1"
                     disabled={!editable}
                   >
-                    {[1, 2, 3, 4, 5, 6].map((dayOfWeek) => (
+                    {[1, 2, 3, 4, 5].map((dayOfWeek) => (
                       <option key={dayOfWeek} value={dayOfWeek}>
                         {WEEKDAY_LABELS[dayOfWeek]}
                       </option>
