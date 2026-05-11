@@ -1,4 +1,5 @@
 import { BoardTabs } from "@/components/board-tabs";
+import { CollapsibleGrid } from "@/components/collapsible-grid";
 import { LeaveCalendar } from "@/components/leave-calendar";
 
 
@@ -367,14 +368,15 @@ export default async function BoardPage({ searchParams }: BoardPageProps) {
                           <div className={`h-2 w-2 rounded-full ${colors.badge}`} />
                           <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Bên phải</p>
                         </div>
-                        <div className="grid gap-3 sm:grid-cols-2">
-                          {group.right.map((entry) => (
-                            <PositionCard key={entry.position.id} entry={entry} />
-                          ))}
-                          {group.right.length === 0 && (
-                            <p className="text-sm italic text-slate-300 col-span-2">Không có vị trí</p>
-                          )}
-                        </div>
+                        {group.right.length > 0 ? (
+                          <CollapsibleGrid columns="sm:grid-cols-2">
+                            {group.right.map((entry) => (
+                              <PositionCard key={entry.position.id} entry={entry} />
+                            ))}
+                          </CollapsibleGrid>
+                        ) : (
+                          <p className="text-sm italic text-slate-300">Không có vị trí</p>
+                        )}
                       </div>
 
                       {/* Divider dọc (desktop) / ngang (mobile) */}
@@ -389,14 +391,15 @@ export default async function BoardPage({ searchParams }: BoardPageProps) {
                           <div className={`h-2 w-2 rounded-full ${colors.badge}`} />
                           <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Bên trái</p>
                         </div>
-                        <div className="grid gap-3 sm:grid-cols-2">
-                          {group.left.map((entry) => (
-                            <PositionCard key={entry.position.id} entry={entry} />
-                          ))}
-                          {group.left.length === 0 && (
-                            <p className="text-sm italic text-slate-300 col-span-2">Không có vị trí</p>
-                          )}
-                        </div>
+                        {group.left.length > 0 ? (
+                          <CollapsibleGrid columns="sm:grid-cols-2">
+                            {group.left.map((entry) => (
+                              <PositionCard key={entry.position.id} entry={entry} />
+                            ))}
+                          </CollapsibleGrid>
+                        ) : (
+                          <p className="text-sm italic text-slate-300">Không có vị trí</p>
+                        )}
                       </div>
                     </div>
                   ) : null}
@@ -404,11 +407,11 @@ export default async function BoardPage({ searchParams }: BoardPageProps) {
                   {/* Vị trí không thuộc trái/phải */}
                   {group.center.length > 0 && (
                     <div className={hasLeftRight ? "mt-4" : ""}>
-                      <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+                      <CollapsibleGrid columns="sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
                         {group.center.map((entry) => (
                           <PositionCard key={entry.position.id} entry={entry} />
                         ))}
-                      </div>
+                      </CollapsibleGrid>
                     </div>
                   )}
                 </section>
