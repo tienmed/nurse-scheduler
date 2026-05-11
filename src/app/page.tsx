@@ -28,6 +28,7 @@ import {
   calculateMonthlyWorkload,
   getActiveScheduleRules,
   getWeeklyAssignments,
+  isOvertimeSlot,
 } from "@/lib/schedule";
 import { isOffDay } from "@/lib/date";
 import type { ShiftType } from "@/lib/types";
@@ -194,6 +195,9 @@ export default async function HomePage({ searchParams }: HomePageProps) {
     for (const slot of slotsForDay) {
       // Nếu là ngày nghỉ (Lễ, Chủ nhật, chiều Thứ 7) → skip cảnh báo trống việc
       if (isOffDay(dateStr, slot.shift, data.holidays)) continue;
+
+      // Sáng thứ 7 là ca tăng ca → không tính trống việc
+      if (isOvertimeSlot(dateStr, slot.shift)) continue;
 
       // Tìm assignment cho ca này
       const assignedIds = new Set(
