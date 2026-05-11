@@ -1,4 +1,5 @@
 import { BarChart3, CalendarSearch, Download, RefreshCcwDot } from "lucide-react";
+import { AIAssistant } from "@/components/ai-assistant";
 import { AppShell } from "@/components/app-shell";
 import { AuthRequiredState } from "@/components/auth-required-state";
 import { EmptyState } from "@/components/empty-state";
@@ -107,6 +108,7 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
             >
               Xem báo cáo
             </button>
+            <AIAssistant month={monthKey} mode="report" />
             <a
               href={`/api/export/monthly?month=${monthKey}`}
               className="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-6 py-3 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
