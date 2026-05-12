@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { CheckCircle2, X, Search } from "lucide-react";
 import { Pill } from "@/components/pill";
 import { SubmitButton } from "@/components/submit-button";
 import { SHIFT_LABELS, WEEKDAY_LABELS } from "@/lib/constants";
 import { suggestStaffForSlot } from "@/lib/schedule";
+import { isPastShift } from "@/lib/date";
 import type { LeaveRecord, Position, StaffMember, WeeklyAssignment, WorkloadSummary, ShiftType } from "@/lib/types";
 import { saveWeeklyAssignmentAction, saveSingleTemplateAssignmentAction } from "@/app/actions";
 
@@ -60,7 +61,7 @@ export function ShiftEditDialog({
   if (!isOpen) return null;
 
   // Lấy danh sách gợi ý
-  const suggestions = suggestStaffForSlot(
+  const suggestions = useMemo(() => suggestStaffForSlot(
     staff,
     positions,
     date,
@@ -69,10 +70,13 @@ export function ShiftEditDialog({
     leaveRequests,
     workload,
     weeklySchedule
-  );
+  ), [staff, positions, date, shift, position.id, leaveRequests, workload, weeklySchedule]);
 
   // Lấy staff cũ để nhỡ không có trong list gợi ý vẫn show đc tên
-  const currentStaff = staff.find((s) => s.id === (currentAssignment?.staffId ?? defaultPerson?.id));
+  const currentStaff = useMemo(() => 
+    staff.find((s) => s.id === (currentAssignment?.staffId ?? defaultPerson?.id)),
+    [staff, currentAssignment?.staffId, defaultPerson?.id]
+  );
 
   // Lọc theo từ khóa tìm kiếm
   const normalizedQuery = searchQuery.trim().toLowerCase();
@@ -85,7 +89,6 @@ export function ShiftEditDialog({
     (currentStaff.code && currentStaff.code.toLowerCase().includes(normalizedQuery))
   ) ? currentStaff : null;
 
-  const { isPastShift } = require("@/lib/date");
   const isPast = mode !== "template" && isPastShift(date, shift);
 
   const dialogContent = (

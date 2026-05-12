@@ -18,6 +18,7 @@ import { DataHorizonPicker } from "@/components/data-horizon-picker";
 import { APP_NAME, APP_TAGLINE, ROLE_LABELS } from "@/lib/constants";
 import { cn } from "@/lib/cn";
 import { canEdit } from "@/lib/session";
+import { getAppVersion } from "@/lib/version";
 import type { SessionUser } from "@/lib/types";
 
 interface AppShellProps {
@@ -72,23 +73,24 @@ export async function AppShell({
     : "??";
 
   return (
-    <div className="min-h-screen bg-[var(--canvas)] text-slate-900">
-      <div className="pointer-events-none fixed inset-0 -z-10 bg-[radial-gradient(circle_at_top_left,_rgba(13,148,136,0.18),_transparent_32%),radial-gradient(circle_at_85%_15%,_rgba(249,115,22,0.14),_transparent_24%),linear-gradient(180deg,_#f8fbfb_0%,_#edf3f3_44%,_#e8edf5_100%)]" />
-      <div className="mx-auto flex min-h-screen w-full max-w-[1600px]">
-        <aside className="sticky top-0 h-screen hidden w-[300px] shrink-0 flex-col border-r border-slate-900/70 bg-[linear-gradient(180deg,#020617_0%,#0f172a_52%,#111827_100%)] text-white lg:flex">
+    <div className="min-h-screen bg-slate-50 text-slate-900 selection:bg-teal-100 selection:text-teal-900">
+      <div className="pointer-events-none fixed inset-0 -z-10 bg-[radial-gradient(circle_at_top_left,_rgba(20,184,166,0.12),_transparent_40%),radial-gradient(circle_at_80%_20%,_rgba(99,102,241,0.08),_transparent_30%),linear-gradient(180deg,_#f8fafc_0%,_#f1f5f9_100%)]" />
+      <div className="mx-auto flex min-h-screen w-full max-w-[1700px]">
+        <aside className="sticky top-0 h-screen hidden w-[280px] shrink-0 flex-col border-r border-slate-200 bg-white/80 backdrop-blur-xl lg:flex">
           <div className="flex-1 space-y-8 overflow-y-auto scrollbar-none px-6 pt-7 pb-4">
-            <div className="space-y-4">
-              <div className="inline-flex h-14 w-14 items-center justify-center rounded-[22px] bg-[linear-gradient(135deg,#14b8a6_0%,#f97316_100%)] text-lg font-bold text-white shadow-lg shadow-teal-950/30">
-                NF
-              </div>
-              <div className="space-y-2">
-                <p className="text-sm font-semibold text-teal-300">Lịch điều dưỡng</p>
-                <h1 className="text-3xl font-semibold tracking-tight text-white">{APP_NAME}</h1>
-                <p className="text-sm leading-6 text-slate-300">{APP_TAGLINE}</p>
+            <div className="space-y-6">
+              <div className="flex items-center gap-4">
+                <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-teal-600 text-lg font-bold text-white shadow-lg shadow-teal-600/20">
+                  NF
+                </div>
+                <div className="space-y-0.5">
+                  <h1 className="text-xl font-bold tracking-tight text-slate-900">{APP_NAME}</h1>
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-teal-600">{APP_TAGLINE}</p>
+                </div>
               </div>
             </div>
 
-            <nav className="space-y-2">
+            <nav className="space-y-1.5">
               {filteredNavItems.map(({ href, label, icon: Icon }) => {
                 const active = currentPath === href;
                 return (
@@ -96,13 +98,13 @@ export async function AppShell({
                     key={href}
                     href={href}
                     className={cn(
-                      "flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium transition duration-200",
+                      "group flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all duration-200",
                       active
-                        ? "bg-white text-slate-950 shadow-[0_12px_35px_rgba(255,255,255,0.14)]"
-                        : "text-slate-300 hover:bg-white/8 hover:text-white",
+                        ? "bg-teal-50 text-teal-700 shadow-sm ring-1 ring-teal-200/50"
+                        : "text-slate-600 hover:bg-slate-50 hover:text-slate-900",
                     )}
                   >
-                    <Icon className="h-4 w-4" />
+                    <Icon className={cn("h-4 w-4 transition-colors", active ? "text-teal-600" : "text-slate-400 group-hover:text-slate-600")} />
                     <span>{label}</span>
                   </Link>
                 );
@@ -110,30 +112,26 @@ export async function AppShell({
             </nav>
           </div>
 
-          <div className="shrink-0 px-6 pb-7">
-            <div className="space-y-4 rounded-[28px] border border-white/10 bg-white/6 p-4 backdrop-blur">
+          <div className="shrink-0 px-6 pb-8">
+            <div className="space-y-4 rounded-3xl border border-slate-200 bg-slate-50/50 p-4">
               <div className="flex items-center gap-3">
-                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white text-sm font-semibold text-slate-950">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white shadow-sm ring-1 ring-slate-200 text-sm font-semibold text-teal-600">
                   {userInitials}
                 </div>
-                <div className="space-y-1 text-sm">
-                  <p className="font-semibold text-white">
-                    {user?.name ?? "Chưa nhận diện phiên"}
+                <div className="space-y-0.5 text-sm">
+                  <p className="font-semibold text-slate-900">
+                    {user?.name ?? "Khách"}
                   </p>
-                  <p className="text-slate-400">
-                    {user?.email ?? "Cần đăng nhập lại để tiếp tục"}
+                  <p className="text-xs text-slate-500 truncate w-32">
+                    {user?.email ?? "Chưa đăng nhập"}
                   </p>
                 </div>
               </div>
-              <div className="flex flex-wrap gap-2">
-                <Pill tone={!authEnabled ? "amber" : user ? "teal" : "rose"}>
-                  {!authEnabled
-                    ? "Chế độ demo"
-                    : user
-                      ? "Đăng nhập Google"
-                      : "Cần làm mới phiên"}
+              <div className="flex flex-wrap gap-1.5">
+                <Pill tone={!authEnabled ? "amber" : user ? "teal" : "rose"} className="text-[10px] py-0 px-2">
+                  {!authEnabled ? "Demo" : user ? "Google" : "Hết hạn"}
                 </Pill>
-                <Pill tone="slate">{ROLE_LABELS[user?.role ?? "viewer"]}</Pill>
+                <Pill tone="slate" className="text-[10px] py-0 px-2">{ROLE_LABELS[user?.role ?? "viewer"]}</Pill>
               </div>
               {authEnabled && user ? (
                 <form
@@ -144,46 +142,40 @@ export async function AppShell({
                 >
                   <button
                     type="submit"
-                    className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-white/14 bg-white/6 px-4 py-3 text-sm font-medium text-white transition hover:bg-white/12"
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-medium text-slate-700 transition hover:bg-slate-50 hover:text-rose-600"
                   >
-                    <LogOut className="h-4 w-4" />
+                    <LogOut className="h-3.5 w-3.5" />
                     Đăng xuất
                   </button>
                 </form>
               ) : authEnabled ? (
                 <Link
                   href="/sign-in"
-                  className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-white/14 bg-white/6 px-4 py-3 text-sm font-medium text-white transition hover:bg-white/12"
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-medium text-slate-700 transition hover:bg-slate-50"
                 >
-                  <LogOut className="h-4 w-4" />
-                  Đăng nhập lại
+                  <LogOut className="h-3.5 w-3.5" />
+                  Đăng nhập
                 </Link>
-              ) : (
-                <p className="text-sm leading-6 text-slate-400">
-                  Bạn đang xem bản demo. Khi nối Google OAuth và Google Sheets, toàn bộ thao tác sẽ lưu trực tiếp lên dữ liệu thật.
-                </p>
-              )}
+              ) : null}
             </div>
           </div>
         </aside>
 
         <div className="flex min-h-screen flex-1 flex-col pb-24 lg:pb-0">
-          <header className="sticky top-0 z-20 border-b border-white/70 bg-white/76 px-4 py-4 backdrop-blur md:px-6 lg:px-8">
-            <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
-              <div>
-                <p className="text-[10px] md:text-xs font-semibold uppercase tracking-[0.2em] md:tracking-[0.28em] text-teal-700">Bảng điều phối</p>
-                <h2 className="text-2xl md:text-3xl font-semibold tracking-tight text-slate-950 md:text-[2.2rem]">{title}</h2>
-                <p className="mt-1 md:mt-2 max-w-3xl text-xs md:text-sm leading-relaxed text-slate-500 md:text-slate-600 line-clamp-2 md:line-clamp-none">{description}</p>
+          <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/80 px-4 py-4 backdrop-blur-xl md:px-8">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+              <div className="space-y-1">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-teal-600">Bảng điều phối thông minh</p>
+                <h2 className="text-2xl font-bold tracking-tight text-slate-900 md:text-3xl">{title}</h2>
+                <p className="max-w-2xl text-xs font-medium text-slate-500 line-clamp-1 md:line-clamp-none">{description}</p>
               </div>
-              <div className="hidden md:flex flex-wrap gap-2">
-                <Pill tone={!authEnabled ? "amber" : user ? "teal" : "rose"}>
-                  {!authEnabled
-                    ? "Đang dùng dữ liệu mẫu"
-                    : user
-                      ? "Dữ liệu từ Google Sheets"
-                      : "Phiên cần làm mới"}
-                </Pill>
-                <Pill tone="slate">Sẵn sàng mở rộng</Pill>
+              <div className="hidden md:flex items-center gap-3">
+                <div className="flex flex-wrap gap-2 mr-2">
+                  <Pill tone={!authEnabled ? "amber" : user ? "teal" : "rose"} className="shadow-sm">
+                    {!authEnabled ? "Dữ liệu mẫu" : user ? "Trực tuyến" : "Ngoại tuyến"}
+                  </Pill>
+                  <Pill tone="slate" className="shadow-sm border-slate-200">{getAppVersion()}</Pill>
+                </div>
                 <DataHorizonPicker initialHorizon={initialHorizon} />
               </div>
             </div>
@@ -205,10 +197,10 @@ export async function AppShell({
             <div className="space-y-6">{children}</div>
           </main>
 
-          <nav className="fixed inset-x-3 bottom-3 z-30 rounded-[28px] border border-slate-900/10 bg-slate-950/96 px-2 py-2 shadow-[0_18px_40px_rgba(15,23,42,0.24)] backdrop-blur lg:hidden">
+          <nav className="fixed inset-x-4 bottom-4 z-30 rounded-[32px] border border-slate-200 bg-white/90 px-3 py-2 shadow-[0_20px_50px_rgba(15,23,42,0.15)] backdrop-blur-xl lg:hidden">
             <div className={cn(
               "grid gap-1",
-              filteredNavItems.length === 7 ? "grid-cols-7" : "grid-cols-4"
+              filteredNavItems.length >= 6 ? "grid-cols-7" : "grid-cols-4"
             )}>
               {filteredNavItems.map(({ href, shortLabel, icon: Icon }) => {
                 const active = currentPath === href;
@@ -217,12 +209,12 @@ export async function AppShell({
                     key={href}
                     href={href}
                     className={cn(
-                      "flex flex-col items-center gap-1 rounded-2xl px-2 py-2 text-[11px] font-medium transition",
-                      active ? "bg-white text-slate-950" : "text-slate-300 hover:bg-white/8 hover:text-white",
+                      "flex flex-col items-center gap-1.5 rounded-2xl px-1 py-2 text-[10px] font-semibold transition-all duration-300",
+                      active ? "bg-teal-600 text-white shadow-lg shadow-teal-600/30 scale-105" : "text-slate-500 hover:text-slate-900",
                     )}
                   >
-                    <Icon className="h-4 w-4" />
-                    <span>{shortLabel}</span>
+                    <Icon className={cn("h-4.5 w-4.5", active ? "text-white" : "text-slate-400")} />
+                    <span className="leading-none">{shortLabel}</span>
                   </Link>
                 );
               })}

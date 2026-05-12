@@ -33,6 +33,7 @@ import {
 import { isOffDay } from "@/lib/date";
 import type { ShiftType } from "@/lib/types";
 import { getUserContext } from "@/lib/session";
+import { getRotationWarnings } from "@/lib/analysis";
 
 interface HomePageProps {
   searchParams: Promise<{
@@ -89,6 +90,9 @@ export default async function HomePage({ searchParams }: HomePageProps) {
     if (pos?.name.toUpperCase().includes("KHNV") && item.note?.includes("đi học")) return false;
     return true;
   });
+
+  // [QWEN3] Phân tích nhân sự giữ vị trí quá lâu (> 180 ngày)
+  const rotationWarnings = getRotationWarnings(data.weeklySchedule, data.staff, data.positions);
 
   // Dữ liệu nghỉ phép 7 ngày tới
   const today = startOfToday();
@@ -684,6 +688,65 @@ export default async function HomePage({ searchParams }: HomePageProps) {
               title="Chưa có thay đổi"
               description="Không có nhân sự nào trống việc trong 7 ngày tới."
               tone="slate"
+            />
+          )}
+        </SurfaceSection>
+      </div>
+
+      {/* PHÂN TÍCH THÔNG MINH QWEN3 */}
+      <div className="mt-6">
+        <SurfaceSection
+          eyebrow="Phân tích [QWEN3]"
+          title="Cảnh báo Luân chuyển Nhân sự"
+          description="Phát hiện nhân sự đã đảm nhiệm một vị trí quá 6 tháng liên tục. Việc luân chuyển giúp giảm áp lực và đa dạng hóa kỹ năng."
+        >
+          {rotationWarnings.length > 0 ? (
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {rotationWarnings.map((warning) => (
+                <div
+                  key={`${warning.staffId}-${warning.positionId}`}
+                  className="group relative overflow-hidden rounded-[24px] border border-slate-200 bg-white p-5 transition-all hover:border-teal-500/30 hover:shadow-lg hover:shadow-teal-500/5"
+                >
+                  <div className="relative z-10 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-teal-50 text-teal-600 ring-1 ring-teal-100">
+                        <UserRoundCheck className="h-5 w-5" />
+                      </div>
+                      <Pill tone="rose" className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider">
+                        {warning.months} Tháng
+                      </Pill>
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-slate-900 group-hover:text-teal-700 transition-colors">
+                        {warning.staffName}
+                      </h4>
+                      <p className="mt-1 flex items-center gap-1.5 text-sm font-medium text-slate-500">
+                        <Briefcase className="h-3.5 w-3.5 text-slate-400" />
+                        Vị trí: {warning.positionName}
+                      </p>
+                    </div>
+                    <div className="pt-2">
+                      <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
+                        <div 
+                          className="h-full bg-teal-500" 
+                          style={{ width: `${Math.min(100, (warning.durationDays / 180) * 100)}%` }}
+                        />
+                      </div>
+                      <div className="mt-2 flex items-center justify-between text-[11px] font-semibold text-slate-400">
+                        <span>Bắt đầu: {format(parseISO(warning.firstDate), "dd/MM/yyyy")}</span>
+                        <span className="text-teal-600">{warning.durationDays} ngày</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <EmptyState
+              icon={UserRoundCheck}
+              title="Mọi thứ đều ổn"
+              description="Hiện không có nhân sự nào giữ một vị trí quá 6 tháng liên tục."
+              tone="teal"
             />
           )}
         </SurfaceSection>

@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { AlertTriangle, CalendarClock, Clock, NotebookPen, X } from "lucide-react";
 import { EmptyState } from "@/components/empty-state";
 import { Pill } from "@/components/pill";
 import { saveSingleTemplateAssignmentAction, saveWeeklyAssignmentAction } from "@/app/actions";
 import { ASSIGNMENT_STATUS_LABELS, LEAVE_REASON_LABELS } from "@/lib/constants";
-import { formatDate } from "@/lib/date";
+import { formatDate, isPastShift } from "@/lib/date";
 import { getStatusTone, isOvertimeSlot } from "@/lib/schedule";
 import type {
   LeaveRecord,
@@ -77,6 +78,16 @@ function getRotationTooltip(person: StaffMember, positions: Position[]) {
   return names.length > 0 ? `Có thể luân chuyển: ${names.join(", ")}` : "";
 }
 
+const AREA_THEME_COLORS = [
+  "bg-indigo-50/40 ring-indigo-100",
+  "bg-emerald-50/40 ring-emerald-100",
+  "bg-rose-50/40 ring-rose-100",
+  "bg-amber-50/40 ring-amber-100",
+  "bg-cyan-50/40 ring-cyan-100",
+  "bg-violet-50/40 ring-violet-100",
+  "bg-orange-50/40 ring-orange-100"
+];
+
 export function ScheduleBoard({
   board,
   positions = [],
@@ -95,9 +106,13 @@ export function ScheduleBoard({
   templateShift,
 }: ScheduleBoardProps) {
   // Build returnTo cho template mode, giữ nguyên ngày/buổi đang xem
-  const templateReturnTo = templateDay != null && templateShift
-    ? `/template?day=${templateDay}&shift=${templateShift}`
-    : "/template";
+  const templateReturnTo = useMemo(() => 
+    templateDay != null && templateShift
+      ? `/template?day=${templateDay}&shift=${templateShift}`
+      : "/template",
+    [templateDay, templateShift]
+  );
+
   // Trạng thái modal
   const [editingSlot, setEditingSlot] = useState<{
     slot: BoardSlot;
@@ -107,6 +122,21 @@ export function ScheduleBoard({
   } | null>(null);
   const [isPending, startTransition] = useTransition();
   const [pendingClearKey, setPendingClearKey] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+
+  // Lọc board theo searchQuery
+  const filteredBoard = useMemo(() => {
+    if (!searchQuery.trim()) return board;
+    const query = searchQuery.toLowerCase();
+    return board.map(slot => ({
+      ...slot,
+      entries: slot.entries.filter(entry => 
+        entry.position.name.toLowerCase().includes(query) ||
+        entry.position.area?.toLowerCase().includes(query) ||
+        entry.slots.some(s => s.person?.name.toLowerCase().includes(query))
+      )
+    })).filter(slot => slot.entries.length > 0);
+  }, [board, searchQuery]);
 
   const clearAssignmentQuickly = (
     slot: BoardSlot,
@@ -155,12 +185,56 @@ export function ScheduleBoard({
   }
 
   return (
-    <div className="space-y-5">
-      {board.map((slot) => {
-        const areaGroups = groupEntriesByArea(slot.entries);
+    <div className="space-y-6">
+      <div className="flex items-center justify-between gap-4">
+        <div className="relative flex-1 max-w-md">
+          <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+          <input
+            type="text"
+            placeholder="Tìm theo tên nhân sự hoặc vị trí..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full rounded-2xl border border-slate-200 bg-white/50 py-2.5 pl-10 pr-4 text-sm font-medium transition focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-500/20"
+          />
+          {searchQuery && (
+            <button 
+              onClick={() => setSearchQuery("")}
+              className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-1 hover:bg-slate-100 text-slate-400"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          )}
+        </div>
+        <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+          Hiển thị {filteredBoard.length} ca trực
+        </div>
+      </div>
+
+      <AnimatePresence mode="popLayout">
+        {filteredBoard.length === 0 ? (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="flex flex-col items-center justify-center py-20 text-center"
+          >
+            <div className="rounded-full bg-slate-100 p-4 mb-4">
+              <Search className="h-8 w-8 text-slate-400" />
+            </div>
+            <h4 className="text-lg font-bold text-slate-900">Không tìm thấy kết quả</h4>
+            <p className="text-sm text-slate-500">Thử tìm kiếm với từ khóa khác nhé.</p>
+          </motion.div>
+        ) : (
+          filteredBoard.map((slot) => {
+            const areaGroups = groupEntriesByArea(slot.entries);
 
         return (
-          <section key={`${slot.date}-${slot.shift}`} className="space-y-4">
+          <motion.section 
+            key={`${slot.date}-${slot.shift}`} 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4 }}
+            className="space-y-4"
+          >
             <div className="flex flex-col gap-2 rounded-[26px] border border-slate-900/8 bg-[linear-gradient(135deg,rgba(15,23,42,0.96)_0%,rgba(30,41,59,0.92)_54%,rgba(13,148,136,0.82)_100%)] px-4 py-4 text-white shadow-[0_18px_50px_rgba(15,23,42,0.18)] md:flex-row md:items-center md:justify-between">
               <div>
                 <h3 className="text-lg font-semibold">{slot.title}</h3>
@@ -221,16 +295,7 @@ export function ScheduleBoard({
             )}
 
             {[...areaGroups.entries()].map(([areaName, entries], areaIndex) => {
-              const themeColors = [
-                "bg-indigo-50/40 ring-indigo-100",
-                "bg-emerald-50/40 ring-emerald-100",
-                "bg-rose-50/40 ring-rose-100",
-                "bg-amber-50/40 ring-amber-100",
-                "bg-cyan-50/40 ring-cyan-100",
-                "bg-violet-50/40 ring-violet-100",
-                "bg-orange-50/40 ring-orange-100"
-              ];
-              const theme = areaName === "Khác" ? "bg-slate-50/40 ring-slate-200" : themeColors[areaIndex % themeColors.length];
+              const theme = areaName === "Khác" ? "bg-slate-50/40 ring-slate-200" : AREA_THEME_COLORS[areaIndex % AREA_THEME_COLORS.length];
 
               return (
                 <div key={areaName} className="space-y-3">
@@ -241,8 +306,12 @@ export function ScheduleBoard({
                   </h4>
                   <div className="grid gap-3 md:grid-cols-2 2xl:grid-cols-3">
                     {entries.map((entry) => (
-                      <article
+                      <motion.article
                         key={`${slot.date}-${slot.shift}-${entry.position.id}`}
+                        layout
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.95 }}
                         className={`rounded-[20px] p-3 ring-1 ring-inset shadow-sm transition hover:shadow-md ${theme}`}
                       >
                         {(() => {
@@ -272,7 +341,6 @@ export function ScheduleBoard({
 
                         <div className="flex flex-col gap-2">
                           {entry.slots.map((subslot) => {
-                            const { isPastShift } = require("@/lib/date");
                             const isPast = mode !== "template" && isPastShift(slot.date, slot.shift);
                             const canEdit = editable && !isPast;
 
@@ -303,99 +371,105 @@ export function ScheduleBoard({
 
                             const rowKey = `${slot.date}-${slot.shift}-${entry.position.id}-${subslot.slotIndex}`;
                             return (
-                              <div key={rowKey} className="flex items-start gap-2">
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    if (canEdit) {
-                                      setEditingSlot({ slot, entry, subslot, rect: e.currentTarget.getBoundingClientRect() });
-                                    }
-                                  }}
-                                  disabled={!canEdit}
-                                  className={`${slotBaseClass} flex-1`}
-                                >
-                                <div className="flex flex-1 flex-col pr-2">
-                                  <div className="flex items-center gap-2">
-                                    {isClosed ? (
-                                      <>
-                                        <NotebookPen className="h-4 w-4 shrink-0 text-slate-500" />
-                                        <span className="font-medium text-slate-500 line-through decoration-slate-400/50">
-                                          Vị trí bị đóng ca này
-                                        </span>
-                                      </>
-                                    ) : subslot.person ? (
-                                      <>
-                                        <CalendarClock className="h-4 w-4 shrink-0 text-teal-700" />
-                                        <span
-                                          className="font-medium text-slate-900 break-words leading-tight text-left"
-                                          title={getRotationTooltip(subslot.person, positions)}
-                                        >
-                                          {subslot.person.name}
-                                        </span>
-                                      </>
-                                    ) : (
-                                      <span className="truncate text-sm italic text-slate-400">
-                                        Chưa xếp người
-                                      </span>
-                                    )}
-                                  </div>
-
-                                  {!isClosed && subslot.person && isOvertimeSlot(slot.date, slot.shift) && (
-                                    <div className="ml-6 mt-1 flex items-center gap-1">
-                                      <span
-                                        className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider ${subslot.person.prefersOvertime
-                                          ? "bg-teal-100 text-teal-700"
-                                          : "bg-amber-100 text-amber-700"
-                                          }`}
-                                      >
-                                        <Clock className="h-3 w-3" />
-                                        {subslot.person.prefersOvertime ? "Sẵn sàng TC" : "Không đk TC"}
-                                      </span>
-                                    </div>
-                                  )}
-
-                                  {subslot.assignment?.note && (
-                                    <div className="ml-6 mt-1.5 flex items-start gap-1.5 text-xs text-slate-500">
-                                      <NotebookPen className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                                      <p className="line-clamp-2">{subslot.assignment.note}</p>
-                                    </div>
-                                  )}
-
-                                  {subslot.leave && (
-                                    <div className="ml-6 mt-1.5 flex items-center gap-1.5 text-xs font-medium text-rose-600">
-                                      <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
-                                      <span>Nghỉ {LEAVE_REASON_LABELS[subslot.leave.reason].toLowerCase()}</span>
-                                    </div>
-                                  )}
-                                </div>
-                                <div className="shrink-0 scale-90 origin-top-right ml-2">
-                                  <Pill tone={tone}>{statusLabel}</Pill>
-                                </div>
-                                </button>
-                                {canEdit && !isClosed && !!subslot.person && (
-                                  <button
-                                    type="button"
-                                    onClick={() => clearAssignmentQuickly(slot, entry, subslot)}
-                                    disabled={isPending && pendingClearKey === rowKey}
-                                    title="Bỏ trống nhanh"
-                                    className="mt-1 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-rose-200 bg-rose-50 text-rose-600 transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-60"
+                                <AnimatePresence mode="popLayout">
+                                  <motion.div 
+                                    key={rowKey}
+                                    layout
+                                    className="flex items-start gap-2 w-full"
                                   >
-                                    <X className="h-4 w-4" />
-                                  </button>
-                                )}
-                              </div>
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        if (canEdit) {
+                                          setEditingSlot({ slot, entry, subslot, rect: e.currentTarget.getBoundingClientRect() });
+                                        }
+                                      }}
+                                      disabled={!canEdit}
+                                      className={`${slotBaseClass} flex-1`}
+                                    >
+                                    <div className="flex flex-1 flex-col pr-2">
+                                      <div className="flex items-center gap-2">
+                                        {isClosed ? (
+                                          <>
+                                            <NotebookPen className="h-4 w-4 shrink-0 text-slate-500" />
+                                            <span className="font-medium text-slate-500 line-through decoration-slate-400/50">
+                                              Vị trí bị đóng ca này
+                                            </span>
+                                          </>
+                                        ) : subslot.person ? (
+                                          <>
+                                            <CalendarClock className="h-4 w-4 shrink-0 text-teal-700" />
+                                            <span
+                                              className="font-medium text-slate-900 break-words leading-tight text-left"
+                                              title={getRotationTooltip(subslot.person, positions)}
+                                            >
+                                              {subslot.person.name}
+                                            </span>
+                                          </>
+                                        ) : (
+                                          <span className="truncate text-sm italic text-slate-400">
+                                            Chưa xếp người
+                                          </span>
+                                        )}
+                                      </div>
+    
+                                      {!isClosed && subslot.person && isOvertimeSlot(slot.date, slot.shift) && (
+                                        <div className="ml-6 mt-1 flex items-center gap-1">
+                                          <span
+                                            className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider ${subslot.person.prefersOvertime
+                                              ? "bg-teal-100 text-teal-700"
+                                              : "bg-amber-100 text-amber-700"
+                                              }`}
+                                          >
+                                            <Clock className="h-3 w-3" />
+                                            {subslot.person.prefersOvertime ? "Sẵn sàng TC" : "Không đk TC"}
+                                          </span>
+                                        </div>
+                                      )}
+    
+                                      {subslot.assignment?.note && (
+                                        <div className="ml-6 mt-1.5 flex items-start gap-1.5 text-xs text-slate-500">
+                                          <NotebookPen className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                                          <p className="line-clamp-2">{subslot.assignment.note}</p>
+                                        </div>
+                                      )}
+    
+                                      {subslot.leave && (
+                                        <div className="ml-6 mt-1.5 flex items-center gap-1.5 text-xs font-medium text-rose-600">
+                                          <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                                          <span>Nghỉ {LEAVE_REASON_LABELS[subslot.leave.reason].toLowerCase()}</span>
+                                        </div>
+                                      )}
+                                    </div>
+                                    <div className="shrink-0 scale-90 origin-top-right ml-2">
+                                      <Pill tone={tone}>{statusLabel}</Pill>
+                                    </div>
+                                    </button>
+                                    {canEdit && !isClosed && !!subslot.person && (
+                                      <button
+                                        type="button"
+                                        onClick={() => clearAssignmentQuickly(slot, entry, subslot)}
+                                        disabled={isPending && pendingClearKey === rowKey}
+                                        title="Bỏ trống nhanh"
+                                        className="mt-1 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-rose-200 bg-rose-50 text-rose-600 transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-60"
+                                      >
+                                        <X className="h-4 w-4" />
+                                      </button>
+                                    )}
+                                  </motion.div>
+                                </AnimatePresence>
                             );
                           })}
                         </div>
-                      </article>
+                      </motion.article>
                     ))}
                   </div>
                 </div>
               );
             })}
-          </section>
-        );
-      })}
+          </motion.section>
+        )))}
+      </AnimatePresence>
 
       {/* Render Dialog */}
       {editable && editingSlot && (

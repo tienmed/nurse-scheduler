@@ -436,11 +436,13 @@ export function suggestStaffForSlot(
     (a) => a.date === date && a.shift === shift
   );
 
+  const posMap = new Map(positions.map(p => [p.id, p]));
+
   // Trích xuất những người đã có ca trong cùng buổi
   const busyStaffMap = new Map<string, string[]>();
   for (const a of currentShiftAssignments) {
     const list = busyStaffMap.get(a.staffId) || [];
-    const posName = positions.find((p) => p.id === a.positionId)?.name || a.positionId;
+    const posName = posMap.get(a.positionId)?.name || a.positionId;
     list.push(posName);
     busyStaffMap.set(a.staffId, list);
   }
