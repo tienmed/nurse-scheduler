@@ -33,18 +33,20 @@ class AIService {
     ): Promise<string> {
         try {
             const url = this.urls[model];
-            const response = await fetch(`${url}/chat`, {
+            const response = await fetch(url, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${this.apiToken}`
                 },
                 body: JSON.stringify({
-                    prompt,
-                    system_prompt: systemPrompt,
+                    messages: [
+                        { role: 'system', content: systemPrompt },
+                        { role: 'user', content: prompt }
+                    ],
                     max_tokens: 4096,
                     temperature: 0.7,
-                    enable_thinking: (model === 'qwen3')
+                    thinking_mode: (model === 'qwen3')
                 })
             });
 
@@ -58,7 +60,7 @@ class AIService {
             }
 
             const data = await response.json();
-            return data.response || data.output || data.text || "No response from AI.";
+            return data.response || data.output || data.text || data.choices?.[0]?.message?.content || "No response from AI.";
         } catch (error) {
             console.error(`AIService Error (${model}):`, error);
             if (model !== 'gemma4') return this.callAI(prompt, systemPrompt, 'gemma4');
