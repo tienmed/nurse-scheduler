@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { AlertTriangle, CalendarClock, Clock, NotebookPen, X } from "lucide-react";
+import { AlertTriangle, CalendarClock, Clock, NotebookPen, Search, X } from "lucide-react";
 import { EmptyState } from "@/components/empty-state";
 import { Pill } from "@/components/pill";
 import { saveSingleTemplateAssignmentAction, saveWeeklyAssignmentAction } from "@/app/actions";
@@ -457,9 +457,9 @@ export function ScheduleBoard({
                                       </button>
                                     )}
                                   </motion.div>
-                                </AnimatePresence>
-                            );
-                          })}
+                              );
+                            })}
+                          </AnimatePresence>
                         </div>
                       </motion.article>
                     ))}
@@ -468,8 +468,10 @@ export function ScheduleBoard({
               );
             })}
           </motion.section>
-        )))}
-      </AnimatePresence>
+        );
+      })}
+    )}
+  </AnimatePresence>
 
       {/* Render Dialog */}
       {editable && editingSlot && (

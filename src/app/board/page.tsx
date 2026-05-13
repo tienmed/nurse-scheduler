@@ -436,9 +436,10 @@ export default async function BoardPage({ searchParams }: BoardPageProps) {
                     </div>
                   )}
                 </section>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          )
         ) : (
           <div className="flex flex-col items-center justify-center rounded-3xl border border-slate-200 bg-white p-16 text-center">
             <p className="text-lg font-semibold text-slate-900">Chưa có lịch</p>
