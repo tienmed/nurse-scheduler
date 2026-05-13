@@ -9,6 +9,7 @@ import type {
 } from "@/lib/types";
 
 export const APP_NAME = "NurseFlow";
+export const SATURDAY_OT_POSITION_ID = "SAT_OT";
 
 export const APP_TAGLINE =
   "Điều phối lịch làm việc của điều dưỡng theo tuần, cập nhật nghỉ phép và đồng bộ dữ liệu với Google Sheets.";

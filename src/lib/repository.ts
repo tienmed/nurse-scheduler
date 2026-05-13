@@ -1,5 +1,5 @@
 import { subDays, parseISO, isAfter, startOfToday } from "date-fns";
-import { DEMO_ACCESS_CONTROL } from "@/lib/constants";
+import { DEMO_ACCESS_CONTROL, SATURDAY_OT_POSITION_ID } from "@/lib/constants";
 import { isSheetsConfigured } from "@/lib/env";
 import {
   getCachedAppData,
@@ -637,7 +637,7 @@ export async function syncSaturdayOvertime(
 
   // 1. Lọc bỏ các bản ghi cũ của ngày/ca này thuộc loại Tăng ca (positionId: "SAT_OT")
   const remainingSchedule = data.weeklySchedule.filter(
-    (item) => !(item.date === date && item.shift === shift && item.positionId === "SAT_OT")
+    (item) => !(item.date === date && item.shift === shift && item.positionId === SATURDAY_OT_POSITION_ID)
   );
 
   // 2. Tạo bản ghi mới cho từng nhân sự được chọn
@@ -646,7 +646,7 @@ export async function syncSaturdayOvertime(
     weekStart,
     date,
     shift,
-    positionId: "SAT_OT", // Vị trí ẩn dành riêng cho Tăng ca T7
+    positionId: SATURDAY_OT_POSITION_ID, // Vị trí ẩn dành riêng cho Tăng ca T7
     staffId,
     slotIndex: index,
     source: "manual" as const,

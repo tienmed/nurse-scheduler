@@ -14,7 +14,7 @@ import {
   getWeeklyAssignments,
 } from "@/lib/schedule";
 import Link from "next/link";
-import { WEEKDAY_LABELS } from "@/lib/constants";
+import { SATURDAY_OT_POSITION_ID, WEEKDAY_LABELS } from "@/lib/constants";
 import type { Position } from "@/lib/types";
 
 interface BoardPageProps {
@@ -101,9 +101,14 @@ export default async function BoardPage({ searchParams }: BoardPageProps) {
         data.holidays,
       );
 
+  const positionsWithOT = [
+    ...data.positions,
+    { id: SATURDAY_OT_POSITION_ID, name: "Tăng ca Thứ 7", area: "Khác" }
+  ];
+  
   const fullBoard = getWeekBoard(
     displayedAssignments,
-    data.positions,
+    positionsWithOT,
     data.staff,
     data.leaveRequests,
     weekStart,
@@ -124,6 +129,8 @@ export default async function BoardPage({ searchParams }: BoardPageProps) {
   const currentSlot = fullBoard.find(
     (slot) => slot.dayOfWeek === selectedDay && slot.shift === selectedShift,
   );
+
+  const isSaturdayMorning = selectedDay === 6 && selectedShift === "morning";
 
   // Build tabs
   const slotTabs = activeRules
@@ -191,7 +198,7 @@ export default async function BoardPage({ searchParams }: BoardPageProps) {
   // Gom nhóm Personnel
   const personnelMap = new Map<string, { person: { id: string, name: string }, positions: Position[] }>();
 
-  if (currentSlot && isPersonnelView) {
+  if (currentSlot) {
     for (const entry of currentSlot.entries) {
       for (const subslot of entry.slots) {
         if (subslot.person) {
@@ -342,7 +349,21 @@ export default async function BoardPage({ searchParams }: BoardPageProps) {
             </div>
           )
         ) : sortedGroups.length > 0 ? (
-          <div className="space-y-6">
+          isSaturdayMorning ? (
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {personnelList.map((data) => (
+                <div key={data.person.id} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm hover:shadow-md transition-all">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-teal-100 text-teal-700 font-bold">
+                      {data.person.name.charAt(0)}
+                    </div>
+                    <h3 className="font-bold text-slate-900 flex-1 leading-tight">{data.person.name}</h3>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="space-y-6">
             {sortedGroups.map((group) => {
               const colors = areaColors[group.area] || defaultColor;
               const hasLeftRight = group.left.length > 0 || group.right.length > 0;
