@@ -160,6 +160,10 @@ export default async function BoardPage({ searchParams }: BoardPageProps) {
 
   if (currentSlot) {
     for (const entry of currentSlot.entries) {
+      // [QWEN3] Debug: Sáng thứ 7 chỉ hiển thị nhân sự đăng ký tăng ca (vị trí SAT_OT)
+      if (isSaturdayMorning && entry.position.id !== SATURDAY_OT_POSITION_ID) {
+        continue;
+      }
       const area = entry.position.area || "Khác";
       // Tách phần khu vực chính (VD: "Trệt phải" → baseArea = "Trệt")
       const lower = area.toLowerCase().trim();
@@ -200,6 +204,10 @@ export default async function BoardPage({ searchParams }: BoardPageProps) {
 
   if (currentSlot) {
     for (const entry of currentSlot.entries) {
+      // [QWEN3] Debug: Sáng thứ 7 chỉ hiển thị nhân sự đăng ký tăng ca (vị trí SAT_OT)
+      if (isSaturdayMorning && entry.position.id !== SATURDAY_OT_POSITION_ID) {
+        continue;
+      }
       for (const subslot of entry.slots) {
         if (subslot.person) {
           let pData = personnelMap.get(subslot.person.id);
