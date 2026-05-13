@@ -108,6 +108,15 @@ Chỉ ra cụ thể các vị trí vi phạm (nếu có).
     /**
      * Tạo thông báo thân thiện bằng Gemma4
      */
+    async generateNotification(staffName: string, schedule: any): Promise<string> {
+        const prompt = `
+Chào ${staffName}, dưới đây là lịch trực tuần này của bạn:
+${JSON.stringify(schedule, null, 2)}
+
+Hãy viết một lời chào thân thiện, tóm tắt lại các buổi trực của nhân viên này và kèm theo một lời chúc làm việc hiệu quả.
+`;
+        return this.callAI(prompt, "Bạn là trợ lý ảo NurseFlow thân thiện, chuyên nghiệp.", 'gemma4');
+    }
     /**
      * Sinh báo cáo tóm tắt điều hành tháng bằng Qwen3
      */
