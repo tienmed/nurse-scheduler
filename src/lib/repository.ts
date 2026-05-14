@@ -7,7 +7,7 @@ import {
   writeAppDataKeysToSheets,
 } from "@/lib/google-sheets";
 import { MOCK_DATA } from "@/lib/mock-data";
-import { buildAssignmentsFromTemplate, getWeekBoard } from "@/lib/schedule";
+import { buildAssignmentsFromTemplate } from "@/lib/schedule";
 import { isPastShift } from "@/lib/date";
 import type {
   AccessControlEntry,
@@ -35,7 +35,7 @@ async function getHorizonDays(): Promise<number> {
   } catch {
     // ignore
   }
-  return 60; // Mặc định là 60 ngày để tối ưu hiệu năng
+  return 60; // Mac dinh la 60 ngay de toi uu hieu nang
 }
 
 function cloneData(): AppData {
@@ -55,7 +55,7 @@ export async function getAppData(): Promise<AppData> {
     }
   }
 
-  // Áp dụng bộ lọc thời gian nếu có cấu hình chân trời dữ liệu (Horizon)
+  // Ap dung bo loc thoi gian neu co cau hinh chan troi du lieu (Horizon)
   if (horizonDays > 0) {
     const cutoffDate = subDays(startOfToday(), horizonDays);
 
@@ -63,9 +63,14 @@ export async function getAppData(): Promise<AppData> {
       items.filter((item) => {
         if (!item.date) return true;
         try {
-          return isAfter(parseISO(item.date), cutoffDate);
+          const itemDate = parseISO(item.date);
+          // Kiem tra tinh hop le cua ngay (tranh du lieu rac)
+          if (isNaN(itemDate.getTime())) {
+            return false;
+          }
+          return isAfter(itemDate, cutoffDate);
         } catch {
-          return true;
+          return false; // Neu loi parse thi coi nhu cu va loc bo
         }
       });
 
@@ -80,35 +85,46 @@ export async function getAppData(): Promise<AppData> {
     data.leaveCancellations = filterByDate(data.leaveCancellations);
 
     if (process.env.NODE_ENV === "development") {
-      console.log(`🧹 [Horizon Filter] Đã lọc dữ liệu > ${horizonDays} ngày:`);
-      console.log(`   - Lịch tuần: ${originalCounts.weekly} -> ${data.weeklySchedule.length}`);
-      console.log(`   - Nghỉ phép: ${originalCounts.leaves} -> ${data.leaveRequests.length}`);
+      console.log(`🧹 [Horizon Filter] Da loc du lieu > ${horizonDays} ngay:`);
+      console.log(`   - Lich tuan: ${originalCounts.weekly} -> ${data.weeklySchedule.length}`);
+      console.log(`   - Nghi phep: ${originalCounts.leaves} -> ${data.leaveRequests.length}`);
     }
   }
 
-  // Đảm bảo các trường mới luôn tồn tại (phòng trường hợp cache cũ hoặc sheet trống)
-  if (!data.positionRules) {
-    data.positionRules = [];
-  }
-  if (!data.leaveCancellations) {
-    data.leaveCancellations = [];
-  }
-  if (!data.holidays) {
-    data.holidays = [];
-  }
+  // Dam bao cac truong moi luon ton tai
+  if (!data.positionRules) data.positionRules = [];
+  if (!data.leaveCancellations) data.leaveCancellations = [];
+  if (!data.holidays) data.holidays = [];
 
   return data;
 }
 
+/**
+ * Write Lock mechanism to prevent race conditions when writing to Google Sheets.
+ * Ensures only one write operation happens at a time in this process.
+ */
+let writePromise: Promise<void> = Promise.resolve();
+
 async function persistData(data: AppData, keys: (keyof AppData)[]) {
   if (!isSheetsConfigured()) {
     throw new Error(
-      "Ứng dụng đang ở chế độ demo. Hãy cấu hình Google Sheets để lưu thay đổi.",
+      "Ung dung dang o che do demo. Hay cau hinh Google Sheets de luu thay doi.",
     );
   }
 
-  await writeAppDataKeysToSheets(data, keys);
-  invalidateAppDataCache();
+  // Su dung hang doi Promise de tuan tu hoa viec ghi
+  const currentWrite = writePromise.then(async () => {
+    try {
+      await writeAppDataKeysToSheets(data, keys);
+      invalidateAppDataCache();
+    } catch (error) {
+      console.error("🚨 [Repository] Error persisting data:", error);
+      throw error;
+    }
+  });
+
+  writePromise = currentWrite.catch(() => {});
+  return currentWrite;
 }
 
 export { writeAppDataKeysToSheets, invalidateAppDataCache };
@@ -130,9 +146,7 @@ export function getEffectiveLeaveRequests(data: AppData): LeaveRecord[] {
   const effective: LeaveRecord[] = [];
   data.leaveRequests.forEach((leave) => {
     const dayKey = `${leave.staffId}-${leave.date}`;
-    if (fullDayCancelSet.has(dayKey)) {
-      return;
-    }
+    if (fullDayCancelSet.has(dayKey)) return;
 
     if (leave.shift === "full-day") {
       const cancelMorning = shiftCancelSet.has(`${dayKey}-morning`);
@@ -151,9 +165,7 @@ export function getEffectiveLeaveRequests(data: AppData): LeaveRecord[] {
       return;
     }
 
-    if (shiftCancelSet.has(`${dayKey}-${leave.shift}`)) {
-      return;
-    }
+    if (shiftCancelSet.has(`${dayKey}-${leave.shift}`)) return;
     effective.push(leave);
   });
 
@@ -181,7 +193,7 @@ export async function upsertStaff(input: Omit<StaffMember, "id"> & { id?: string
 
   const keysToPersist: (keyof AppData)[] = ["staff"];
 
-  // Nếu Email thay đổi, dọn dẹp Access Control cũ
+  // Neu Email thay doi, don dep Access Control cu
   if (previousEmail && previousEmail !== normalizedEmail) {
     data.accessControl = data.accessControl.filter(
       (item) => item.email.toLowerCase() !== previousEmail,
@@ -189,7 +201,7 @@ export async function upsertStaff(input: Omit<StaffMember, "id"> & { id?: string
     keysToPersist.push("accessControl");
   }
 
-  // Cập nhật Access Control mới
+  // Cap nhat Access Control moi
   if (normalizedEmail) {
     const accessEntry = {
       id: `access-${entry.id}`,
@@ -204,16 +216,16 @@ export async function upsertStaff(input: Omit<StaffMember, "id"> & { id?: string
     if (!keysToPersist.includes("accessControl")) keysToPersist.push("accessControl");
   }
 
-  // --- LOGIC ĐỒNG BỘ KHI ẨN (Soft Delete) ---
+  // --- LOGIC DONG BO KHI AN (Soft Delete) ---
   if (!entry.active) {
-    // 1. Dọn dẹp khỏi Lịch nền (templateSchedule) - Nếu bạn muốn xóa hẳn họ khỏi lịch mặc định
+    // 1. Don dep khoi Lich nen (templateSchedule)
     const originalTemplateCount = data.templateSchedule.length;
     data.templateSchedule = data.templateSchedule.filter(ts => ts.staffId !== entry.id);
     if (data.templateSchedule.length !== originalTemplateCount) {
       if (!keysToPersist.includes("templateSchedule")) keysToPersist.push("templateSchedule");
     }
 
-    // 2. Dọn dẹp khỏi Thứ tự ưu tiên (staffOrder) trong các Positions
+    // 2. Don dep khoi Thu tu uu tien (staffOrder) trong cac Positions
     let posChanged = false;
     data.positions.forEach(p => {
       if (p.staffOrder && p.staffOrder.includes(entry.id)) {
@@ -302,7 +314,7 @@ export async function upsertTemplateAssignment(
   };
 
   if (process.env.NODE_ENV === "development") {
-    console.log(`📦 [Repository] upsertTemplateAssignment: ${existing ? 'Cập nhật' : 'Thêm mới'} entry ID="${entry.id}", staffId="${entry.staffId}"`);
+    console.log(`📦 [Repository] upsertTemplateAssignment: ${existing ? 'Cap nhat' : 'Them moi'} entry ID="${entry.id}", staffId="${entry.staffId}"`);
   }
 
   data.templateSchedule = [
@@ -312,17 +324,14 @@ export async function upsertTemplateAssignment(
 
   const keysToSave: (keyof typeof data)[] = ["templateSchedule"];
 
-  // Đồng bộ ngược: Nếu nhân sự được gán vào 1 vị trí cố định ở Lịch nền,
-  // Tự động bổ sung nhân sự đó vào danh sách vị trí nếu chưa có.
   if (entry.staffId) {
     let staffUpdated = false;
     let posUpdated = false;
 
-    // 1. Cập nhật staff.positionIds
+    // 1. Cap nhat staff.positionIds
     const staffIndex = data.staff.findIndex(s => s.id === entry.staffId);
     if (staffIndex !== -1) {
       const staff = data.staff[staffIndex];
-      // Type staff.positionIds as it might be undefined/not array
       if (!staff.positionIds) staff.positionIds = [];
       if (!staff.positionIds.includes(entry.positionId)) {
         staff.positionIds.push(entry.positionId);
@@ -330,8 +339,7 @@ export async function upsertTemplateAssignment(
       }
     }
 
-    // 2. Cập nhật position.staffOrder
-    // Kiểm tra posOrder khi staff mới được thêm vào position
+    // 2. Cap nhat position.staffOrder
     if (staffUpdated) {
       const posIndex = data.positions.findIndex(p => p.id === entry.positionId);
       if (posIndex !== -1) {
@@ -387,12 +395,9 @@ export async function applyPrioritizedStaffToTemplate() {
 
   const newAssignments: TemplateAssignment[] = [];
 
-  // Duyệt qua tất cả các cấu hình ca mặc định (nếu data.scheduleRules trống, coi như lấy từ hằng số bên UI, nhưng repository thì phải tự định nghĩa hoặc lặp qua 1-6 * sáng/chiều)
-  // Thực tế: Lịch nền sẽ áp dụng cho Tuần T2-T7, ca Sáng/Chiều
   for (let dayOfWeek = 1; dayOfWeek <= 6; dayOfWeek++) {
-    if (dayOfWeek === 6) continue; // Thứ 7 để trống toàn bộ, không sinh lịch nền
+    if (dayOfWeek === 6) continue; // Thu 7 de trong
     for (const shift of ["morning", "afternoon"] as const) {
-      // Bỏ qua nếu rules bị đóng (nếu có scheduleRules)
       const rule = data.scheduleRules.find(r => r.dayOfWeek === dayOfWeek && r.shift === shift);
       if (rule && !rule.active) continue;
 
@@ -401,7 +406,6 @@ export async function applyPrioritizedStaffToTemplate() {
           (r) => r.dayOfWeek === dayOfWeek && r.shift === shift && r.positionId === position.id
         );
 
-        // Sinh danh sách ưu tiên động y hệt bên Area (tránh lỗi ảo)
         const registeredStaff = data.staff.filter(
           (s) => s.active && s.positionIds.includes(position.id)
         );
@@ -447,13 +451,11 @@ export async function upsertWeeklyAssignment(
   },
 ) {
   if (isPastShift(input.date, input.shift)) {
-    throw new Error("Ca làm đã qua nên không thể điều chỉnh.");
+    throw new Error("Ca lam da qua nen khong the dieu chinh.");
   }
 
   const data = await getAppData();
 
-  // --- AUTO MATERIALIZE ---
-  // Nếu chưa có bất kỳ phân công nào cho tuần này (tuần chưa được tạo), tự động sinh từ lịch nền
   const weekAssignments = data.weeklySchedule.filter((item) => item.weekStart === input.weekStart);
   if (weekAssignments.length === 0) {
     const effectiveLeaves = getEffectiveLeaveRequests(data);
@@ -471,7 +473,7 @@ export async function upsertWeeklyAssignment(
     }));
     data.weeklySchedule.push(...generated);
   }
-  // --- END AUTO MATERIALIZE ---
+
   const existing = data.weeklySchedule.find(
     (item) =>
       item.date === input.date &&
@@ -580,8 +582,6 @@ export async function generateWeekFromTemplate(weekStart: string) {
   return generated;
 }
 
-
-
 export async function deleteLeaveRequest(leaveId: string) {
   const data = await getAppData();
   data.leaveRequests = data.leaveRequests.filter((item) => item.id !== leaveId);
@@ -630,17 +630,15 @@ export async function syncSaturdayOvertime(
   staffIds: string[]
 ) {
   if (isPastShift(date, shift)) {
-    throw new Error("Ca làm đã qua nên không thể điều chỉnh.");
+    throw new Error("Ca lam da qua nen khong the dieu chinh.");
   }
 
   const data = await getAppData();
 
-  // 1. Lọc bỏ các bản ghi cũ của ngày/ca này thuộc loại Tăng ca (positionId: "SAT_OT")
   const remainingSchedule = data.weeklySchedule.filter(
     (item) => !(item.date === date && item.shift === shift && item.positionId === SATURDAY_OT_POSITION_ID)
   );
 
-  // 2. Tạo bản ghi mới cho từng nhân sự được chọn
   const newAssignments = staffIds.map((staffId, index) => ({
     id: generateId("weekly"),
     weekStart,

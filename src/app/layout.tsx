@@ -1,4 +1,4 @@
-﻿import type { Metadata } from "next";
+import type { Metadata } from "next";
 import { Be_Vietnam_Pro, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
 
@@ -20,6 +20,8 @@ export const metadata: Metadata = {
     "Ứng dụng lập lịch điều dưỡng theo tuần với Google OAuth, Google Sheets và xuất Excel.",
 };
 
+import { VoiceCommandButton } from "@/components/voice-command-button";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -27,7 +29,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="vi" className={`${beVietnamPro.variable} ${plexMono.variable} h-full antialiased`}>
-      <body className="min-h-full font-sans text-slate-900">{children}</body>
+      <body className="min-h-full font-sans text-slate-900">
+        {children}
+        <VoiceCommandButton />
+      </body>
     </html>
   );
 }
