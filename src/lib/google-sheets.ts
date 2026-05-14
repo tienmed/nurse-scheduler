@@ -36,7 +36,7 @@ const sheetSerializers: Record<AppDataKey, (data: AppData) => SheetRow[]> = {
       code: row.code,
       email: row.email,
       role: row.role,
-      positionIds: row.positionIds.join(","),
+      positionIds: (row.positionIds || []).join(","),
       active: `${row.active}`,
       prefersOvertime: `${row.prefersOvertime}`,
       notes: row.notes ?? "",
@@ -48,7 +48,7 @@ const sheetSerializers: Record<AppDataKey, (data: AppData) => SheetRow[]> = {
       area: row.area,
       description: row.description ?? "",
       quota: row.quota ? `${row.quota}` : "1",
-      staffOrder: row.staffOrder ? row.staffOrder.join(",") : "",
+      staffOrder: (row.staffOrder || []).join(","),
     })),
   scheduleRules: (data) =>
     data.scheduleRules.map((row) => ({

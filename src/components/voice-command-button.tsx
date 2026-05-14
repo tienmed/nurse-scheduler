@@ -35,7 +35,7 @@ export function VoiceCommandButton() {
 
       // Tự động dừng sau 10 giây để tránh ghi âm quá dài
       timeoutRef.current = setTimeout(() => {
-        if (isRecording) stopRecording();
+        stopRecording();
       }, 10000);
 
     } catch (err) {
@@ -45,10 +45,13 @@ export function VoiceCommandButton() {
   };
 
   const stopRecording = () => {
-    if (mediaRecorderRef.current && isRecording) {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
       mediaRecorderRef.current.stop();
       setIsRecording(false);
-      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
     }
   };
 

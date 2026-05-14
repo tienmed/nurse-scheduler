@@ -1,5 +1,6 @@
-import { getCachedAppData, writeAppDataKeysToSheets, invalidateAppDataCache } from "@/lib/google-sheets";
-import { format, startOfToday } from "date-fns";
+import { format, startOfToday, addDays } from "date-fns";
+import { generateId } from "@/lib/id";
+import { getAppData, persistData } from "@/lib/repository";
 
 export async function executeVoiceCoordination(command: {
   action: 'MOVE' | 'LEAVE' | 'UNKNOWN';
@@ -16,7 +17,7 @@ export async function executeVoiceCoordination(command: {
     return { success: false, message: "Không hiểu lệnh điều phối." };
   }
 
-  const data = await getCachedAppData();
+  const data = await getAppData();
   const todayStr = format(startOfToday(), "yyyy-MM-dd");
   const now = new Date();
   const currentShift = now.getHours() < 13 ? 'morning' : 'afternoon';
@@ -57,21 +58,29 @@ export async function executeVoiceCoordination(command: {
       }
     }
 
+    // Kiem tra quota (so luong slot toi da)
+    const currentAssignments = data.weeklySchedule.filter(s => 
+      s.date === todayStr && s.shift === currentShift && s.positionId === posTarget.id
+    );
+    const quota = posTarget.quota || 1;
+    if (currentAssignments.length >= quota && !command.replacedStaffName) {
+      return { success: false, message: `Vị trí ${posTarget.name} đã đủ người (${quota}/${quota}). Hãy chỉ định người thay thế.` };
+    }
+
     data.weeklySchedule.push({
-      id: `voice-${Date.now()}`,
+      id: generateId("weekly"),
       weekStart: todayStr,
       date: todayStr,
       shift: currentShift as any,
       staffId: staffA.id,
       positionId: posTarget.id,
-      slotIndex: 0,
+      slotIndex: currentAssignments.length,
       status: 'published',
       source: 'manual',
       note: `Điều phối giọng nói: Chuyển sang ${posTarget.name}${bMessage}`
     });
 
-    await writeAppDataKeysToSheets(data, ['weeklySchedule']);
-    invalidateAppDataCache();
+    await persistData(data, ['weeklySchedule']);
 
     return { success: true, message: `Đã chuyển ${staffA.name} sang ${posTarget.name}${bMessage}.` };
   }
@@ -80,7 +89,7 @@ export async function executeVoiceCoordination(command: {
   if (command.action === 'LEAVE') {
     let targetDate = todayStr;
     if (command.date === 'tomorrow') {
-      targetDate = format(new Date(now.getTime() + 24 * 60 * 60 * 1000), "yyyy-MM-dd");
+      targetDate = format(addDays(startOfToday(), 1), "yyyy-MM-dd");
     } else if (command.date && command.date.match(/^\d{4}-\d{2}-\d{2}$/)) {
       targetDate = command.date;
     }
@@ -88,7 +97,7 @@ export async function executeVoiceCoordination(command: {
     const shift = command.shift || currentShift;
 
     data.leaveRequests.push({
-      id: `voice-leave-${Date.now()}`,
+      id: generateId("leave"),
       staffId: staffA.id,
       date: targetDate,
       shift: shift as any,
@@ -96,8 +105,7 @@ export async function executeVoiceCoordination(command: {
       note: `Báo nghỉ qua giọng nói lúc ${format(now, "HH:mm")}`
     });
 
-    await writeAppDataKeysToSheets(data, ['leaveRequests']);
-    invalidateAppDataCache();
+    await persistData(data, ['leaveRequests']);
 
     const dateLabel = command.date === 'tomorrow' ? "ngày mai" : "hôm nay";
     const shiftLabel = shift === 'full-day' ? "cả ngày" : (shift === 'morning' ? "ca sáng" : "ca chiều");

@@ -236,6 +236,18 @@ export async function upsertStaff(input: Omit<StaffMember, "id"> & { id?: string
     if (posChanged) {
       if (!keysToPersist.includes("positions")) keysToPersist.push("positions");
     }
+
+    // 3. Don dep khoi Lich tuan (weeklySchedule) cho cac ca chua dien ra
+    const todayStr = format(startOfToday(), "yyyy-MM-dd");
+    const originalWeeklyCount = data.weeklySchedule.length;
+    data.weeklySchedule = data.weeklySchedule.filter(ws => {
+      if (ws.staffId !== entry.id) return true;
+      // Giu lai cac ca trong qua khu de bao toan lich su, chi xoa ca tuong lai
+      return ws.date < todayStr;
+    });
+    if (data.weeklySchedule.length !== originalWeeklyCount) {
+      if (!keysToPersist.includes("weeklySchedule")) keysToPersist.push("weeklySchedule");
+    }
   }
 
   await persistData(data, keysToPersist);

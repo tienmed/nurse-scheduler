@@ -84,9 +84,10 @@ Lưu ý cho hành động LEAVE:
 `;
         const result = await this.callAI(prompt, "Bạn là trợ lý điều phối nhân sự chuyên nghiệp.", 'qwen3');
         try {
-            // Làm sạch response từ AI (bỏ markdown nếu có)
-            const jsonStr = result.replace(/```json|```/g, '').trim();
-            return JSON.parse(jsonStr);
+            // Làm sạch response từ AI (trích xuất nội dung trong block markdown nếu có)
+            const match = result.match(/```json?\s*([\s\S]*?)\s*```/);
+            const jsonStr = match ? match[1] : result;
+            return JSON.parse(jsonStr.trim());
         } catch (e) {
             console.error("Failed to parse AI response as JSON:", result);
             return { action: 'UNKNOWN' };
