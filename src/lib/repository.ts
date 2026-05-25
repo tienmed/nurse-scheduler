@@ -594,6 +594,23 @@ export async function generateWeekFromTemplate(weekStart: string) {
   return generated;
 }
 
+export async function generateWeekIfEmpty(weekStart: string) {
+  const data = await getAppData();
+  const existing = data.weeklySchedule.filter((item) => item.weekStart === weekStart);
+  
+  if (existing.length > 0) {
+    if (process.env.NODE_ENV === "development") {
+      console.log(`[Repository] Bỏ qua sinh lịch tự động vì tuần ${weekStart} đã có ${existing.length} ca.`);
+    }
+    return existing;
+  }
+
+  if (process.env.NODE_ENV === "development") {
+    console.log(`[Repository] Tự động sinh lịch cho tuần ${weekStart}...`);
+  }
+  return generateWeekFromTemplate(weekStart);
+}
+
 export async function deleteLeaveRequest(leaveId: string) {
   const data = await getAppData();
   data.leaveRequests = data.leaveRequests.filter((item) => item.id !== leaveId);

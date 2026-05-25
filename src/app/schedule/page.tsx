@@ -14,6 +14,7 @@ import { AuthRequiredState } from "@/components/auth-required-state";
 import { Pill } from "@/components/pill";
 import { ScheduleBoard } from "@/components/schedule-board";
 import { SaturdayOvertimeBoard } from "@/components/saturday-overtime-board";
+import { AutoGenerateWeek } from "@/components/auto-generate-week";
 import { SubmitButton } from "@/components/submit-button";
 import { SurfaceSection } from "@/components/surface-section";
 import {
@@ -247,8 +248,10 @@ export default async function SchedulePage({ searchParams }: SchedulePageProps) 
           />
         )}
       </SurfaceSection>
-
-
+      <AutoGenerateWeek 
+        weekStart={weekStart} 
+        enabled={actualAssignments.length === 0 && canPlan} 
+      />
     </AppShell>
   );
 }

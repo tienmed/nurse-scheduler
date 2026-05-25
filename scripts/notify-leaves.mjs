@@ -43,6 +43,14 @@ async function main() {
 
   const todayStr = formatDate(now);
 
+  // Gọi API tự động chốt lịch nếu tuần mới chưa có dữ liệu
+  try {
+    console.log("Đang gọi API tự động sinh lịch...");
+    await fetch("http://localhost:3000/api/schedule/generate");
+  } catch(e) {
+    console.error("Lỗi gọi API sinh lịch:", e);
+  }
+
   const res = await sheets.spreadsheets.values.batchGet({
     spreadsheetId,
     ranges: ["staff!A:Z", "leave_requests!A:Z", "weekly_schedule!A:Z", "positions!A:Z"],

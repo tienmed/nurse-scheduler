@@ -45,6 +45,14 @@ async function main() {
 
   console.log("Đang kiểm tra dữ liệu ngày mai...");
 
+  // Gọi API tự động chốt lịch nếu tuần mới chưa có dữ liệu
+  try {
+    console.log("Đang gọi API tự động sinh lịch...");
+    await fetch("http://localhost:3000/api/schedule/generate");
+  } catch(e) {
+    console.error("Lỗi gọi API sinh lịch:", e);
+  }
+
   // Lấy ngày MAI
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);

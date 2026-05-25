@@ -24,6 +24,7 @@ import {
   upsertHoliday,
   deleteHoliday,
   syncSaturdayOvertime,
+  generateWeekIfEmpty,
 } from "@/lib/repository";
 import { isHoliday } from "@/lib/date";
 import { canEdit, getUserContext } from "@/lib/session";
@@ -453,6 +454,16 @@ export async function generateWeekAction(formData: FormData) {
   }
 }
 
+export async function autoGenerateWeek(weekStart: string) {
+  try {
+    await generateWeekIfEmpty(weekStart);
+    revalidateWorkspace();
+    return { success: true };
+  } catch (error: any) {
+    console.error("🚨 [Action] Lỗi autoGenerateWeek:", error);
+    return { success: false, error: error.message };
+  }
+}
 
 export async function updatePositionQuota(id: string, quota: number) {
   await assertEditor();
