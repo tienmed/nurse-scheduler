@@ -9,11 +9,10 @@ export interface AIResponse {
 class AIService {
     private static instance: AIService;
     
-    private readonly urls: Record<AIModelType | 'transcribe' | 'unified', string> = {
+    private readonly urls: Record<AIModelType | 'unified', string> = {
         'gemma4': process.env.GEMMA4_API_URL || 'https://pnt.badt.vn/gemma4',
         'qwen3': process.env.QWEN3_API_URL || 'https://pnt.badt.vn/qwen3',
         'qwen2.5': process.env.QWEN25_API_URL || 'https://pnt.badt.vn/qwen25',
-        'transcribe': 'https://pnt.badt.vn/medical_transcribe',
         'unified': 'https://pnt.badt.vn/ai_agent'
     };
 
@@ -26,72 +25,6 @@ class AIService {
             AIService.instance = new AIService();
         }
         return AIService.instance;
-    }
-
-    /**
-     * Chuyển đổi âm thanh thành văn bản
-     */
-    async transcribeAudio(audioBlob: Blob): Promise<string> {
-        const formData = new FormData();
-        formData.append('audio_file', audioBlob, 'command.wav');
-
-        const response = await fetch(`${this.urls.transcribe}/transcribe`, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${this.apiToken}`
-            },
-            body: formData
-        });
-
-        if (!response.ok) throw new Error("Lỗi khi chuyển đổi giọng nói");
-        const data = await response.json();
-        return data.transcription;
-    }
-
-    /**
-     * Phân tích câu lệnh điều phối bằng Qwen3
-     */
-    async parseVoiceCommand(text: string): Promise<{
-        action: 'MOVE' | 'LEAVE' | 'UNKNOWN';
-        staffName?: string;
-        sourcePosition?: string;
-        targetPosition?: string;
-        replacedStaffName?: string;
-        date?: string; // yyyy-MM-dd hoặc từ khóa 'today', 'tomorrow'
-        shift?: 'morning' | 'afternoon' | 'full-day';
-        time?: string;
-    }> {
-        const prompt = `
-Dữ liệu đầu vào: "${text}"
-
-Nhiệm vụ: Phân tích câu lệnh điều phối và chuyển thành JSON sau:
-{
-  "action": "MOVE" | "LEAVE" | "UNKNOWN",
-  "staffName": "Tên nhân viên",
-  "date": "today" | "tomorrow" | "yyyy-MM-dd" | "ngày...tháng...",
-  "shift": "morning" | "afternoon" | "full-day",
-  "reason": "Lý do nghỉ (nếu có)",
-  "sourcePosition": "...",
-  "targetPosition": "...",
-  "replacedStaffName": "..."
-}
-
-Lưu ý cho hành động LEAVE:
-- Luôn cố gắng bóc tách "lý do" nếu người dùng nhắc tới (ví dụ: "vì việc riêng", "đi khám").
-- Nếu người dùng nói ngày cụ thể (ví dụ: "ngày 20 tháng 5"), hãy cố gắng chuyển về yyyy-MM-dd (giả định năm hiện tại 2026).
-- Các từ khóa "hôm nay", "ngày mai" vẫn giữ nguyên là "today", "tomorrow".
-- Chỉ trả về JSON.
-`;
-        const result = await this.callAI(prompt, "Bạn là trợ lý điều phối nhân sự chuyên nghiệp.", 'qwen3');
-        try {
-            // Làm sạch response từ AI (trích xuất nội dung trong block markdown nếu có)
-            const match = result.match(/```json?\s*([\s\S]*?)\s*```/);
-            const jsonStr = match ? match[1] : result;
-            return JSON.parse(jsonStr.trim());
-        } catch (e) {
-            console.error("Failed to parse AI response as JSON:", result);
-            return { action: 'UNKNOWN' };
-        }
     }
 
     private async callAI(
