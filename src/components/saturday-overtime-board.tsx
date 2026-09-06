@@ -15,7 +15,59 @@ interface SaturdayOvertimeBoardProps {
   editable: boolean;
 }
 
+function StaffGroup({ title, list, selectedIds, toggleStaff, editable }: { title: string; list: StaffMember[], selectedIds: Set<string>, toggleStaff: (id: string) => void, editable: boolean }) {
+  if (list.length === 0) return null;
+
+  return (
+    <div className="mb-6">
+      <h3 className="mb-3 text-sm font-semibold text-slate-500 uppercase tracking-wider">{title}</h3>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+        {list.map((person) => {
+          const isSelected = selectedIds.has(person.id);
+          return (
+            <label
+              key={person.id}
+              className={`relative flex cursor-pointer items-center justify-between rounded-2xl border p-4 transition-all ${
+                isSelected
+                  ? "border-teal-500 bg-teal-50/50 shadow-sm"
+                  : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50"
+              } ${!editable && "opacity-80 cursor-not-allowed"}`}
+            >
+              <div className="flex items-center gap-3">
+                <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full font-bold text-sm ${isSelected ? "bg-teal-500 text-white" : "bg-slate-100 text-slate-600"}`}>
+                  {person.name.charAt(0)}
+                </div>
+                <div>
+                  <div className={`font-semibold ${isSelected ? "text-teal-900" : "text-slate-700"}`}>
+                    {person.name}
+                  </div>
+                  {person.notes && (
+                    <div className="text-xs text-slate-500 truncate max-w-[150px]">{person.notes}</div>
+                  )}
+                </div>
+              </div>
+
+              <div className="relative flex items-center justify-center shrink-0">
+                <input
+                  type="checkbox"
+                  className="peer sr-only"
+                  checked={isSelected}
+                  onChange={() => toggleStaff(person.id)}
+                  disabled={!editable}
+                />
+                <div className="h-6 w-6 rounded-lg border-2 border-slate-300 bg-white transition-all peer-checked:border-teal-500 peer-checked:bg-teal-500"></div>
+                <Check className="absolute h-4 w-4 text-white opacity-0 transition-opacity peer-checked:opacity-100 pointer-events-none" />
+              </div>
+            </label>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export function SaturdayOvertimeBoard({
+
   staff,
   weeklySchedule,
   date,
@@ -60,56 +112,7 @@ export function SaturdayOvertimeBoard({
   const filteredWilling = filterStaff(willingStaff);
   const filteredOther = filterStaff(otherStaff);
 
-  const StaffGroup = ({ title, list }: { title: string; list: StaffMember[] }) => {
-    if (list.length === 0) return null;
 
-    return (
-      <div className="mb-6">
-        <h3 className="mb-3 text-sm font-semibold text-slate-500 uppercase tracking-wider">{title}</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-          {list.map((person) => {
-            const isSelected = selectedIds.has(person.id);
-            return (
-              <label
-                key={person.id}
-                className={`relative flex cursor-pointer items-center justify-between rounded-2xl border p-4 transition-all ${
-                  isSelected
-                    ? "border-teal-500 bg-teal-50/50 shadow-sm"
-                    : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50"
-                } ${!editable && "opacity-80 cursor-not-allowed"}`}
-              >
-                <div className="flex items-center gap-3">
-                  <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full font-bold text-sm ${isSelected ? "bg-teal-500 text-white" : "bg-slate-100 text-slate-600"}`}>
-                    {person.name.charAt(0)}
-                  </div>
-                  <div>
-                    <div className={`font-semibold ${isSelected ? "text-teal-900" : "text-slate-700"}`}>
-                      {person.name}
-                    </div>
-                    {person.notes && (
-                      <div className="text-xs text-slate-500 truncate max-w-[150px]">{person.notes}</div>
-                    )}
-                  </div>
-                </div>
-
-                <div className="relative flex items-center justify-center shrink-0">
-                  <input
-                    type="checkbox"
-                    className="peer sr-only"
-                    checked={isSelected}
-                    onChange={() => toggleStaff(person.id)}
-                    disabled={!editable}
-                  />
-                  <div className="h-6 w-6 rounded-lg border-2 border-slate-300 bg-white transition-all peer-checked:border-teal-500 peer-checked:bg-teal-500"></div>
-                  <Check className="absolute h-4 w-4 text-white opacity-0 transition-opacity peer-checked:opacity-100 pointer-events-none" />
-                </div>
-              </label>
-            );
-          })}
-        </div>
-      </div>
-    );
-  };
 
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-6 md:p-8">
@@ -151,8 +154,8 @@ export function SaturdayOvertimeBoard({
             </div>
           ) : (
             <>
-              <StaffGroup title="Sẵn sàng tăng ca" list={filteredWilling} />
-              <StaffGroup title="Nhân sự khác" list={filteredOther} />
+              <StaffGroup title="Sẵn sàng tăng ca" list={filteredWilling} selectedIds={selectedIds} toggleStaff={toggleStaff} editable={editable} />
+              <StaffGroup title="Nhân sự khác" list={filteredOther} selectedIds={selectedIds} toggleStaff={toggleStaff} editable={editable} />
             </>
           )}
         </div>

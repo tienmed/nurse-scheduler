@@ -58,8 +58,6 @@ export function ShiftEditDialog({
   const [searchQuery, setSearchQuery] = useState("");
   void anchorRect;
 
-  if (!isOpen) return null;
-
   // Lấy danh sách gợi ý
   const suggestions = useMemo(() => suggestStaffForSlot(
     staff,
@@ -77,6 +75,8 @@ export function ShiftEditDialog({
     staff.find((s) => s.id === (currentAssignment?.staffId ?? defaultPerson?.id)),
     [staff, currentAssignment?.staffId, defaultPerson?.id]
   );
+
+  if (!isOpen) return null;
 
   // Lọc theo từ khóa tìm kiếm
   const normalizedQuery = searchQuery.trim().toLowerCase();

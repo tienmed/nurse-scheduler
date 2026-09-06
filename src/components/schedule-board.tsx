@@ -155,7 +155,9 @@ export function ScheduleBoard({
       formData.set("positionId", entry.position.id);
       formData.set("staffId", "");
       formData.set("slotIndex", String(subslot.slotIndex ?? 0));
-      if (subslot.assignment?.id) formData.set("id", subslot.assignment.id);
+      if (subslot.assignment?.id && !subslot.assignment.id.startsWith("preview-")) {
+        formData.set("id", subslot.assignment.id);
+      }
       setPendingClearKey(key);
       try {
         if (mode === "template") {
