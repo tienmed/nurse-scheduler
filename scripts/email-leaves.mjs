@@ -344,7 +344,7 @@ async function main() {
 
   const mailOptions = {
     from: `"Nusres System" <${smtpUser}>`,
-    to: "tienmed@gmail.com",
+    to: "tienmed@gmail.com, nghiadn.pk@pnt.edu.vn",
     subject: `[Nusres] Báo cáo vận hành ngày mai (${displayDate})${unassignedStaff.length > 0 ? ` — ⚠️ ${unassignedStaff.length} chưa phân công` : ""}`,
     html: htmlContent,
   };
