@@ -196,6 +196,7 @@ export function getWeekBoard(
   scheduleRules: ScheduleRule[],
   positionRules: PositionRule[] = [],
   holidays: Holiday[] = [],
+  isTemplateMode: boolean = false,
 ) {
   const assignments = getWeeklyAssignments(weeklySchedule, weekStart);
   const staffMap = new Map(staff.map((member) => [member.id, member]));
@@ -239,7 +240,7 @@ export function getWeekBoard(
             const assignment = posAssignments.find((a) => (a.slotIndex || 0) === i) ?? null;
             let person = assignment ? staffMap.get(assignment.staffId) ?? null : null;
 
-            if (!assignment) {
+            if (!assignment && isTemplateMode) {
               const defaultStaffId = position.staffOrder?.[i];
               if (defaultStaffId) {
                 person = staffMap.get(defaultStaffId) ?? null;

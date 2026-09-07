@@ -78,6 +78,8 @@ export default async function TemplatePage({ searchParams }: TemplatePageProps) 
     previewWeekStart,
     scheduleRules,
     data.positionRules,
+    data.holidays,
+    true,
   );
 
   const activeRules = scheduleRules.filter((r) => r.active && r.dayOfWeek !== 6);
