@@ -278,7 +278,6 @@ export function ScheduleBoard({
                                   setEditingSlot({
                                     slot,
                                     entry,
-                                    subslot,
                                     rect: e.currentTarget.getBoundingClientRect(),
                                   })
                                 }

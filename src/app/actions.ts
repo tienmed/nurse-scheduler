@@ -747,7 +747,7 @@ export async function saveSaturdayOvertimeAction(formData: FormData) {
   }
 }
 export async function copyPositionAssignmentsAction(formData: FormData) {
-  const user = await getUserContext();
+  const { user } = await getUserContext();
   if (!canEdit(user.role)) {
     throw new Error("Khong co quyen truy cap");
   }
@@ -781,7 +781,7 @@ export async function copyPositionAssignmentsAction(formData: FormData) {
   }
 }
 export async function saveMultiAssignmentsAction(formData: FormData) {
-  const user = await getUserContext();
+  const { user } = await getUserContext();
   if (!canEdit(user.role)) {
     throw new Error("Không có quyền truy cập");
   }

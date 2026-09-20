@@ -50,8 +50,9 @@ export function ConflictList({
         date={selectedConflict.date}
         shift={selectedConflict.shift}
         position={position}
-        currentAssignment={selectedConflict}
-        slotIndex={selectedConflict.slotIndex}
+        currentSlots={weeklySchedule
+          .filter(a => a.date === selectedConflict.date && a.shift === selectedConflict.shift && a.positionId === selectedConflict.positionId)
+          .map(a => ({ assignment: a, slotIndex: a.slotIndex || 0 }))}
         dayOfWeek={dayOfWeek}
         mode="weekly"
         staff={staff}

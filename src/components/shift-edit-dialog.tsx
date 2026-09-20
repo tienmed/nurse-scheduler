@@ -172,8 +172,10 @@ export function ShiftEditDialog({
             {!isClosed && (
               <div className="space-y-2">
                 {filteredSuggestions.length > 0 ? (
-                  filteredSuggestions.map(({ staff, isAvailable, leaveReason, score, missingSkills, consecutiveShifts }) => {
+                  filteredSuggestions.map(({ staff, score, reasons }) => {
                     const isSelected = selectedStaffIds.includes(staff.id);
+                    const hasIssues = reasons.length > 0;
+                    
                     return (
                       <button
                         key={staff.id}
@@ -182,7 +184,7 @@ export function ShiftEditDialog({
                         className={`group relative flex w-full flex-col items-start gap-2 rounded-2xl border p-4 text-left transition-all duration-200 ${
                           isSelected
                             ? "border-indigo-600 bg-indigo-50/50 shadow-sm"
-                            : !isAvailable
+                            : hasIssues
                               ? "border-slate-100 bg-slate-50/50 opacity-75 hover:bg-slate-100"
                               : "border-slate-200 bg-white hover:border-slate-300 hover:shadow-sm"
                         }`}
@@ -201,26 +203,25 @@ export function ShiftEditDialog({
                         </div>
 
                         <div className="flex flex-wrap items-center gap-1.5 w-full">
-                          <Pill variant={isAvailable ? "success" : "danger"}>
-                            {isAvailable ? "Sẵn sàng" : leaveReason ? LEAVE_REASON_LABELS[leaveReason] : "Bận"}
+                          <Pill tone={hasIssues ? "rose" : "emerald"}>
+                            {hasIssues ? "Có vấn đề" : "Phù hợp"}
                           </Pill>
                           
-                          {score !== undefined && score > 0 && isAvailable && (
-                            <Pill variant="neutral" className="bg-amber-100/50 text-amber-700">
+                          {score !== undefined && score > 0 && (
+                            <Pill tone="amber" className="bg-amber-100/50 text-amber-700">
                               Điểm ưu tiên: {score}
                             </Pill>
                           )}
                           
-                          {missingSkills && missingSkills.length > 0 && (
-                            <Pill variant="neutral" className="bg-rose-100/50 text-rose-700 max-w-[200px] truncate" title={missingSkills.join(", ")}>
-                              Thiếu: {missingSkills.join(", ")}
-                            </Pill>
-                          )}
-                          
-                          {consecutiveShifts !== undefined && consecutiveShifts >= 2 && (
-                            <Pill variant="neutral" className="bg-orange-100/50 text-orange-700">
-                              Đã làm {consecutiveShifts} ca liên tiếp
-                            </Pill>
+                          {reasons && reasons.length > 0 && (
+                            <div className="text-xs text-slate-500 w-full mt-1">
+                              {reasons.map((r, i) => (
+                                <div key={i} className="flex items-center gap-1">
+                                  <span className="w-1 h-1 rounded-full bg-rose-400 shrink-0" />
+                                  {r}
+                                </div>
+                              ))}
+                            </div>
                           )}
                         </div>
                       </button>
