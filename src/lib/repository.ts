@@ -771,3 +771,92 @@ export async function copyWeeklyPositionAssignments({
   await persistData(data, ["weeklySchedule"]);
   return newAssignments;
 }
+
+export async function syncWeeklyAssignments({
+  date,
+  shift,
+  positionId,
+  weekStart,
+  staffIds,
+}: {
+  date: string;
+  shift: "morning" | "afternoon";
+  positionId: string;
+  weekStart: string;
+  staffIds: string[];
+}) {
+  const data = await getAppData();
+
+  // Đảm bảo tuần đã được sinh nếu là lần đầu tiên
+  const weekAssignments = data.weeklySchedule.filter((item) => item.weekStart === weekStart);
+  if (weekAssignments.length === 0) {
+    const effectiveLeaves = getEffectiveLeaveRequests(data);
+    const generated = buildAssignmentsFromTemplate(
+      data.templateSchedule,
+      data.positions,
+      weekStart,
+      effectiveLeaves,
+      data.scheduleRules,
+      data.positionRules,
+      data.holidays,
+    ).map((item) => ({
+      ...item,
+      id: generateId("weekly")
+    }));
+    data.weeklySchedule.push(...generated);
+  }
+
+  // Lọc xóa các assignment cũ của position/shift/date này
+  data.weeklySchedule = data.weeklySchedule.filter(
+    (item) => !(item.date === date && item.shift === shift && item.positionId === positionId)
+  );
+
+  // Tạo mới các assignment
+  const newAssignments: WeeklyAssignment[] = staffIds.map((staffId, index) => ({
+    id: generateId("weekly"),
+    weekStart,
+    date,
+    shift,
+    positionId,
+    staffId,
+    slotIndex: index,
+    source: "manual",
+    status: "published",
+    note: "",
+  }));
+
+  data.weeklySchedule.push(...newAssignments);
+  await persistData(data, ["weeklySchedule"]);
+}
+
+export async function syncTemplateAssignments({
+  dayOfWeek,
+  shift,
+  positionId,
+  staffIds,
+}: {
+  dayOfWeek: number;
+  shift: "morning" | "afternoon";
+  positionId: string;
+  staffIds: string[];
+}) {
+  const data = await getAppData();
+
+  // Lọc xóa cũ
+  data.templateSchedule = data.templateSchedule.filter(
+    (item) => !(item.dayOfWeek === dayOfWeek && item.shift === shift && item.positionId === positionId)
+  );
+
+  // Tạo mới
+  const newAssignments: TemplateAssignment[] = staffIds.map((staffId, index) => ({
+    id: generateId("template"),
+    dayOfWeek,
+    shift,
+    positionId,
+    staffId,
+    slotIndex: index,
+  }));
+
+  data.templateSchedule.push(...newAssignments);
+  await persistData(data, ["templateSchedule"]);
+}

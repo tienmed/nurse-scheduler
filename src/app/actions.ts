@@ -26,6 +26,8 @@ import {
   syncSaturdayOvertime,
   generateWeekIfEmpty,
   copyWeeklyPositionAssignments,
+  syncWeeklyAssignments,
+  syncTemplateAssignments,
 } from "@/lib/repository";
 import { isHoliday } from "@/lib/date";
 import { canEdit, getUserContext } from "@/lib/session";
@@ -774,6 +776,53 @@ export async function copyPositionAssignmentsAction(formData: FormData) {
 
   revalidatePath("/schedule");
   revalidatePath("/board");
+  if (returnTo) {
+    redirect(returnTo);
+  }
+}
+export async function saveMultiAssignmentsAction(formData: FormData) {
+  const user = await getUserContext();
+  if (!canEdit(user.role)) {
+    throw new Error("Không có quyền truy cập");
+  }
+
+  const mode = getValue(formData, "mode") || "weekly";
+  const date = getValue(formData, "date");
+  const shift = getValue(formData, "shift") as "morning" | "afternoon";
+  const positionId = getValue(formData, "positionId");
+  const dayOfWeek = parseInt(getValue(formData, "dayOfWeek") || "1", 10);
+  const weekStart = getValue(formData, "weekStart");
+  const returnTo = getValue(formData, "returnTo");
+  const staffIds = formData.getAll("staffIds") as string[];
+
+  if (!positionId) {
+    throw new Error("Thiếu positionId");
+  }
+
+  if (mode === "template") {
+    await syncTemplateAssignments({
+      dayOfWeek,
+      shift,
+      positionId,
+      staffIds,
+    });
+  } else {
+    if (!date || !weekStart) {
+      throw new Error("Thiếu date hoặc weekStart cho lịch tuần");
+    }
+    await syncWeeklyAssignments({
+      date,
+      shift,
+      positionId,
+      weekStart,
+      staffIds,
+    });
+  }
+
+  revalidatePath("/schedule");
+  revalidatePath("/board");
+  revalidatePath("/template");
+
   if (returnTo) {
     redirect(returnTo);
   }

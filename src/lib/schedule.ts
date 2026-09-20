@@ -233,8 +233,8 @@ export function getWeekBoard(
           const quota = position.quota || 1;
           const slots = [];
 
-          // Đẻ đủ số khe dựa theo quota
-          const iterations = Math.max(quota, posAssignments.length);
+          // Chỉ đẻ đúng số slot đã phân công. Nếu chưa có ai thì hiển thị 1 slot "Chưa xếp người" để đỡ trống.
+          const iterations = posAssignments.length > 0 ? posAssignments.length : (isTemplateMode ? quota : 1);
 
           for (let i = 0; i < iterations; i++) {
             const assignment = posAssignments.find((a) => (a.slotIndex || 0) === i) ?? null;

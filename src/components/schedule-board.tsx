@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { AlertTriangle, CalendarClock, Clock, NotebookPen, Search, X, Plus, Copy } from "lucide-react";
+import { AlertTriangle, CalendarClock, Clock, NotebookPen, Search, X, Edit2, Copy } from "lucide-react";
 import { EmptyState } from "@/components/empty-state";
 import { Pill } from "@/components/pill";
 import { saveSingleTemplateAssignmentAction, saveWeeklyAssignmentAction } from "@/app/actions";
@@ -118,7 +118,6 @@ export function ScheduleBoard({
   const [editingSlot, setEditingSlot] = useState<{
     slot: BoardSlot;
     entry: BoardEntry;
-    subslot: SlotEntry;
     rect?: DOMRect;
   } | null>(null);
 
@@ -381,15 +380,14 @@ export function ScheduleBoard({
                                         setEditingSlot({
                                           slot,
                                           entry,
-                                          subslot: { slotIndex: entry.slots.length },
                                           rect: e.currentTarget.getBoundingClientRect(),
                                         });
                                       }}
-                                      title="Thêm slot phụ"
+                                      title="Chỉnh sửa phân công"
                                       className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-100 text-slate-600 transition hover:bg-teal-100 hover:text-teal-700"
                                     >
-                                      <Plus className="h-4 w-4" />
-                                      <span className="sr-only">Thêm slot</span>
+                                      <Edit2 className="h-3.5 w-3.5" />
+                                      <span className="sr-only">Chỉnh sửa phân công</span>
                                     </button>
                                   </>
                                 )}
@@ -442,7 +440,7 @@ export function ScheduleBoard({
                                         type="button"
                                         onClick={(e) => {
                                           if (canEdit) {
-                                            setEditingSlot({ slot, entry, subslot, rect: e.currentTarget.getBoundingClientRect() });
+                                            setEditingSlot({ slot, entry, rect: e.currentTarget.getBoundingClientRect() });
                                           }
                                         }}
                                         disabled={!canEdit}
@@ -542,9 +540,7 @@ export function ScheduleBoard({
           date={editingSlot.slot.date}
           shift={editingSlot.slot.shift}
           position={editingSlot.entry.position}
-          currentAssignment={editingSlot.subslot.assignment}
-          defaultPerson={editingSlot.subslot.person}
-          slotIndex={editingSlot.subslot.slotIndex}
+          currentSlots={editingSlot.entry.slots}
           dayOfWeek={editingSlot.slot.dayOfWeek}
           mode={mode}
           anchorRect={editingSlot.rect}
