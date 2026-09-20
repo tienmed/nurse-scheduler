@@ -185,6 +185,7 @@ export default async function SchedulePage({ searchParams }: SchedulePageProps) 
                 <SubmitButton
                   variant="outline"
                   pendingText="Đang sinh lịch..."
+                  confirmMessage="CẢNH BÁO: Hành động này sẽ CẬP NHẬT LẠI TOÀN BỘ lịch tuần dựa trên lịch nền. Mọi sự thay đổi, điều chỉnh nhân sự đã thực hiện thủ công trên lịch tuần hiện tại sẽ bị xoá và khôi phục về trạng thái mặc định của lịch nền. Bạn có chắc chắn muốn tiếp tục?"
                 >
                   <RefreshCcw className="h-4 w-4" />
                   Sinh lại từ lịch nền

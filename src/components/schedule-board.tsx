@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { AlertTriangle, CalendarClock, Clock, NotebookPen, Search, X } from "lucide-react";
+import { AlertTriangle, CalendarClock, Clock, NotebookPen, Search, X, Plus } from "lucide-react";
 import { EmptyState } from "@/components/empty-state";
 import { Pill } from "@/components/pill";
 import { saveSingleTemplateAssignmentAction, saveWeeklyAssignmentAction } from "@/app/actions";
@@ -337,9 +337,29 @@ export function ScheduleBoard({
                             })()}
                             <div className="mb-3 flex items-center justify-between border-b border-slate-100 px-3 pb-3 pt-1">
                               <h4 className="font-semibold text-slate-800">{entry.position.name}</h4>
-                              <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-600">
-                                {entry.slots.length} người
-                              </span>
+                              <div className="flex items-center gap-1.5">
+                                <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-600">
+                                  {entry.slots.length} người
+                                </span>
+                                {editable && mode !== "template" && !isPastShift(slot.date, slot.shift) && (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      setEditingSlot({
+                                        slot,
+                                        entry,
+                                        subslot: { slotIndex: entry.slots.length },
+                                        rect: e.currentTarget.getBoundingClientRect(),
+                                      });
+                                    }}
+                                    title="Thêm slot phụ"
+                                    className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-100 text-slate-600 transition hover:bg-teal-100 hover:text-teal-700"
+                                  >
+                                    <Plus className="h-4 w-4" />
+                                    <span className="sr-only">Thêm slot</span>
+                                  </button>
+                                )}
+                              </div>
                             </div>
 
                             <div className="flex flex-col gap-2">

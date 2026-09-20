@@ -144,6 +144,9 @@ export function ShiftEditDialog({
           <input type="hidden" name="positionId" value={position.id} />
           <input type="hidden" name="staffId" value={selectedStaffId} />
           <input type="hidden" name="slotIndex" value={slotIndex ?? 0} />
+          {currentAssignment?.id && !currentAssignment.id.startsWith("preview-") && (
+            <input type="hidden" name="id" value={currentAssignment.id} />
+          )}
 
           <div className="space-y-3">
             <h3 className="text-sm font-semibold text-slate-900">Chọn nhân sự mới</h3>

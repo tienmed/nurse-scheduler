@@ -6,6 +6,7 @@ import { Loader2 } from "lucide-react";
 export interface SubmitButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   pendingText?: string;
   variant?: "primary" | "outline";
+  confirmMessage?: string;
 }
 
 export function SubmitButton({
@@ -13,6 +14,8 @@ export function SubmitButton({
   className,
   pendingText = "Đang xử lý...",
   variant = "primary",
+  confirmMessage,
+  onClick,
   ...props
 }: SubmitButtonProps) {
   const { pending } = useFormStatus();
@@ -28,6 +31,15 @@ export function SubmitButton({
   return (
     <button
       {...props}
+      onClick={(e) => {
+        if (confirmMessage && !window.confirm(confirmMessage)) {
+          e.preventDefault();
+          return;
+        }
+        if (onClick) {
+          onClick(e);
+        }
+      }}
       disabled={pending || props.disabled}
       className={`${baseStyles} ${variantStyles} ${className || ""}`}
     >
