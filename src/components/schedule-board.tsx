@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { AlertTriangle, CalendarClock, Clock, NotebookPen, Search, X, Plus } from "lucide-react";
+import { AlertTriangle, CalendarClock, Clock, NotebookPen, Search, X, Plus, Copy } from "lucide-react";
 import { EmptyState } from "@/components/empty-state";
 import { Pill } from "@/components/pill";
 import { saveSingleTemplateAssignmentAction, saveWeeklyAssignmentAction } from "@/app/actions";
