@@ -25,6 +25,7 @@ import {
   deleteHoliday,
   syncSaturdayOvertime,
   generateWeekIfEmpty,
+  copyWeeklyPositionAssignments,
 } from "@/lib/repository";
 import { isHoliday } from "@/lib/date";
 import { canEdit, getUserContext } from "@/lib/session";
@@ -741,5 +742,39 @@ export async function saveSaturdayOvertimeAction(formData: FormData) {
     redirectWithState(returnTo, {
       error: error instanceof Error ? error.message : "Không thể lưu danh sách tăng ca.",
     });
+  }
+}
+export async function copyPositionAssignmentsAction(formData: FormData) {
+  const user = await getUserContext();
+  if (!canEdit(user.role)) {
+    throw new Error("Khong co quyen truy cap");
+  }
+
+  const weekStart = getValue(formData, "weekStart");
+  const positionId = getValue(formData, "positionId");
+  const sourceDate = getValue(formData, "sourceDate");
+  const sourceShift = getValue(formData, "sourceShift") as "morning" | "afternoon";
+  const returnTo = getValue(formData, "returnTo");
+
+  const destDates = formData.getAll("destDate") as string[];
+  const destShifts = formData.getAll("destShift") as ("morning" | "afternoon")[];
+
+  if (!weekStart || !positionId || !sourceDate || !sourceShift || destDates.length === 0 || destShifts.length === 0) {
+    throw new Error("Missing required parameters for copy");
+  }
+
+  await copyWeeklyPositionAssignments({
+    weekStart,
+    positionId,
+    sourceDate,
+    sourceShift,
+    destDates,
+    destShifts,
+  });
+
+  revalidatePath("/schedule");
+  revalidatePath("/board");
+  if (returnTo) {
+    redirect(returnTo);
   }
 }

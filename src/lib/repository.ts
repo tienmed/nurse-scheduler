@@ -684,3 +684,90 @@ export async function syncSaturdayOvertime(
   await persistData(data, ["weeklySchedule"]);
   return newAssignments;
 }
+
+export async function copyWeeklyPositionAssignments({
+  weekStart,
+  positionId,
+  sourceDate,
+  sourceShift,
+  destDates,
+  destShifts,
+}: {
+  weekStart: string;
+  positionId: string;
+  sourceDate: string;
+  sourceShift: "morning" | "afternoon";
+  destDates: string[];
+  destShifts: ("morning" | "afternoon")[];
+}) {
+  const data = await getAppData();
+  
+  // 1. Nếu tuần đích trống, sinh lịch tuần đó trước
+  const weekAssignments = data.weeklySchedule.filter((item) => item.weekStart === weekStart);
+  if (weekAssignments.length === 0) {
+    const effectiveLeaves = getEffectiveLeaveRequests(data);
+    const generated = buildAssignmentsFromTemplate(
+      data.templateSchedule,
+      data.positions,
+      weekStart,
+      effectiveLeaves,
+      data.scheduleRules,
+      data.positionRules,
+      data.holidays,
+    ).map((item) => ({
+      ...item,
+      id: generateId("weekly")
+    }));
+    data.weeklySchedule.push(...generated);
+  }
+
+  // 2. Tìm danh sách phân công NGUỒN
+  const sourceAssignments = data.weeklySchedule.filter(
+    (item) => item.date === sourceDate && item.shift === sourceShift && item.positionId === positionId
+  );
+  
+  if (sourceAssignments.length === 0) return [];
+
+  // 3. Tìm và xóa danh sách phân công ĐÍCH
+  const destTuples = new Set<string>();
+  for (const date of destDates) {
+    for (const shift of destShifts) {
+      if (date === sourceDate && shift === sourceShift) continue;
+      destTuples.add(`${date}-${shift}`);
+    }
+  }
+  
+  if (destTuples.size === 0) return [];
+
+  data.weeklySchedule = data.weeklySchedule.filter((item) => {
+    if (item.positionId === positionId) {
+      if (destTuples.has(`${item.date}-${item.shift}`)) {
+        return false;
+      }
+    }
+    return true;
+  });
+
+  // 4. Tạo phân công mới ở đích
+  const newAssignments: WeeklyAssignment[] = [];
+  
+  for (const date of destDates) {
+    for (const shift of destShifts) {
+      if (date === sourceDate && shift === sourceShift) continue;
+      
+      for (const src of sourceAssignments) {
+        newAssignments.push({
+          ...src,
+          id: generateId("weekly"),
+          date,
+          shift,
+        });
+      }
+    }
+  }
+
+  data.weeklySchedule.push(...newAssignments);
+  
+  await persistData(data, ["weeklySchedule"]);
+  return newAssignments;
+}

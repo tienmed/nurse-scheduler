@@ -18,6 +18,7 @@ import type {
   WorkloadSummary,
 } from "@/lib/types";
 import { ShiftEditDialog } from "./shift-edit-dialog";
+import { CopyPositionDialog } from "./copy-position-dialog";
 
 interface SlotEntry {
   assignment?: WeeklyAssignment | null;
@@ -120,6 +121,14 @@ export function ScheduleBoard({
     subslot: SlotEntry;
     rect?: DOMRect;
   } | null>(null);
+
+  const [copyingEntry, setCopyingEntry] = useState<{
+    date: string;
+    dayOfWeek: number;
+    shift: ShiftType;
+    position: Position;
+  } | null>(null);
+
   const [isPending, startTransition] = useTransition();
   const [pendingClearKey, setPendingClearKey] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -342,22 +351,47 @@ export function ScheduleBoard({
                                   {entry.slots.length} người
                                 </span>
                                 {editable && mode !== "template" && !isPastShift(slot.date, slot.shift) && (
-                                  <button
-                                    type="button"
-                                    onClick={(e) => {
-                                      setEditingSlot({
-                                        slot,
-                                        entry,
-                                        subslot: { slotIndex: entry.slots.length },
-                                        rect: e.currentTarget.getBoundingClientRect(),
-                                      });
-                                    }}
-                                    title="Thêm slot phụ"
-                                    className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-100 text-slate-600 transition hover:bg-teal-100 hover:text-teal-700"
-                                  >
-                                    <Plus className="h-4 w-4" />
-                                    <span className="sr-only">Thêm slot</span>
-                                  </button>
+                                  <>
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        const hasClosedSlot = entry.slots.some(
+                                          (s) => s.assignment?.staffId === "CLOSED"
+                                        );
+                                        if (hasClosedSlot) {
+                                          alert("Không thể sao chép vì vị trí này đang có ca bị khóa (Đóng vị trí này). Vui lòng mở khóa trước khi sao chép.");
+                                          return;
+                                        }
+                                        setCopyingEntry({
+                                          date: slot.date,
+                                          dayOfWeek: slot.dayOfWeek,
+                                          shift: slot.shift,
+                                          position: entry.position,
+                                        });
+                                      }}
+                                      title="Sao chép phân công"
+                                      className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-100 text-slate-600 transition hover:bg-indigo-100 hover:text-indigo-700"
+                                    >
+                                      <Copy className="h-3.5 w-3.5" />
+                                      <span className="sr-only">Sao chép phân công</span>
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        setEditingSlot({
+                                          slot,
+                                          entry,
+                                          subslot: { slotIndex: entry.slots.length },
+                                          rect: e.currentTarget.getBoundingClientRect(),
+                                        });
+                                      }}
+                                      title="Thêm slot phụ"
+                                      className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-100 text-slate-600 transition hover:bg-teal-100 hover:text-teal-700"
+                                    >
+                                      <Plus className="h-4 w-4" />
+                                      <span className="sr-only">Thêm slot</span>
+                                    </button>
+                                  </>
                                 )}
                               </div>
                             </div>
@@ -521,6 +555,17 @@ export function ScheduleBoard({
           weeklySchedule={weeklySchedule}
           weekStart={weekStart}
           returnTo={mode === "template" ? templateReturnTo : `/schedule?week=${weekStart}&day=${editingSlot.slot.dayOfWeek}&shift=${editingSlot.slot.shift}`}
+        />
+      )}
+      {editable && copyingEntry && (
+        <CopyPositionDialog
+          isOpen={true}
+          onClose={() => setCopyingEntry(null)}
+          weekStart={weekStart}
+          sourceDate={copyingEntry.date}
+          sourceShift={copyingEntry.shift}
+          position={copyingEntry.position}
+          returnTo={mode === "template" ? templateReturnTo : `/schedule?week=${weekStart}&day=${copyingEntry.dayOfWeek}&shift=${copyingEntry.shift}`}
         />
       )}
     </div>
