@@ -349,11 +349,7 @@ async function main() {
     html: htmlContent,
   };
 
-  // CC cô Trang nếu có nghỉ phép (khác đi học)
-  if (hasNonStudyLeave) {
-    mailOptions.cc = "trangdlt@pnt.edu.vn";
-    console.log("CC: trangdlt@pnt.edu.vn (có lịch nghỉ phép)");
-  }
+
 
   try {
     const info = await transporter.sendMail(mailOptions);
