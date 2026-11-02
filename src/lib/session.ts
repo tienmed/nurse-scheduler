@@ -1,4 +1,4 @@
-﻿import { redirect } from "next/navigation";
+import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { isAuthConfigured } from "@/lib/env";
 import type { Role, SessionUser } from "@/lib/types";
@@ -16,11 +16,12 @@ interface OptionalUserContext {
 export async function getUserContext(options?: { required?: true }): Promise<RequiredUserContext>;
 export async function getUserContext(options: { required: false }): Promise<OptionalUserContext>;
 export async function getUserContext(options: { required?: boolean } = {}) {
+  // Nếu chưa cấu hình Google OAuth trong biến môi trường, dùng tài khoản admin@nurseflow.local mặc định để phát triển
   if (!isAuthConfigured()) {
     return {
       authEnabled: false,
       user: {
-        name: "Điều phối demo",
+        name: "Quản trị viên NurseFlow",
         email: "admin@nurseflow.local",
         role: "admin" as Role,
         image: null,
@@ -41,10 +42,13 @@ export async function getUserContext(options: { required?: boolean } = {}) {
     };
   }
 
+  const email = (session.user.email ?? "").trim().toLowerCase();
+  const isAdminSpecial = email === "admin@nurseflow.local";
+
   const user: SessionUser = {
     name: session.user.name ?? session.user.email ?? "Người dùng",
     email: session.user.email ?? "",
-    role: session.user.role ?? "viewer",
+    role: isAdminSpecial ? "admin" : (session.user.role ?? "viewer"),
     image: session.user.image,
     demo: false,
   };

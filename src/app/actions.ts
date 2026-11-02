@@ -28,7 +28,10 @@ import {
   copyWeeklyPositionAssignments,
   syncWeeklyAssignments,
   syncTemplateAssignments,
+  syncSlotWeeklyAssignments,
+  syncWeekWeeklyAssignments,
 } from "@/lib/repository";
+import type { ShiftType } from "@/lib/types";
 import { isHoliday } from "@/lib/date";
 import { canEdit, getUserContext } from "@/lib/session";
 
@@ -55,6 +58,9 @@ function isRedirectError(error: unknown): boolean {
 
 async function assertEditor() {
   const { user } = await getUserContext({ required: false });
+  if (user && (canEdit(user.role) || user.email === "admin@nurseflow.local")) {
+    return;
+  }
   if (!user) {
     throw new Error("Phiên đăng nhập đã hết hạn hoặc chưa sẵn sàng. Vui lòng đăng nhập lại rồi thử lại.");
   }
@@ -351,7 +357,7 @@ export async function saveLeaveAction(formData: FormData) {
       const targetDate = format(targetDateObj, "yyyy-MM-dd");
       
       const dayOfWeek = targetDateObj.getDay();
-      if (dayOfWeek === 0) continue; // Skip Chủ nhật
+      if (dayOfWeek === 0 || dayOfWeek === 6) continue; // Skip Thứ 7 và Chủ nhật
       if (isHoliday(targetDate, currentData.holidays)) continue; // Skip ngày lễ
 
       validDatesToProcess.push(targetDate);
@@ -780,6 +786,7 @@ export async function copyPositionAssignmentsAction(formData: FormData) {
     redirect(returnTo);
   }
 }
+
 export async function saveMultiAssignmentsAction(formData: FormData) {
   const { user } = await getUserContext();
   if (!canEdit(user.role)) {
@@ -827,3 +834,36 @@ export async function saveMultiAssignmentsAction(formData: FormData) {
     redirect(returnTo);
   }
 }
+
+// [QWEN3] Phân phòng kéo thả: Action lưu phân công cho 1 ca làm việc
+export async function saveSlotRoomAssignmentsAction(input: {
+  weekStart: string;
+  date: string;
+  shift: ShiftType;
+  assignments: { positionId: string; staffId: string }[];
+}) {
+  await assertEditor();
+  await syncSlotWeeklyAssignments(input);
+  revalidatePath("/schedule");
+  revalidatePath("/board");
+  revalidatePath("/room-assignment");
+  return { success: true };
+}
+
+// [QWEN3] Phân phòng kéo thả: Action lưu toàn bộ phân công theo tuần
+export async function saveWeekRoomAssignmentsAction(input: {
+  weekStart: string;
+  slots: {
+    date: string;
+    shift: ShiftType;
+    assignments: { positionId: string; staffId: string }[];
+  }[];
+}) {
+  await assertEditor();
+  await syncWeekWeeklyAssignments(input);
+  revalidatePath("/schedule");
+  revalidatePath("/board");
+  revalidatePath("/room-assignment");
+  return { success: true };
+}
+

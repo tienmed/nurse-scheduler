@@ -102,6 +102,9 @@ const sheetSerializers: Record<AppDataKey, (data: AppData) => SheetRow[]> = {
       shift: row.shift,
       reason: row.reason,
       note: row.note ?? "",
+      status: row.status ?? "approved",
+      approveToken: row.approveToken ?? "",
+      createdAt: row.createdAt ?? "",
     })),
   positionRules: (data) =>
     data.positionRules.map((row) => ({
@@ -510,6 +513,9 @@ export async function readAppDataFromSheets(): Promise<AppData> {
       shift: row.shift as "morning" | "afternoon" | "full-day",
       reason: (row.reason as any) || "personal",
       note: row.note,
+      status: (row.status as any) || "approved",
+      approveToken: row.approveToken || "",
+      createdAt: row.createdAt || "",
     })),
     positionRules: parseSheetData(SHEET_NAMES.positionRules).map((row) => ({
       id: row.id,

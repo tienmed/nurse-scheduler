@@ -6,6 +6,7 @@ import {
   CheckCircle2,
   ClipboardList,
   FileSpreadsheet,
+  Grid3X3,
   LayoutTemplate,
   LogOut,
   MapPin,
@@ -35,10 +36,12 @@ interface AppShellProps {
 const navItems = [
   { href: "/", label: "Tổng quan", shortLabel: "Tổng quan", icon: ClipboardList },
   { href: "/schedule", label: "Lịch tuần", shortLabel: "Tuần", icon: CalendarDays },
+  { href: "/room-assignment", label: "Phân phòng", shortLabel: "Phân phòng", icon: Grid3X3 },
   { href: "/template", label: "Lịch nền", shortLabel: "Nền", icon: LayoutTemplate },
   { href: "/areas", label: "Khu vực", shortLabel: "Khu vực", icon: MapPin },
   { href: "/staff", label: "Nhân sự", shortLabel: "Nhân sự", icon: Users },
   { href: "/leave", label: "Nghỉ Phép", shortLabel: "Nghỉ", icon: CalendarOff },
+  { href: "/dang-ky-phep", label: "Cổng ĐK Phép", shortLabel: "Cổng ĐK", icon: CalendarOff },
   { href: "/reports", label: "Báo cáo", shortLabel: "Báo cáo", icon: FileSpreadsheet },
 ];
 
@@ -57,7 +60,7 @@ export async function AppShell({
 
   const editable = user ? canEdit(user.role) : false;
   const filteredNavItems = navItems.filter((item) => {
-    if (["/staff", "/areas", "/template"].includes(item.href)) {
+    if (["/staff", "/areas", "/template", "/room-assignment"].includes(item.href)) {
       return editable;
     }
     return true;

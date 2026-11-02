@@ -95,6 +95,27 @@ export default async function LeavePage({ searchParams }: LeavePageProps) {
             message={message}
             error={error}
         >
+            {/* BANNER DẪN TỚI CỔNG ĐỘC LẬP */}
+            <div className="mb-6 rounded-3xl border border-teal-200 bg-gradient-to-r from-teal-50 via-white to-slate-50 p-5 shadow-sm flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div className="space-y-1">
+                    <div className="inline-flex items-center gap-1.5 rounded-full bg-teal-100 px-2.5 py-0.5 text-[11px] font-bold text-teal-800">
+                        ✨ MỚI · CỔNG PORTAL ĐỘC LẬP
+                    </div>
+                    <h3 className="text-base font-bold text-slate-900">
+                        Cổng đăng ký nghỉ phép linh động dành cho cá nhân
+                    </h3>
+                    <p className="text-xs text-slate-600">
+                        Đăng nhập bằng email cá nhân, chọn nhiều ngày/buổi linh hoạt, kiểm tra định mức tức thời và duyệt 1 chạm qua email.
+                    </p>
+                </div>
+                <Link
+                    href="/dang-ky-phep"
+                    className="shrink-0 inline-flex items-center justify-center rounded-2xl bg-teal-600 px-5 py-3 text-xs font-bold text-white shadow-md shadow-teal-600/20 hover:bg-teal-700 transition"
+                >
+                    Mở Cổng Đăng Ký Phép →
+                </Link>
+            </div>
+
             {/* Vùng 1: Form đăng ký nghỉ phép */}
             <SurfaceSection
                 eyebrow="Đăng ký"

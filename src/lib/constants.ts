@@ -3,6 +3,7 @@ import type {
   AssignmentStatus,
   LeaveReason,
   LeaveShift,
+  LeaveStatus,
   Role,
   ScheduleRule,
   ShiftType,
@@ -36,6 +37,12 @@ export const LEAVE_REASON_LABELS: Record<LeaveReason, string> = {
   om: "Ốm",
   dihoc: "Đi học",
   khac: "Khác",
+};
+
+export const LEAVE_STATUS_LABELS: Record<LeaveStatus, string> = {
+  pending: "Chờ duyệt",
+  approved: "Đã duyệt",
+  rejected: "Từ chối",
 };
 
 export const ASSIGNMENT_STATUS_LABELS: Record<AssignmentStatus, string> = {
@@ -100,7 +107,7 @@ export const SHEET_HEADERS = {
     "status",
     "note",
   ],
-  leaveRequests: ["id", "staffId", "date", "shift", "reason", "note"],
+  leaveRequests: ["id", "staffId", "date", "shift", "reason", "note", "status", "approveToken", "createdAt"],
   positionRules: ["id", "positionId", "dayOfWeek", "shift", "active"],
   accessControl: ["id", "email", "role", "displayName"],
   leaveCancellations: ["id", "staffId", "date", "shift", "cancelledAt"],

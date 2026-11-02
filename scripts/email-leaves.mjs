@@ -109,7 +109,6 @@ async function main() {
 
   // --- LOGIC 1: LỌC NGHỈ PHÉP NGÀY MAI ---
   const tomorrowLeavesList = [];
-  let hasNonStudyLeave = false;
 
   for (let i = 1; i < leaveValues.length; i++) {
     const row = leaveValues[i];
@@ -119,10 +118,6 @@ async function main() {
       const reason = row[leaveReasonIdx] || "Không rõ";
       const note = row[leaveNoteIdx] || "";
       const name = staffMap.get(staffId) || "Nhân sự không xác định";
-
-      if (reason !== "dihoc") {
-        hasNonStudyLeave = true;
-      }
 
       let shiftLabel = "Cả ngày";
       if (shift === "morning") shiftLabel = "Sáng";
@@ -135,118 +130,15 @@ async function main() {
       if (reason === "dihoc") reasonLabel = "Đi học";
 
       const noteStr = note ? ` - Ghi chú: ${note}` : "";
-      tomorrowLeavesList.push({ name, shiftLabel, reasonLabel, noteStr, isDihoc: reason === "dihoc" });
-    }
-  }
-
-  // --- LOGIC 2: KIỂM TRA VỊ TRÍ PHÒNG TRỐNG NGÀY MAI ---
-  const positionStatus = new Map();
-  let hasScheduleTomorrow = false;
-
-  for (let i = 1; i < scheduleValues.length; i++) {
-    const row = scheduleValues[i];
-    if (row[scDateIdx] === tomorrowStr) {
-      hasScheduleTomorrow = true;
-      const staffId = row[scStaffIdIdx];
-      const shift = row[scShiftIdx];
-      const positionId = row[scPositionIdIdx];
-
-      const key = `${positionId}_${shift}`;
-      if (!positionStatus.has(key)) {
-        positionStatus.set(key, { assignedCount: 0 });
-      }
-      if (staffId && staffId.trim() !== "") {
-        positionStatus.get(key).assignedCount++;
-      }
-    }
-  }
-
-  const criticalEmpty = [];
-  for (const [key, status] of positionStatus.entries()) {
-    if (status.assignedCount === 0) {
-      const [positionId, shift] = key.split("_");
-      const posName = posMap.get(positionId) || "Vị trí không xác định";
-      let shiftLabel = shift === "morning" ? "Sáng" : (shift === "afternoon" ? "Chiều" : "Cả ngày");
-      criticalEmpty.push(`${posName} (${shiftLabel})`);
-    }
-  }
-
-  // --- LOGIC 3: NHÂN SỰ CHƯA PHÂN VỊ TRÍ NGÀY MAI (KHÔNG CÓ PHÉP) ---
-  const sActiveIdx = staffHeaders.indexOf("active");
-  const activeStaffIds = [];
-  for (let i = 1; i < staffValues.length; i++) {
-    const row = staffValues[i];
-    const id = row[sIdIdx];
-    const active = row[sActiveIdx];
-    if (id && (active === undefined || active === "true" || active === "TRUE" || active === "1")) {
-      activeStaffIds.push(id);
-    }
-  }
-
-  // Build leave set for tomorrow
-  const tomorrowLeaveSet = new Set();
-  for (let i = 1; i < leaveValues.length; i++) {
-    const row = leaveValues[i];
-    if (row[leaveDateIdx] === tomorrowStr) {
-      const staffId = row[leaveStaffIdIdx];
-      const shift = row[leaveShiftIdx] || "full-day";
-      tomorrowLeaveSet.add(`${staffId}_${shift}`);
-    }
-  }
-
-  // Build assigned set for tomorrow (theo ca)
-  const assignedByShift = new Map();
-  for (const s of ["morning", "afternoon"]) {
-    assignedByShift.set(s, new Set());
-  }
-  for (let i = 1; i < scheduleValues.length; i++) {
-    const row = scheduleValues[i];
-    if (row[scDateIdx] === tomorrowStr) {
-      const staffId = row[scStaffIdIdx];
-      const shift = row[scShiftIdx];
-      if (staffId && staffId.trim() !== "" && assignedByShift.has(shift)) {
-        assignedByShift.get(shift).add(staffId);
-      }
-    }
-  }
-
-  // Xác định ca cần kiểm tra (Chủ nhật=0 → skip, Thứ 7=6 → chỉ sáng)
-  const tomorrowDayOfWeek = tomorrow.getDay();
-  const shiftsToCheck = tomorrowDayOfWeek === 0
-    ? []
-    : tomorrowDayOfWeek === 6
-      ? ["morning"]
-      : ["morning", "afternoon"];
-
-  const unassignedStaff = [];
-  for (const shift of shiftsToCheck) {
-    const assignedSet = assignedByShift.get(shift) || new Set();
-    for (const staffId of activeStaffIds) {
-      if (assignedSet.has(staffId)) continue;
-      if (tomorrowLeaveSet.has(`${staffId}_${shift}`) || tomorrowLeaveSet.has(`${staffId}_full-day`)) continue;
-
-      const name = staffMap.get(staffId) || "Không rõ";
-      const shiftLabel = shift === "morning" ? "Sáng" : "Chiều";
-      unassignedStaff.push({ name, shiftLabel });
+      tomorrowLeavesList.push({ name, shiftLabel, reasonLabel, noteStr });
     }
   }
 
   // --- QUYẾT ĐỊNH GỬI EMAIL ---
-  // Gửi khi: (1) Có nghỉ phép khác đi học, HOẶC (2) Có phòng trống, HOẶC (3) Có nhân sự chưa phân vị trí
-  const shouldSend = hasNonStudyLeave || criticalEmpty.length > 0 || unassignedStaff.length > 0;
+  const shouldSend = tomorrowLeavesList.length > 0;
 
   if (!shouldSend) {
-    if (tomorrowLeavesList.length > 0) {
-      console.log(`Ngày mai (${displayDate}) có ${tomorrowLeavesList.length} người nghỉ nhưng tất cả đều "Đi học".`);
-    } else {
-      console.log(`Ngày mai (${displayDate}) không có nhân sự nào nghỉ phép.`);
-    }
-    if (hasScheduleTomorrow && criticalEmpty.length === 0) {
-      console.log("Tất cả phòng mở đều đã bố trí ít nhất 1 nhân sự.");
-    }
-    if (unassignedStaff.length === 0) {
-      console.log("Tất cả nhân sự đều đã được phân vị trí hoặc có phép.");
-    }
+    console.log(`Ngày mai (${displayDate}) không có nhân sự nào nghỉ phép.`);
     console.log("Theo cấu hình, hệ thống sẽ KHÔNG gửi email.");
     return;
   }
@@ -256,77 +148,28 @@ async function main() {
   // --- TẠO NỘI DUNG EMAIL ---
   let htmlSections = [];
 
-  // Phần 0 (MỚI): Nhân sự chưa phân vị trí
-  if (unassignedStaff.length > 0) {
-    const grouped = {};
-    for (const u of unassignedStaff) {
-      if (!grouped[u.shiftLabel]) grouped[u.shiftLabel] = [];
-      grouped[u.shiftLabel].push(u.name);
-    }
-    const unassignedRows = Object.entries(grouped)
-      .map(([shift, names]) =>
-        `<tr>
-          <td style="padding:6px 12px;border:1px solid #e5e7eb;font-weight:600;color:#b45309;">${shift}</td>
-          <td style="padding:6px 12px;border:1px solid #e5e7eb;">${names.join(", ")}</td>
-        </tr>`)
-      .join("");
+  // Danh sách nghỉ phép (Bao gồm tất cả lý do kể cả Đi học)
+  const leaveRows = tomorrowLeavesList
+    .map(l => `<tr><td style="padding:6px 12px;border:1px solid #e5e7eb;">${l.name}</td><td style="padding:6px 12px;border:1px solid #e5e7eb;">${l.shiftLabel}</td><td style="padding:6px 12px;border:1px solid #e5e7eb;">${l.reasonLabel}</td><td style="padding:6px 12px;border:1px solid #e5e7eb;">${l.noteStr}</td></tr>`)
+    .join("");
 
-    htmlSections.push(`
-      <h3 style="color:#b45309;">🟡 Nhân sự chưa phân vị trí (${unassignedStaff.length} lượt)</h3>
-      <p>Các nhân sự sau <b>không có lịch nghỉ phép</b> nhưng <b>chưa được gán vào vị trí</b> nào:</p>
-      <table style="border-collapse:collapse;width:100%;font-size:14px;">
-        <thead><tr style="background:#fffbeb;">
-          <th style="padding:8px 12px;border:1px solid #e5e7eb;text-align:left;">Ca</th>
-          <th style="padding:8px 12px;border:1px solid #e5e7eb;text-align:left;">Nhân sự</th>
-        </tr></thead>
-        <tbody>${unassignedRows}</tbody>
-      </table>
-    `);
-  }
-
-  // Phần 1: Danh sách nghỉ phép (chỉ hiện nếu có người nghỉ không phải đi học)
-  if (hasNonStudyLeave) {
-    const leaveRows = tomorrowLeavesList
-      .filter(l => !l.isDihoc)
-      .map(l => `<tr><td style="padding:6px 12px;border:1px solid #e5e7eb;">${l.name}</td><td style="padding:6px 12px;border:1px solid #e5e7eb;">${l.shiftLabel}</td><td style="padding:6px 12px;border:1px solid #e5e7eb;">${l.reasonLabel}</td><td style="padding:6px 12px;border:1px solid #e5e7eb;">${l.noteStr}</td></tr>`)
-      .join("");
-
-    htmlSections.push(`
-      <h3 style="color:#0f766e;">📋 Danh sách nghỉ phép</h3>
-      <table style="border-collapse:collapse;width:100%;font-size:14px;">
-        <thead><tr style="background:#f0fdf4;">
-          <th style="padding:8px 12px;border:1px solid #e5e7eb;text-align:left;">Nhân sự</th>
-          <th style="padding:8px 12px;border:1px solid #e5e7eb;text-align:left;">Ca</th>
-          <th style="padding:8px 12px;border:1px solid #e5e7eb;text-align:left;">Lý do</th>
-          <th style="padding:8px 12px;border:1px solid #e5e7eb;text-align:left;">Ghi chú</th>
-        </tr></thead>
-        <tbody>${leaveRows}</tbody>
-      </table>
-    `);
-  }
-
-  // Phần 2: Vị trí phòng trống
-  if (criticalEmpty.length > 0) {
-    const emptyRows = criticalEmpty
-      .map(p => `<tr><td style="padding:6px 12px;border:1px solid #e5e7eb;color:#dc2626;font-weight:bold;">${p}</td></tr>`)
-      .join("");
-
-    htmlSections.push(`
-      <h3 style="color:#dc2626;">🔴 Vị trí phòng chưa có nhân sự</h3>
-      <p>Các vị trí sau đang mở nhưng <b>chưa có ai</b> được bố trí trực:</p>
-      <table style="border-collapse:collapse;width:100%;font-size:14px;">
-        <thead><tr style="background:#fef2f2;">
-          <th style="padding:8px 12px;border:1px solid #e5e7eb;text-align:left;">Vị trí - Ca trực</th>
-        </tr></thead>
-        <tbody>${emptyRows}</tbody>
-      </table>
-    `);
-  }
+  htmlSections.push(`
+    <h3 style="color:#0f766e;">📋 Danh sách nghỉ phép (${tomorrowLeavesList.length} lượt)</h3>
+    <table style="border-collapse:collapse;width:100%;font-size:14px;">
+      <thead><tr style="background:#f0fdf4;">
+        <th style="padding:8px 12px;border:1px solid #e5e7eb;text-align:left;">Nhân sự</th>
+        <th style="padding:8px 12px;border:1px solid #e5e7eb;text-align:left;">Ca</th>
+        <th style="padding:8px 12px;border:1px solid #e5e7eb;text-align:left;">Lý do</th>
+        <th style="padding:8px 12px;border:1px solid #e5e7eb;text-align:left;">Ghi chú</th>
+      </tr></thead>
+      <tbody>${leaveRows}</tbody>
+    </table>
+  `);
 
   const htmlContent = `
     <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px;">
       <h2 style="color: #0f766e; border-bottom: 2px solid #0f766e; padding-bottom: 8px;">
-        Thông báo vận hành ngày mai (${displayDate})
+        Thông báo nghỉ phép ngày mai (${displayDate})
       </h2>
       ${htmlSections.join("<hr style='border:none;border-top:1px solid #e5e7eb;margin:20px 0;'/>")}
       <br/>
@@ -344,8 +187,8 @@ async function main() {
 
   const mailOptions = {
     from: `"Nusres System" <${smtpUser}>`,
-    to: "tienmed@gmail.com, nghiadn.pk@pnt.edu.vn",
-    subject: `[Nusres] Báo cáo vận hành ngày mai (${displayDate})${unassignedStaff.length > 0 ? ` — ⚠️ ${unassignedStaff.length} chưa phân công` : ""}`,
+    bcc: "tienmed@gmail.com, nghiadn.pk@pnt.edu.vn, thientrang250392pnt@gmail.com",
+    subject: `[Nusres] Danh sách nghỉ phép ngày mai (${displayDate})`,
     html: htmlContent,
   };
 

@@ -6,6 +6,8 @@ export type LeaveShift = ShiftType | "full-day";
 
 export type LeaveReason = "phep" | "om" | "dihoc" | "khac";
 
+export type LeaveStatus = "pending" | "approved" | "rejected";
+
 export type AssignmentSource = "template" | "manual";
 
 export type AssignmentStatus =
@@ -81,6 +83,9 @@ export interface LeaveRecord {
   shift: LeaveShift;
   reason: LeaveReason;
   note?: string;
+  status?: LeaveStatus;
+  approveToken?: string;
+  createdAt?: string;
 }
 
 export interface Holiday {

@@ -130,8 +130,12 @@ async function persistData(data: AppData, keys: (keyof AppData)[]) {
 export { writeAppDataKeysToSheets, invalidateAppDataCache };
 
 export function getEffectiveLeaveRequests(data: AppData): LeaveRecord[] {
+  const approvedLeaves = data.leaveRequests.filter(
+    (l) => l.status === "approved" || !l.status
+  );
+
   if (data.leaveCancellations.length === 0) {
-    return data.leaveRequests;
+    return approvedLeaves;
   }
 
   const fullDayCancelSet = new Set(
@@ -144,7 +148,7 @@ export function getEffectiveLeaveRequests(data: AppData): LeaveRecord[] {
   );
 
   const effective: LeaveRecord[] = [];
-  data.leaveRequests.forEach((leave) => {
+  approvedLeaves.forEach((leave) => {
     const dayKey = `${leave.staffId}-${leave.date}`;
     if (fullDayCancelSet.has(dayKey)) return;
 
@@ -528,6 +532,81 @@ export async function upsertLeaveRequest(
   return entry;
 }
 
+export async function upsertManyLeaveRequests(
+  inputs: Array<Omit<LeaveRecord, "id"> & { id?: string }>,
+) {
+  if (inputs.length === 0) return [];
+  const data = await getAppData();
+  const entries: LeaveRecord[] = [];
+
+  for (const input of inputs) {
+    const existing = data.leaveRequests.find(
+      (item) =>
+        item.staffId === input.staffId &&
+        item.date === input.date &&
+        item.shift === input.shift,
+    );
+
+    const entry: LeaveRecord = {
+      ...input,
+      id: input.id || existing?.id || generateId("leave"),
+    };
+
+    data.leaveRequests = data.leaveRequests.filter((item) => item.id !== entry.id);
+    data.leaveRequests.push(entry);
+    entries.push(entry);
+  }
+
+  await persistData(data, ["leaveRequests"]);
+  return entries;
+}
+
+/**
+ * [QWEN3] Thống kê số ngày nghỉ phép trong năm của một nhân sự
+ * Quy tắc:
+ * - Chỉ tính lý do nghỉ phép ("phep")
+ * - Không tính ốm ("om"), đi học ("dihoc"), khác ("khac")
+ * - Chỉ tính các đơn đã được duyệt ("approved" hoặc không có status)
+ * - 1 ca sáng/chiều = 0.5 ngày (1 buổi); cả ngày = 1.0 ngày (2 buổi)
+ * - 2 buổi = 1 ngày
+ */
+export function calculateYearlyApprovedLeaveStats(
+  staffId: string,
+  leaveRequests: LeaveRecord[],
+  year = new Date().getFullYear(),
+) {
+  const yearPrefix = `${year}-`;
+  const approvedLeaves = leaveRequests.filter((l) => {
+    if (l.staffId !== staffId) return false;
+    if (l.status && l.status !== "approved") return false;
+    if (l.reason !== "phep") return false;
+    try {
+      const d = parseISO(l.date).getDay();
+      if (d === 0 || d === 6) return false; // Không tính Thứ 7 và Chủ nhật
+    } catch {}
+    return l.date.startsWith(yearPrefix);
+  });
+
+  let totalSessions = 0; // Buổi
+  for (const l of approvedLeaves) {
+    if (l.shift === "full-day") {
+      totalSessions += 2;
+    } else {
+      totalSessions += 1;
+    }
+  }
+
+  const totalDays = totalSessions / 2;
+
+  return {
+    year,
+    totalSessions,
+    totalDays,
+    leavesCount: approvedLeaves.length,
+    approvedLeaves,
+  };
+}
+
 export async function upsertPositionRule(input: Omit<PositionRule, "id"> & { id?: string }) {
   const data = await getAppData();
   const existing = data.positionRules.find(
@@ -859,4 +938,133 @@ export async function syncTemplateAssignments({
 
   data.templateSchedule.push(...newAssignments);
   await persistData(data, ["templateSchedule"]);
+}
+
+
+// [QWEN3] Phân phòng kéo thả: Cập nhật đồng bộ phân công phòng cho 1 ca (date & shift)
+export async function syncSlotWeeklyAssignments({
+  date,
+  shift,
+  weekStart,
+  assignments,
+}: {
+  date: string;
+  shift: "morning" | "afternoon";
+  weekStart: string;
+  assignments: { positionId: string; staffId: string }[];
+}) {
+  const data = await getAppData();
+
+  // Đảm bảo tuần đã được sinh nếu là lần đầu tiên
+  const weekAssignments = data.weeklySchedule.filter((item) => item.weekStart === weekStart);
+  if (weekAssignments.length === 0) {
+    const effectiveLeaves = getEffectiveLeaveRequests(data);
+    const generated = buildAssignmentsFromTemplate(
+      data.templateSchedule,
+      data.positions,
+      weekStart,
+      effectiveLeaves,
+      data.scheduleRules,
+      data.positionRules,
+      data.holidays,
+    ).map((item) => ({
+      ...item,
+      id: generateId("weekly"),
+    }));
+    data.weeklySchedule.push(...generated);
+  }
+
+  // Lọc xóa các assignment cũ của ca này
+  data.weeklySchedule = data.weeklySchedule.filter(
+    (item) => !(item.date === date && item.shift === shift),
+  );
+
+  // Tạo mới các assignment cho ca này
+  const positionSlotCounts = new Map<string, number>();
+  const newAssignments: WeeklyAssignment[] = assignments.map(({ positionId, staffId }) => {
+    const currentIndex = positionSlotCounts.get(positionId) ?? 0;
+    positionSlotCounts.set(positionId, currentIndex + 1);
+
+    return {
+      id: generateId("weekly"),
+      weekStart,
+      date,
+      shift,
+      positionId,
+      staffId,
+      slotIndex: currentIndex,
+      source: "manual",
+      status: "published",
+      note: "",
+    };
+  });
+
+  data.weeklySchedule.push(...newAssignments);
+  await persistData(data, ["weeklySchedule"]);
+  return newAssignments;
+}
+
+// [QWEN3] Phân phòng kéo thả: Cập nhật đồng bộ phân công phòng cho toàn bộ tuần
+export async function syncWeekWeeklyAssignments({
+  weekStart,
+  slots,
+}: {
+  weekStart: string;
+  slots: {
+    date: string;
+    shift: "morning" | "afternoon";
+    assignments: { positionId: string; staffId: string }[];
+  }[];
+}) {
+  const data = await getAppData();
+
+  // Đảm bảo tuần đã được sinh nếu là lần đầu tiên
+  const weekAssignments = data.weeklySchedule.filter((item) => item.weekStart === weekStart);
+  if (weekAssignments.length === 0) {
+    const effectiveLeaves = getEffectiveLeaveRequests(data);
+    const generated = buildAssignmentsFromTemplate(
+      data.templateSchedule,
+      data.positions,
+      weekStart,
+      effectiveLeaves,
+      data.scheduleRules,
+      data.positionRules,
+      data.holidays,
+    ).map((item) => ({
+      ...item,
+      id: generateId("weekly"),
+    }));
+    data.weeklySchedule.push(...generated);
+  }
+
+  const targetSlots = new Set(slots.map((s) => `${s.date}_${s.shift}`));
+
+  // Xóa các assignment cũ thuộc các slot được cập nhật
+  data.weeklySchedule = data.weeklySchedule.filter(
+    (item) => item.weekStart !== weekStart || !targetSlots.has(`${item.date}_${item.shift}`),
+  );
+
+  // Thêm các assignment mới
+  for (const slot of slots) {
+    const positionSlotCounts = new Map<string, number>();
+    for (const { positionId, staffId } of slot.assignments) {
+      const currentIndex = positionSlotCounts.get(positionId) ?? 0;
+      positionSlotCounts.set(positionId, currentIndex + 1);
+
+      data.weeklySchedule.push({
+        id: generateId("weekly"),
+        weekStart,
+        date: slot.date,
+        shift: slot.shift,
+        positionId,
+        staffId,
+        slotIndex: currentIndex,
+        source: "manual",
+        status: "published",
+        note: "",
+      });
+    }
+  }
+
+  await persistData(data, ["weeklySchedule"]);
 }

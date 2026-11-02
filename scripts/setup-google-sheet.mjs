@@ -30,7 +30,7 @@ const sheetDefinitions = [
   },
   {
     title: "leave_requests",
-    headers: ["id", "staffId", "date", "shift", "reason", "note"],
+    headers: ["id", "staffId", "date", "shift", "reason", "note", "status", "approveToken", "createdAt"],
   },
   {
     title: "access_control",
