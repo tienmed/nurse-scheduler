@@ -361,7 +361,6 @@ export function FlexibleLeaveForm({
                   <option value="phep">Nghỉ phép</option>
                   {isAdmin && <option value="om">Nghỉ ốm (Admin)</option>}
                   {isAdmin && <option value="dihoc">Đi học (Admin)</option>}
-                  <option value="khac">Việc riêng / Khác</option>
                 </select>
               </label>
             </div>
@@ -463,7 +462,7 @@ export function FlexibleLeaveForm({
                       </select>
                     </div>
 
-                    {/* Lý do */}
+                    {/* Lý do (Đã loại bỏ Việc riêng/Khác) */}
                     <div className="space-y-1">
                       <label className="text-[11px] font-semibold text-slate-600 block">
                         Lý do nghỉ
@@ -476,7 +475,6 @@ export function FlexibleLeaveForm({
                         <option value="phep">Nghỉ phép</option>
                         {isAdmin && <option value="om">Nghỉ ốm (Admin)</option>}
                         {isAdmin && <option value="dihoc">Đi học (Admin)</option>}
-                        <option value="khac">Việc riêng / Khác</option>
                       </select>
                     </div>
 

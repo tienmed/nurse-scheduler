@@ -29,12 +29,24 @@ function getSmtpTransporter() {
   });
 }
 
+/**
+ * [QWEN3] Tự động xác định Base URL của hệ thống:
+ * - Ưu tiên AUTH_URL / NEXTAUTH_URL
+ * - Tự động nhận diện domain Vercel Production nếu chạy trên cloud Vercel
+ * - Mặc định localhost:3000 cho môi trường dev
+ */
 function getBaseUrl(): string {
   if (process.env.AUTH_URL) {
     return process.env.AUTH_URL.replace(/\/$/, "");
   }
   if (process.env.NEXTAUTH_URL) {
     return process.env.NEXTAUTH_URL.replace(/\/$/, "");
+  }
+  if (process.env.VERCEL_PROJECT_PRODUCTION_URL) {
+    return `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL.replace(/\/$/, "")}`;
+  }
+  if (process.env.VERCEL_URL) {
+    return `https://${process.env.VERCEL_URL.replace(/\/$/, "")}`;
   }
   return "http://localhost:3000";
 }

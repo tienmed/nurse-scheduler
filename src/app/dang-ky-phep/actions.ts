@@ -25,6 +25,7 @@ function isRedirectError(error: unknown): boolean {
  * [QWEN3] Server Action xử lý đăng ký nghỉ phép linh động từ Cổng Portal
  * - Bắt buộc đúng email trong hệ thống
  * - Kiểm tra định mức từng ca
+ * - Ràng buộc phân quyền loại nghỉ: Nhân sự thường chỉ được đăng ký Nghỉ phép (phep), loại bỏ Việc riêng/Khác
  * - Ghi nhận tạm (status: pending)
  * - Gửi email thông báo kèm nút Duyệt 1 chạm tới tienmed@gmail.com
  */
@@ -81,12 +82,21 @@ export async function submitLeavePortalAction(formData: FormData) {
       throw new Error("Mỗi phiếu chỉ được đăng ký tối đa 30 ca nghỉ.");
     }
 
-    const isEditorOrAdmin = user.role === "admin" || user.role === "coordinator" || user.email.toLowerCase() === "admin@nurseflow.local";
+    const isEditorOrAdmin =
+      user.role === "admin" ||
+      user.role === "coordinator" ||
+      user.email.toLowerCase() === "admin@nurseflow.local";
 
-    // Kiểm tra phân quyền loại nghỉ: Chỉ Admin/Điều phối mới được đăng ký Đi học hoặc Nghỉ ốm
+    // [QWEN3] Phân quyền loại nghỉ:
+    // - Điều dưỡng chỉ được đăng ký loại "phep" (Nghỉ phép).
+    // - Đi học (dihoc) và Nghỉ ốm (om) chỉ dành cho Quản trị viên ghi nhận.
+    // - Loại "khac" (Việc riêng / Khác) đã bị loại bỏ hoàn toàn.
     for (const slot of slots) {
-      if ((slot.reason === "om" || slot.reason === "dihoc") && !isEditorOrAdmin) {
-        throw new Error("Nhân sự không thể tự đăng ký trường hợp Đi học hoặc Nghỉ ốm. Các trường hợp này do Quản trị viên trực tiếp ghi nhận.");
+      if (!isEditorOrAdmin && slot.reason !== "phep") {
+        throw new Error("Điều dưỡng chỉ được đăng ký loại Nghỉ phép. Các trường hợp Đi học hoặc Nghỉ ốm do Quản trị viên trực tiếp ghi nhận.");
+      }
+      if (slot.reason === "khac") {
+        throw new Error("Lý do 'Việc riêng / Khác' không còn được áp dụng. Vui lòng chọn 'Nghỉ phép'.");
       }
     }
 
@@ -176,7 +186,7 @@ export async function submitLeavePortalAction(formData: FormData) {
     const upcoming7DaysLeaves = getUpcoming7DaysApprovedLeaves(data.leaveRequests, data.staff);
 
     // Gửi email duyệt tới tienmed@gmail.com
-    await sendLeaveApprovalRequestEmail({
+    const emailResult = await sendLeaveApprovalRequestEmail({
       staff: currentStaff,
       leaveItems: slots.map((s) => ({
         date: s.date,
@@ -192,9 +202,15 @@ export async function submitLeavePortalAction(formData: FormData) {
       upcoming7DaysLeaves,
     });
 
-    const msg = isUrgent || hasQuotaExceeded
-      ? "Đã gửi phiếu xin nghỉ cấp thiết. Đơn đã được chuyển tạm thời và gửi email tới quản lý để xem xét duyệt."
-      : "Đã gửi phiếu xin nghỉ phép thành công. Đang chờ quản lý (tienmed@gmail.com) phê duyệt.";
+    let emailStatusNote = "";
+    if (!emailResult.success) {
+      console.warn("⚠️ [EmailService] Không thể gửi email duyệt:", emailResult.error);
+      emailStatusNote = ` (Lưu ý: Chưa gửi được email duyệt do: ${emailResult.error || "Lỗi cấu hình SMTP"})`;
+    }
+
+    const msg = (isUrgent || hasQuotaExceeded
+      ? "Đã gửi phiếu xin nghỉ cấp thiết. Đơn đã được chuyển tạm thời và đang chờ quản lý xem xét duyệt."
+      : "Đã gửi phiếu xin nghỉ phép thành công. Đang chờ quản lý (tienmed@gmail.com) phê duyệt.") + emailStatusNote;
 
     redirect(`/dang-ky-phep?tab=calendar&message=${encodeURIComponent(msg)}`);
   } catch (error: any) {
