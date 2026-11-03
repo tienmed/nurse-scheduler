@@ -16,6 +16,7 @@ import {
   HeartCrack,
   Palmtree,
   FileQuestion,
+  AlertTriangle,
 } from "lucide-react";
 import type { LeaveReason, LeaveRecord, LeaveShift, StaffMember } from "@/lib/types";
 
@@ -100,6 +101,39 @@ const REASON_CONFIG: Record<
   },
 };
 
+/**
+ * Kiểm tra xem ngày có bị quá tải định mức nghỉ hay không (> 2 người nghỉ/ca).
+ * Ca đi học (dihoc) không tính vào định mức ca làm việc.
+ */
+function checkDayOverload(leaves: LeaveRecord[]) {
+  const activeLeaves = leaves.filter((l) => l.reason !== "dihoc");
+  let morningCount = 0;
+  let afternoonCount = 0;
+
+  for (const l of activeLeaves) {
+    if (l.shift === "full-day") {
+      morningCount++;
+      afternoonCount++;
+    } else if (l.shift === "morning") {
+      morningCount++;
+    } else if (l.shift === "afternoon") {
+      afternoonCount++;
+    }
+  }
+
+  const isMorningOverloaded = morningCount > 2;
+  const isAfternoonOverloaded = afternoonCount > 2;
+  const isOverloaded = isMorningOverloaded || isAfternoonOverloaded;
+
+  return {
+    isOverloaded,
+    isMorningOverloaded,
+    isAfternoonOverloaded,
+    morningCount,
+    afternoonCount,
+  };
+}
+
 export function PortalLeaveCalendar({
   currentStaff,
   allStaff,
@@ -143,7 +177,7 @@ export function PortalLeaveCalendar({
         <p className="text-[11px] sm:text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">
           Bảng chú thích phân biệt màu sắc & Ký hiệu ca
         </p>
-        <div className="grid gap-3 sm:gap-4 sm:grid-cols-2">
+        <div className="grid gap-3 sm:gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {/* Phân loại nghỉ */}
           <div className="space-y-1.5 sm:space-y-2">
             <span className="text-[11px] sm:text-xs font-semibold text-slate-700 block">
@@ -183,6 +217,19 @@ export function PortalLeaveCalendar({
               </span>
               <span className="inline-flex items-center gap-1 rounded-lg bg-purple-700 px-2 sm:px-2.5 py-1 text-xs font-black text-white shadow-sm">
                 CN <span className="font-medium text-[10px] sm:text-[11px] opacity-90">(Cả Ngày)</span>
+              </span>
+            </div>
+          </div>
+
+          {/* Cảnh báo quá tải */}
+          <div className="space-y-1.5 sm:space-y-2 sm:col-span-2 lg:col-span-1">
+            <span className="text-[11px] sm:text-xs font-semibold text-slate-700 block">
+              Cảnh báo định mức:
+            </span>
+            <div className="flex flex-wrap gap-1.5 sm:gap-2">
+              <span className="inline-flex items-center gap-1.5 rounded-lg bg-rose-50 px-2 sm:px-2.5 py-1 text-[11px] sm:text-xs font-bold text-rose-700 border-2 border-rose-400 shadow-xs">
+                <AlertTriangle className="h-3.5 w-3.5 text-rose-600 shrink-0" />
+                Thẻ viền đỏ: Quá tải (&gt; 2 người nghỉ/ca)
               </span>
             </div>
           </div>
@@ -282,7 +329,7 @@ export function PortalLeaveCalendar({
             </div>
             <p className="text-[11px] sm:text-xs text-slate-500 mt-1 flex items-center gap-1.5">
               <ShieldCheck className="h-4 w-4 text-teal-600 shrink-0" />
-              Hiển thị rõ <strong>loại nghỉ</strong> và <strong>ca trực</strong> (S/C/CN). Ẩn lý do chi tiết cá nhân.
+              Hiển thị rõ <strong>loại nghỉ</strong> và <strong>ca trực</strong> (S/C/CN). Thẻ có viền đỏ cảnh báo ca quá tải (&gt; 2 người).
             </p>
           </div>
 
@@ -325,12 +372,15 @@ export function PortalLeaveCalendar({
               const isDayToday = isSameDay(dateObj, today);
               const dayLabel = format(dateObj, "EEEE", { locale: vi });
               const dateLabel = format(dateObj, "dd/MM/yyyy");
+              const overloadInfo = checkDayOverload(leaves);
 
               return (
                 <div
                   key={dateStr}
                   className={`rounded-2xl sm:rounded-3xl border-2 p-3.5 sm:p-4 lg:p-5 shadow-sm transition-all hover:shadow-md ${
-                    isDayToday
+                    overloadInfo.isOverloaded
+                      ? "border-rose-500 bg-gradient-to-b from-rose-50/70 via-white to-white ring-2 ring-rose-500/20"
+                      : isDayToday
                       ? "border-teal-400 bg-gradient-to-b from-teal-50/70 to-white ring-2 ring-teal-500/20"
                       : "border-slate-200/80 bg-white"
                   }`}
@@ -340,7 +390,11 @@ export function PortalLeaveCalendar({
                     <div className="flex items-center gap-2.5 sm:gap-3">
                       <div
                         className={`flex h-10 w-10 sm:h-11 sm:w-11 shrink-0 items-center justify-center rounded-xl sm:rounded-2xl text-sm sm:text-base font-black shadow-sm ${
-                          isDayToday ? "bg-teal-600 text-white" : "bg-slate-900 text-white"
+                          overloadInfo.isOverloaded
+                            ? "bg-rose-600 text-white"
+                            : isDayToday
+                            ? "bg-teal-600 text-white"
+                            : "bg-slate-900 text-white"
                         }`}
                       >
                         {dateStr.slice(8, 10)}
@@ -350,16 +404,40 @@ export function PortalLeaveCalendar({
                         <p className="text-[10px] sm:text-[11px] font-semibold text-slate-500">{dateLabel}</p>
                       </div>
                     </div>
-                    {isDayToday ? (
-                      <span className="rounded-full bg-teal-100 px-2 py-0.5 text-[10px] font-bold text-teal-800">
-                        Hôm nay
-                      </span>
-                    ) : (
-                      <span className="text-[10px] sm:text-[11px] font-bold text-slate-400">
-                        {leaves.length} người
-                      </span>
-                    )}
+
+                    <div className="flex flex-col items-end gap-1">
+                      {overloadInfo.isOverloaded && (
+                        <span className="rounded-full bg-rose-100 text-rose-800 border border-rose-300 px-2 py-0.5 text-[10px] font-bold flex items-center gap-1 shadow-xs animate-pulse">
+                          <AlertTriangle className="h-3 w-3 text-rose-600 shrink-0" />
+                          Quá tải (&gt;2/ca)
+                        </span>
+                      )}
+                      <div className="flex items-center gap-1.5">
+                        {isDayToday && (
+                          <span className="rounded-full bg-teal-100 px-2 py-0.5 text-[10px] font-bold text-teal-800">
+                            Hôm nay
+                          </span>
+                        )}
+                        <span className="text-[10px] sm:text-[11px] font-bold text-slate-400">
+                          {leaves.length} người
+                        </span>
+                      </div>
+                    </div>
                   </div>
+
+                  {/* Chi tiết ca quá tải nếu có */}
+                  {overloadInfo.isOverloaded && (
+                    <div className="mb-2.5 rounded-xl bg-rose-50 border border-rose-200/90 px-2.5 py-1.5 text-[11px] text-rose-800 flex flex-col gap-0.5">
+                      <div className="flex items-center justify-between font-bold">
+                        <span>Cảnh báo quá tải ca:</span>
+                        <span className="text-rose-700">
+                          {overloadInfo.morningCount > 2 && `Sáng (${overloadInfo.morningCount}) `}
+                          {overloadInfo.morningCount > 2 && overloadInfo.afternoonCount > 2 && "• "}
+                          {overloadInfo.afternoonCount > 2 && `Chiều (${overloadInfo.afternoonCount})`}
+                        </span>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Danh sách các nhân sự nghỉ trong ngày */}
                   <div className="space-y-2 sm:space-y-2.5">
