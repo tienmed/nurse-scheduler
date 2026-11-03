@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { format, parseISO, isBefore, startOfToday, eachDayOfInterval } from "date-fns";
 import { vi } from "date-fns/locale";
-import { Calendar, Plus, Trash2, AlertTriangle, CheckCircle2, Clock, Send, Sparkles } from "lucide-react";
+import { Calendar, Plus, Trash2, AlertTriangle, CheckCircle2, Clock, Send, Sparkles, UserCog } from "lucide-react";
 import { LEAVE_SHIFT_LABELS } from "@/lib/constants";
 import type { LeaveReason, LeaveRecord, LeaveShift, StaffMember } from "@/lib/types";
 import { submitLeavePortalAction } from "@/app/dang-ky-phep/actions";
@@ -18,6 +18,7 @@ interface SlotItem {
 
 interface FlexibleLeaveFormProps {
   currentStaff: StaffMember;
+  allStaff?: StaffMember[];
   existingLeaves: LeaveRecord[];
   yearlyStats: {
     totalDays: number;
@@ -27,12 +28,51 @@ interface FlexibleLeaveFormProps {
   isAdmin?: boolean;
 }
 
+// [QWEN3] Helper tính toán quỹ phép năm của nhân sự bất kỳ
+function calculateStaffYearlyStats(staffId: string, leaves: LeaveRecord[], year: number) {
+  const yearPrefix = `${year}-`;
+  const approvedLeaves = leaves.filter((l) => {
+    if (l.staffId !== staffId) return false;
+    if (l.status && l.status !== "approved") return false;
+    if (l.reason !== "phep") return false;
+    try {
+      const d = parseISO(l.date).getDay();
+      if (d === 0 || d === 6) return false; // Không tính Thứ 7 và Chủ nhật
+    } catch {
+      return false;
+    }
+    return l.date.startsWith(yearPrefix);
+  });
+
+  let totalSessions = 0;
+  for (const l of approvedLeaves) {
+    totalSessions += l.shift === "full-day" ? 2 : 1;
+  }
+
+  return {
+    year,
+    totalSessions,
+    totalDays: totalSessions / 2,
+    leavesCount: approvedLeaves.length,
+  };
+}
+
 export function FlexibleLeaveForm({
   currentStaff,
+  allStaff = [],
   existingLeaves,
   yearlyStats,
   isAdmin = false,
 }: FlexibleLeaveFormProps) {
+  // [QWEN3] Quản trị viên có thể chọn đăng ký hộ cho nhân sự khác
+  const [selectedStaffId, setSelectedStaffId] = useState<string>(currentStaff.id);
+  const activeTargetStaff = allStaff.find((s) => s.id === selectedStaffId) || currentStaff;
+  const isRegisteringForOther = isAdmin && activeTargetStaff.id !== currentStaff.id;
+
+  const activeYearlyStats = isRegisteringForOther
+    ? calculateStaffYearlyStats(activeTargetStaff.id, existingLeaves, yearlyStats.year)
+    : yearlyStats;
+
   const [mode, setMode] = useState<"individual" | "range">("individual");
   const [slots, setSlots] = useState<SlotItem[]>([
     {
@@ -57,12 +97,12 @@ export function FlexibleLeaveForm({
   const [isPending, startTransition] = useTransition();
   const [clientError, setClientError] = useState<string | null>(null);
 
-  // Helper tính số lượng người đã nghỉ cho 1 ca cụ thể
+  // Helper tính số lượng người đã nghỉ cho 1 ca cụ thể (loại trừ chính nhân sự mục tiêu)
   function checkSlotQuota(date: string, shift: LeaveShift) {
     if (!date) return { count: 0, exceeded: false };
 
     const sameDayLeaves = existingLeaves.filter(
-      (l) => l.date === date && l.reason !== "dihoc" && l.staffId !== currentStaff.id && l.status !== "rejected",
+      (l) => l.date === date && l.reason !== "dihoc" && l.staffId !== activeTargetStaff.id && l.status !== "rejected",
     );
 
     let morningCount = 0;
@@ -106,7 +146,7 @@ export function FlexibleLeaveForm({
       ...prev,
       {
         id: `slot-${Date.now()}-${Math.random()}`,
-        date: "", // Chưa chọn ngày
+        date: "",
         shift: "full-day",
         reason: "phep",
         note: "",
@@ -166,7 +206,7 @@ export function FlexibleLeaveForm({
       }
 
       setSlots(newSlots);
-      setMode("individual"); // Chuyển sang hiển thị danh sách để người dùng tùy chỉnh tiếp nếu muốn
+      setMode("individual");
     } catch {
       setClientError("Định dạng ngày không hợp lệ.");
     }
@@ -219,7 +259,8 @@ export function FlexibleLeaveForm({
       return;
     }
 
-    if (hasExceededQuota && (!isUrgent || !urgentNote.trim())) {
+    // Nếu không phải đăng ký hộ hoặc vượt định mức quá cao
+    if (hasExceededQuota && (!isUrgent || !urgentNote.trim()) && !isRegisteringForOther) {
       setClientError("Phiếu có ca vượt định mức (≥ 2 người). Vui lòng đánh dấu 'Nghỉ cấp thiết' và nhập nội dung giải trình để gửi quản lý duyệt.");
       return;
     }
@@ -228,6 +269,7 @@ export function FlexibleLeaveForm({
     formData.append("slotsJson", JSON.stringify(slots));
     formData.append("isUrgent", isUrgent ? "true" : "false");
     formData.append("urgentNote", urgentNote.trim());
+    formData.append("targetStaffId", activeTargetStaff.id);
 
     startTransition(async () => {
       await submitLeavePortalAction(formData);
@@ -236,35 +278,95 @@ export function FlexibleLeaveForm({
 
   return (
     <div className="space-y-4 sm:space-y-6">
+      {/* KHỐI 0: CHẾ ĐỘ ĐĂNG KÝ HỘ DÀNH CHO QUẢN TRỊ VIÊN (CHỈ ADMIN THẤY) */}
+      {isAdmin && allStaff && allStaff.length > 0 && (
+        <div className="overflow-hidden rounded-2xl sm:rounded-3xl border-2 border-indigo-200 bg-gradient-to-r from-indigo-50/90 via-white to-indigo-50/50 p-4 sm:p-5 shadow-sm">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-600 text-white font-bold text-xs shadow-sm">
+                  <UserCog className="h-4 w-4" />
+                </span>
+                <span className="text-xs font-black uppercase tracking-wider text-indigo-950">
+                  Chế độ Quản trị viên: Đăng ký nghỉ phép hộ
+                </span>
+              </div>
+              <p className="text-xs text-indigo-800">
+                Chọn nhân sự cần đăng ký hộ. Đơn do Quản trị viên trực tiếp tạo sẽ được <strong>Duyệt chính thức ngay</strong>.
+              </p>
+            </div>
+
+            <div className="w-full sm:w-80">
+              <label className="text-[11px] font-bold text-indigo-900 block mb-1">
+                Chọn nhân sự nhận đơn:
+              </label>
+              <select
+                value={selectedStaffId}
+                onChange={(e) => setSelectedStaffId(e.target.value)}
+                className="w-full min-h-[42px] rounded-xl border-2 border-indigo-300 bg-white px-3 py-2 text-xs sm:text-sm font-bold text-slate-900 outline-none focus:border-indigo-600 shadow-sm"
+              >
+                <option value={currentStaff.id}>
+                  {currentStaff.name} ({currentStaff.code}) - [Bản thân]
+                </option>
+                <optgroup label="Tất cả nhân sự trong đơn vị">
+                  {allStaff
+                    .filter((s) => s.id !== currentStaff.id)
+                    .sort((a, b) => a.name.localeCompare(b.name, "vi"))
+                    .map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.name} ({s.code}) - {s.email}
+                      </option>
+                    ))}
+                </optgroup>
+              </select>
+            </div>
+          </div>
+
+          {isRegisteringForOther && (
+            <div className="mt-3 pt-2.5 border-t border-indigo-200/80 flex flex-wrap items-center justify-between gap-2 text-xs">
+              <span className="font-bold text-indigo-900 flex items-center gap-1.5">
+                <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+                <span>
+                  Đang lập đơn hộ cho: <strong className="text-indigo-950">{activeTargetStaff.name} ({activeTargetStaff.code})</strong>
+                </span>
+              </span>
+              <span className="rounded-full bg-emerald-100 text-emerald-900 px-2.5 py-0.5 text-[11px] font-black border border-emerald-300">
+                ✓ Sẽ duyệt chính thức ngay
+              </span>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* KHỐI 1: THÔNG TIN NHÂN SỰ & QUỸ PHÉP NĂM (RESPONSIVE) */}
       <div className="overflow-hidden rounded-2xl sm:rounded-3xl border border-teal-100 bg-gradient-to-br from-teal-50/80 via-white to-slate-50 p-4 sm:p-6 shadow-sm">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="space-y-1">
             <span className="inline-flex items-center gap-1.5 rounded-full bg-teal-100/80 px-2.5 py-0.5 sm:px-3 sm:py-1 text-[11px] sm:text-xs font-semibold text-teal-800">
               <Sparkles className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-teal-600" />
-              Tài khoản điều dưỡng đã xác thực
+              {isRegisteringForOther ? "Hồ sơ nhân sự được đăng ký hộ" : "Tài khoản điều dưỡng đã xác thực"}
             </span>
             <h2 className="text-lg font-bold text-slate-900 sm:text-2xl">
-              {currentStaff.name} <span className="text-slate-400 font-medium">({currentStaff.code})</span>
+              {activeTargetStaff.name} <span className="text-slate-400 font-medium">({activeTargetStaff.code})</span>
             </h2>
             <p className="text-xs text-slate-500 sm:text-sm">
-              Email: <span className="font-medium text-slate-700">{currentStaff.email}</span>
+              Email: <span className="font-medium text-slate-700">{activeTargetStaff.email}</span>
             </p>
           </div>
 
-          {/* Thẻ thống kê số ngày nghỉ phép trong năm */}
+          {/* Thẻ thống kê số ngày nghỉ phép trong năm của nhân sự mục tiêu */}
           <div className="w-full sm:w-auto rounded-2xl border border-teal-200/80 bg-white/95 p-3.5 sm:p-4 shadow-sm text-left sm:text-right">
             <div className="flex items-center gap-1.5 sm:justify-end">
               <Clock className="h-4 w-4 text-teal-600 shrink-0" />
               <p className="text-[11px] sm:text-xs font-bold uppercase tracking-wider text-slate-500">
-                Quỹ phép năm {yearlyStats.year} (Đã duyệt)
+                Quỹ phép năm {activeYearlyStats.year} (Đã duyệt)
               </p>
             </div>
             <p className="mt-0.5 sm:mt-1 text-2xl sm:text-3xl font-extrabold text-teal-700">
-              {yearlyStats.totalDays} <span className="text-xs sm:text-sm font-semibold text-slate-600">ngày</span>
+              {activeYearlyStats.totalDays} <span className="text-xs sm:text-sm font-semibold text-slate-600">ngày</span>
             </p>
             <p className="text-[11px] sm:text-xs text-slate-500">
-              Tương đương <strong>{yearlyStats.totalSessions} buổi</strong> (2 buổi = 1 ngày)
+              Tương đương <strong>{activeYearlyStats.totalSessions} buổi</strong> (2 buổi = 1 ngày)
             </p>
           </div>
         </div>
@@ -462,7 +564,7 @@ export function FlexibleLeaveForm({
                       </select>
                     </div>
 
-                    {/* Lý do (Đã loại bỏ Việc riêng/Khác) */}
+                    {/* Lý do */}
                     <div className="space-y-1">
                       <label className="text-[11px] font-semibold text-slate-600 block">
                         Lý do nghỉ
@@ -547,7 +649,10 @@ export function FlexibleLeaveForm({
                     Cảnh báo: Ca nghỉ đã vượt số lượng cho phép (tối đa 2 người/ca)
                   </h4>
                   <p className="mt-0.5 text-xs text-orange-800 leading-relaxed">
-                    Theo quy định, một ca làm việc chỉ cho phép tối đa 2 người nghỉ cùng lúc. Để tiếp tục gửi, bạn cần đánh dấu đây là <strong>Trường hợp Cấp thiết</strong> và nhập lý do giải trình để Quản lý (<strong>tienmed@gmail.com</strong>) xem xét phê duyệt.
+                    Theo quy định, một ca làm việc chỉ cho phép tối đa 2 người nghỉ cùng lúc.
+                    {isRegisteringForOther
+                      ? " Do bạn là Quản trị viên đăng ký hộ, đơn sẽ được duyệt trực tiếp vào hệ thống."
+                      : " Để tiếp tục gửi, bạn cần đánh dấu đây là Trường hợp Cấp thiết và nhập lý do giải trình để Quản lý (tienmed@gmail.com) xem xét phê duyệt."}
                   </p>
                 </div>
               </div>
@@ -568,13 +673,13 @@ export function FlexibleLeaveForm({
                 {isUrgent && (
                   <div className="space-y-1.5 sm:pl-7">
                     <span className="text-xs font-semibold text-orange-900 block">
-                      Ghi chú nội dung giải trình để quản lý duyệt <span className="text-rose-600">*</span>:
+                      Ghi chú nội dung giải trình <span className="text-rose-600">*</span>:
                     </span>
                     <textarea
                       rows={2}
                       value={urgentNote}
                       onChange={(e) => setUrgentNote(e.target.value)}
-                      placeholder="Ví dụ: Việc gia đình khẩn cấp, xin phép được giải quyết..."
+                      placeholder="Ví dụ: Việc gia đình khẩn cấp, phân công đột xuất..."
                       className="w-full rounded-xl border border-orange-200 bg-white p-3 text-sm outline-none focus:border-orange-500 text-slate-800 placeholder:text-slate-400"
                       required
                     />
@@ -591,27 +696,37 @@ export function FlexibleLeaveForm({
             </div>
           )}
 
-          {/* NÚT SUBMIT */}
+          {/* NÚT SUBMIT (THAY ĐỔI THEO CHẾ ĐỘ ĐĂNG KÝ HỘ) */}
           <div className="pt-2">
             <button
               type="submit"
-              disabled={isPending || (hasExceededQuota && (!isUrgent || !urgentNote.trim()))}
-              className="w-full min-h-[48px] sm:min-h-[52px] inline-flex items-center justify-center gap-2 rounded-xl sm:rounded-2xl bg-teal-600 px-6 py-3.5 sm:py-4 text-sm font-bold text-white shadow-lg shadow-teal-600/25 transition hover:bg-teal-700 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:shadow-none"
+              disabled={isPending || (hasExceededQuota && (!isUrgent || !urgentNote.trim()) && !isRegisteringForOther)}
+              className={`w-full min-h-[48px] sm:min-h-[52px] inline-flex items-center justify-center gap-2 rounded-xl sm:rounded-2xl px-6 py-3.5 sm:py-4 text-sm font-bold text-white shadow-lg transition disabled:cursor-not-allowed disabled:bg-slate-300 disabled:shadow-none ${
+                isRegisteringForOther
+                  ? "bg-indigo-600 hover:bg-indigo-700 shadow-indigo-600/25"
+                  : "bg-teal-600 hover:bg-teal-700 shadow-teal-600/25"
+              }`}
             >
               {isPending ? (
                 <>
                   <Clock className="h-4 w-4 animate-spin" />
-                  Đang ghi nhận tạm và gửi email duyệt...
+                  {isRegisteringForOther
+                    ? "Đang ghi nhận và duyệt chính thức..."
+                    : "Đang ghi nhận tạm và gửi email duyệt..."}
                 </>
               ) : (
                 <>
-                  <Send className="h-4 w-4" />
-                  Gửi phiếu xin nghỉ phép
+                  {isRegisteringForOther ? <CheckCircle2 className="h-4 w-4" /> : <Send className="h-4 w-4" />}
+                  {isRegisteringForOther
+                    ? `Đăng ký & Duyệt chính thức cho ĐD ${activeTargetStaff.name}`
+                    : "Gửi phiếu xin nghỉ phép"}
                 </>
               )}
             </button>
             <p className="mt-2 text-center text-[11px] sm:text-xs text-slate-400">
-              Đơn sẽ được ghi nhận tạm và chuyển email tới quản lý để duyệt 1 chạm.
+              {isRegisteringForOther
+                ? "Đơn do Quản trị viên trực tiếp tạo sẽ được Duyệt chính thức ngay và gửi email thông báo xác nhận tới điều dưỡng."
+                : "Đơn sẽ được ghi nhận tạm và chuyển email tới quản lý để duyệt 1 chạm."}
             </p>
           </div>
         </form>

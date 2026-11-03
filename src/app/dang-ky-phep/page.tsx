@@ -103,6 +103,7 @@ export default async function LeavePortalPage({ searchParams }: PageProps) {
 
   // 3. NHÂN SỰ HỢP LỆ -> RENDER GIAO DIỆN CỔNG ĐỘC LẬP
   const yearlyStats = calculateYearlyApprovedLeaveStats(currentStaff.id, data.leaveRequests);
+  const activeStaffList = data.staff.filter((s) => s.active !== false);
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 pb-12 sm:pb-16 selection:bg-teal-100 selection:text-teal-900">
@@ -233,6 +234,7 @@ export default async function LeavePortalPage({ searchParams }: PageProps) {
         ) : (
           <FlexibleLeaveForm
             currentStaff={currentStaff}
+            allStaff={activeStaffList}
             existingLeaves={data.leaveRequests}
             yearlyStats={yearlyStats}
             isAdmin={user?.role === "admin" || user?.role === "coordinator" || user?.email?.toLowerCase() === "admin@nurseflow.local"}

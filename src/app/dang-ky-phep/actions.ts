@@ -5,7 +5,11 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getAppData, invalidateAppDataCache, upsertManyLeaveRequests, calculateYearlyApprovedLeaveStats } from "@/lib/repository";
 import { getUserContext } from "@/lib/session";
-import { sendLeaveApprovalRequestEmail, getUpcoming7DaysApprovedLeaves } from "@/lib/email-service";
+import {
+  sendLeaveApprovalRequestEmail,
+  sendLeaveApprovedNotificationEmail,
+  getUpcoming7DaysApprovedLeaves,
+} from "@/lib/email-service";
 import type { LeaveReason, LeaveShift } from "@/lib/types";
 
 export interface RegisterSlotInput {
@@ -24,10 +28,11 @@ function isRedirectError(error: unknown): boolean {
 /**
  * [QWEN3] Server Action xử lý đăng ký nghỉ phép linh động từ Cổng Portal
  * - Bắt buộc đúng email trong hệ thống
+ * - Hỗ trợ chế độ Admin đăng ký hộ cho nhân sự khác (tự động Duyệt chính thức ngay)
  * - Kiểm tra định mức từng ca
  * - Ràng buộc phân quyền loại nghỉ: Nhân sự thường chỉ được đăng ký Nghỉ phép (phep), loại bỏ Việc riêng/Khác
- * - Ghi nhận tạm (status: pending)
- * - Gửi email thông báo kèm nút Duyệt 1 chạm tới tienmed@gmail.com, bổ sung chi tiết đối soát quota ca
+ * - Nếu nhân viên tự gửi: Ghi nhận tạm (status: pending) và gửi email duyệt 1 chạm tới tienmed@gmail.com
+ * - Nếu Admin đăng ký hộ: Ghi nhận duyệt ngay (status: approved) và gửi email xác thực tới điều dưỡng
  */
 export async function submitLeavePortalAction(formData: FormData) {
   try {
@@ -59,6 +64,28 @@ export async function submitLeavePortalAction(formData: FormData) {
       throw new Error("Tài khoản của bạn không thuộc danh sách nhân sự hoạt động trong hệ thống.");
     }
 
+    const isEditorOrAdmin =
+      user.role === "admin" ||
+      user.role === "coordinator" ||
+      user.email.toLowerCase() === "admin@nurseflow.local";
+
+    // [QWEN3] Xử lý mục tiêu nhân sự (Đăng ký cho chính mình hoặc Admin đăng ký hộ)
+    const targetStaffId = formData.get("targetStaffId") as string;
+    let targetStaff = currentStaff;
+    let isRegisteredByAdmin = false;
+
+    if (targetStaffId && targetStaffId !== currentStaff.id) {
+      if (!isEditorOrAdmin) {
+        throw new Error("Chỉ Quản trị viên mới có quyền đăng ký nghỉ phép hộ cho nhân sự khác.");
+      }
+      const found = data.staff.find((s) => s.id === targetStaffId);
+      if (!found) {
+        throw new Error("Không tìm thấy nhân sự được chọn trong hệ thống.");
+      }
+      targetStaff = found;
+      isRegisteredByAdmin = true;
+    }
+
     const slotsRaw = formData.get("slotsJson") as string;
     const isUrgent = formData.get("isUrgent") === "true";
     const urgentNote = (formData.get("urgentNote") as string || "").trim();
@@ -82,14 +109,9 @@ export async function submitLeavePortalAction(formData: FormData) {
       throw new Error("Mỗi phiếu chỉ được đăng ký tối đa 30 ca nghỉ.");
     }
 
-    const isEditorOrAdmin =
-      user.role === "admin" ||
-      user.role === "coordinator" ||
-      user.email.toLowerCase() === "admin@nurseflow.local";
-
     // [QWEN3] Phân quyền loại nghỉ:
-    // - Điều dưỡng chỉ được đăng ký loại "phep" (Nghỉ phép).
-    // - Đi học (dihoc) và Nghỉ ốm (om) chỉ dành cho Quản trị viên ghi nhận.
+    // - Điều dưỡng tự làm chỉ được đăng ký loại "phep" (Nghỉ phép).
+    // - Quản trị viên (hoặc đăng ký hộ) được đăng ký cả "phep", "om", "dihoc".
     // - Loại "khac" (Việc riêng / Khác) đã bị loại bỏ hoàn toàn.
     for (const slot of slots) {
       if (!isEditorOrAdmin && slot.reason !== "phep") {
@@ -100,7 +122,7 @@ export async function submitLeavePortalAction(formData: FormData) {
       }
     }
 
-    // Kiểm tra định mức cho từng ca
+    // Kiểm tra định mức cho từng ca (loại trừ chính nhân sự mục tiêu)
     let hasQuotaExceeded = false;
     const exceededDates: string[] = [];
 
@@ -119,9 +141,9 @@ export async function submitLeavePortalAction(formData: FormData) {
         );
       }
 
-      // Đếm số người đã đăng ký cùng ca (loại trừ đi học và ca của chính nhân sự này)
+      // Đếm số người đã đăng ký cùng ca (loại trừ đi học và ca của chính nhân sự mục tiêu)
       const sameDayLeaves = data.leaveRequests.filter(
-        (l) => l.date === slot.date && l.reason !== "dihoc" && l.staffId !== currentStaff.id && l.status !== "rejected",
+        (l) => l.date === slot.date && l.reason !== "dihoc" && l.staffId !== targetStaff.id && l.status !== "rejected",
       );
 
       let morningCount = 0;
@@ -148,30 +170,41 @@ export async function submitLeavePortalAction(formData: FormData) {
       }
     }
 
-    // Nếu vượt quota mà người dùng chưa xác nhận cấp thiết hoặc chưa điền lý do
-    if (hasQuotaExceeded && (!isUrgent || !urgentNote)) {
+    // Nếu vượt quota mà người dùng tự làm mà chưa xác nhận cấp thiết hoặc chưa điền lý do
+    if (hasQuotaExceeded && (!isUrgent || !urgentNote) && !isRegisteredByAdmin) {
       throw new Error(
         `Các ca sau đã có từ 2 nhân sự đăng ký: ${exceededDates.join(", ")}. Vui lòng đánh dấu "Nghỉ cấp thiết" và điền lý do giải trình để gửi duyệt.`,
       );
     }
 
-    // Tính thống kê phép năm của nhân sự
-    const yearlyStats = calculateYearlyApprovedLeaveStats(currentStaff.id, data.leaveRequests);
+    // Tính thống kê phép năm của nhân sự mục tiêu
+    const yearlyStats = calculateYearlyApprovedLeaveStats(targetStaff.id, data.leaveRequests);
 
-    // Sinh mã approveToken bảo mật 1 lần
+    // Sinh mã approveToken bảo mật
     const approveToken = crypto.randomUUID();
     const nowIso = new Date().toISOString();
 
-    const newEntries = slots.map((slot) => ({
-      staffId: currentStaff.id,
-      date: slot.date,
-      shift: slot.shift,
-      reason: slot.reason || "phep",
-      note: isUrgent && urgentNote ? `[CẤP THIẾT] ${urgentNote}` : slot.note || "",
-      status: "pending" as const,
-      approveToken,
-      createdAt: nowIso,
-    }));
+    // Chuẩn bị danh sách bản ghi lưu Google Sheets
+    const newEntries = slots.map((slot) => {
+      let noteContent = slot.note || "";
+      if (isUrgent && urgentNote) {
+        noteContent = `[CẤP THIẾT] ${urgentNote}${noteContent ? ` - ${noteContent}` : ""}`;
+      }
+      if (isRegisteredByAdmin) {
+        noteContent = `[Admin ${currentStaff.name} đăng ký hộ] ${noteContent}`.trim();
+      }
+
+      return {
+        staffId: targetStaff.id,
+        date: slot.date,
+        shift: slot.shift,
+        reason: slot.reason || "phep",
+        note: noteContent,
+        status: isRegisteredByAdmin ? ("approved" as const) : ("pending" as const),
+        approveToken,
+        createdAt: nowIso,
+      };
+    });
 
     // Lưu vào Google Sheets
     await upsertManyLeaveRequests(newEntries);
@@ -182,13 +215,39 @@ export async function submitLeavePortalAction(formData: FormData) {
       revalidatePath(p);
     });
 
-    // Lấy danh sách 7 ngày tới đã được duyệt để người duyệt xem nhanh trong email
+    // Lấy danh sách 7 ngày tới đã được duyệt để người xem nhanh trong email
     const upcoming7DaysLeaves = getUpcoming7DaysApprovedLeaves(data.leaveRequests, data.staff);
 
-    // [QWEN3] Chuẩn bị thông tin đối soát số lượng và tên nhân sự đã đăng ký trước cho từng ca
+    // [QWEN3] Phân luồng gửi email:
+    // Trường hợp 1: Admin đăng ký hộ -> Đơn đã Duyệt chính thức ngay -> Gửi email xác thực tới nhân sự được đăng ký hộ (kèm BCC ĐD Nghĩa)
+    if (isRegisteredByAdmin) {
+      const emailResult = await sendLeaveApprovedNotificationEmail({
+        staff: targetStaff,
+        leaveItems: slots.map((s) => ({
+          date: s.date,
+          shift: s.shift,
+          reason: s.reason || "phep",
+          note: s.note,
+          isUrgent: s.isUrgent || isUrgent,
+        })),
+        approvedAt: format(new Date(), "HH:mm dd/MM/yyyy"),
+        upcoming7DaysLeaves,
+      });
+
+      let emailStatusNote = "";
+      if (!emailResult.success) {
+        console.warn("⚠️ [EmailService] Không thể gửi email thông báo duyệt hộ:", emailResult.error);
+        emailStatusNote = ` (Lưu ý: Chưa gửi được email xác nhận tới nhân sự do: ${emailResult.error || "Lỗi cấu hình SMTP"})`;
+      }
+
+      const msg = `Đã đăng ký và DUYỆT CHÍNH THỨC thành công ${slots.length} ca nghỉ cho ĐD ${targetStaff.name} (${targetStaff.code}). Hệ thống đã gửi email thông báo xác nhận.${emailStatusNote}`;
+      redirect(`/dang-ky-phep?tab=calendar&message=${encodeURIComponent(msg)}`);
+    }
+
+    // Trường hợp 2: Nhân sự tự đăng ký -> Lưu pending -> Gửi email duyệt 1 chạm tới tienmed@gmail.com
     const leaveItemsWithQuotaDetails = slots.map((s) => {
       const sameDayLeaves = data.leaveRequests.filter(
-        (l) => l.date === s.date && l.reason !== "dihoc" && l.staffId !== currentStaff.id && l.status !== "rejected",
+        (l) => l.date === s.date && l.reason !== "dihoc" && l.staffId !== targetStaff.id && l.status !== "rejected",
       );
 
       const matchingLeaves = sameDayLeaves.filter((l) => {
@@ -217,7 +276,6 @@ export async function submitLeavePortalAction(formData: FormData) {
       };
     });
 
-    // Gửi email duyệt tới tienmed@gmail.com
     const emailResult = await sendLeaveApprovalRequestEmail({
       staff: currentStaff,
       leaveItems: leaveItemsWithQuotaDetails,
