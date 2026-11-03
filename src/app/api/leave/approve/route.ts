@@ -5,8 +5,14 @@ import { vi } from "date-fns/locale";
 import { LEAVE_SHIFT_LABELS } from "@/lib/constants";
 import { getAppData, invalidateAppDataCache, writeAppDataKeysToSheets } from "@/lib/repository";
 import { sendLeaveApprovedNotificationEmail, getUpcoming7DaysApprovedLeaves } from "@/lib/email-service";
+import type { LeaveShift, LeaveRecord } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
+
+function isShiftConflictOrSame(s1: LeaveShift, s2: LeaveShift): boolean {
+  if (s1 === "full-day" || s2 === "full-day") return true;
+  return s1 === s2;
+}
 
 function renderResultHtml(options: {
   title: string;
@@ -159,8 +165,9 @@ function renderResultHtml(options: {
 
 /**
  * [QWEN3] Route xử lý Duyệt 1 chạm từ Email gửi tới tienmed@gmail.com
- * Khi người duyệt bấm link trong email, route này cập nhật trạng thái
- * thành approved, đồng bộ Google Sheets, và gửi email phản hồi (BCC ĐD Nghĩa)
+ * Rà soát kỹ lưỡng lịch đăng ký nghỉ phép:
+ * - Nếu lịch đã có và đã được duyệt trước đó -> Thông báo đã duyệt và TUYỆT ĐỐI KHÔNG GỬI LẠI EMAIL.
+ * - Nếu có ca mới chưa duyệt -> Cập nhật Google Sheets và chỉ gửi email xác thực cho các ca mới được duyệt.
  */
 export async function GET(request: NextRequest) {
   const token = request.nextUrl.searchParams.get("token")?.trim();
@@ -201,40 +208,96 @@ export async function GET(request: NextRequest) {
     }
     const staffName = staff?.name || matchingLeaves[0].staffId;
 
-    // Kiểm tra nếu tất cả đã được duyệt trước đó
-    const allApproved = matchingLeaves.every((l) => l.status === "approved");
-    if (allApproved) {
+    // [QWEN3] RÀ SOÁT LẠI TOÀN BỘ LỊCH ĐĂNG KÝ NGHỈ PHÉP TRONG HỆ THỐNG
+    // Lấy các ca khác của nhân sự này đã được duyệt từ trước
+    const otherApprovedLeaves = data.leaveRequests.filter(
+      (l) =>
+        l.staffId === matchingLeaves[0].staffId &&
+        l.status === "approved" &&
+        !matchingLeaves.some((m) => m.id === l.id),
+    );
+
+    const alreadyApprovedSlots: LeaveRecord[] = [];
+    const newlyApprovedSlots: LeaveRecord[] = [];
+
+    for (const m of matchingLeaves) {
+      // 1. Nếu chính ca này đã ở trạng thái approved (bấm lại link duyệt lần 2)
+      if (m.status === "approved") {
+        alreadyApprovedSlots.push(m);
+        continue;
+      }
+
+      // 2. Nếu đã có một ca khác của cùng nhân sự vào ngày đó đã được duyệt chính thức trước đó
+      const hasPriorApproved = otherApprovedLeaves.some(
+        (prior) => prior.date === m.date && isShiftConflictOrSame(prior.shift, m.shift),
+      );
+
+      if (hasPriorApproved) {
+        alreadyApprovedSlots.push(m);
+      } else {
+        newlyApprovedSlots.push(m);
+      }
+    }
+
+    // KỊCH BẢN 1: TẤT CẢ CÁC CA ĐÃ CÓ TRÊN LỊCH VÀ ĐÃ ĐƯỢC PHÊ DUYỆT TRƯỚC ĐÓ
+    // -> Báo đã duyệt và TUYỆT ĐỐI KHÔNG GỬI EMAIL
+    if (newlyApprovedSlots.length === 0) {
+      // Đồng bộ trạng thái các bản ghi trong phiếu hiện tại thành approved (nếu còn pending)
+      let hasUpdate = false;
+      matchingLeaves.forEach((l) => {
+        if (l.status !== "approved") {
+          l.status = "approved";
+          hasUpdate = true;
+        }
+      });
+
+      if (hasUpdate) {
+        await writeAppDataKeysToSheets(data, ["leaveRequests"]);
+        invalidateAppDataCache();
+      }
+
       const rowsHtml = matchingLeaves
         .map((l) => {
           let dateStr = l.date;
           try {
             dateStr = format(parseISO(l.date), "dd/MM/yyyy (EEEE)", { locale: vi });
           } catch {}
-          return `<tr><td>${dateStr}</td><td>${LEAVE_SHIFT_LABELS[l.shift] || l.shift}</td><td><span style="color:#059669;font-weight:bold;">Đã duyệt trước đó</span></td></tr>`;
+          return `
+            <tr>
+              <td style="font-weight:600;">${dateStr}</td>
+              <td>${LEAVE_SHIFT_LABELS[l.shift] || l.shift}</td>
+              <td><span style="color:#059669;font-weight:bold;">✓ Đã được phê duyệt trước đó</span></td>
+            </tr>
+          `;
         })
         .join("");
 
       return renderResultHtml({
-        title: "Đơn đã được duyệt trước đó",
-        subtitle: `Phiếu xin nghỉ phép của Điều dưỡng ${staffName} đã được phê duyệt chính thức trước đó.`,
+        title: "Lịch nghỉ đã được duyệt trước đó",
+        subtitle: `Lịch đăng ký nghỉ phép của Điều dưỡng ${staffName} đã có trên hệ thống và đã được phê duyệt từ trước.`,
         status: "warning",
         detailsHtml: `
           <div class="details-box">
             <table>
-              <thead><tr><th>Ngày</th><th>Buổi</th><th>Trạng thái</th></tr></thead>
+              <thead><tr><th>Ngày</th><th>Buổi</th><th>Trạng thái lịch</th></tr></thead>
               <tbody>${rowsHtml}</tbody>
             </table>
+          </div>
+        `,
+        noticeHtml: `
+          <div class="notice">
+            <strong>Không gửi lại email:</strong> Do các ca nghỉ này đã có trên lịch và đã được xác nhận trước đó, hệ thống giữ nguyên trạng thái và không gửi lại email thông báo để tránh trùng lặp.
           </div>
         `,
       });
     }
 
+    // KỊCH BẢN 2: CÓ CA MỚI CẦN DUYỆT CHÍNH THỨC
     // Cập nhật trạng thái thành approved
     matchingLeaves.forEach((leave) => {
       leave.status = "approved";
     });
 
-    // Cập nhật lại trong data.leaveRequests
     const matchingIds = new Set(matchingLeaves.map((l) => l.id));
     data.leaveRequests = data.leaveRequests.map((l) => {
       if (matchingIds.has(l.id)) {
@@ -252,9 +315,9 @@ export async function GET(request: NextRequest) {
       revalidatePath(p);
     });
 
-    // Gửi email phản hồi cho người xin nghỉ (BCC tới ĐD Nghĩa)
-    if (staff?.email) {
-      const emailItems = matchingLeaves.map((l) => ({
+    // [QWEN3] Chỉ gửi email phản hồi đối với những ca MỚI ĐƯỢC DUYỆT THỰC SỰ
+    if (staff?.email && newlyApprovedSlots.length > 0) {
+      const emailItems = newlyApprovedSlots.map((l) => ({
         date: l.date,
         shift: l.shift,
         reason: l.reason,
@@ -272,20 +335,32 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // Render kết quả thành công
+    // Render kết quả duyệt thành công
     const rowsHtml = matchingLeaves
       .map((l) => {
         let dateStr = l.date;
         try {
           dateStr = format(parseISO(l.date), "dd/MM/yyyy (EEEE)", { locale: vi });
         } catch {}
-        return `<tr><td style="font-weight:600;">${dateStr}</td><td>${LEAVE_SHIFT_LABELS[l.shift] || l.shift}</td><td style="color:#059669;font-weight:bold;">✅ Đã duyệt thành công</td></tr>`;
+
+        const isNewly = newlyApprovedSlots.some((ns) => ns.id === l.id);
+        const statusBadge = isNewly
+          ? `<span style="color:#059669;font-weight:bold;">✅ Vừa duyệt thành công</span>`
+          : `<span style="color:#64748b;font-weight:semibold;">✓ Đã duyệt trước đó</span>`;
+
+        return `
+          <tr>
+            <td style="font-weight:600;">${dateStr}</td>
+            <td>${LEAVE_SHIFT_LABELS[l.shift] || l.shift}</td>
+            <td>${statusBadge}</td>
+          </tr>
+        `;
       })
       .join("");
 
     return renderResultHtml({
       title: "Phê duyệt thành công! ✅",
-      subtitle: `Bạn đã duyệt chính thức ${matchingLeaves.length} ca nghỉ phép cho Điều dưỡng ${staffName}.`,
+      subtitle: `Bạn đã duyệt chính thức ${newlyApprovedSlots.length} ca nghỉ phép mới cho Điều dưỡng ${staffName}.`,
       status: "success",
       detailsHtml: `
         <div class="details-box">
@@ -297,7 +372,7 @@ export async function GET(request: NextRequest) {
       `,
       noticeHtml: `
         <div class="notice">
-          <strong>Đã gửi email xác nhận:</strong> Hệ thống đã tự động gửi email thông báo xác thực đồng ý tới Điều dưỡng <strong>${staffName}</strong> kèm lời nhắc làm phiếu giấy theo quy định, đồng thời gửi BCC tới <strong>ĐD Nghĩa</strong> (nghiadn.pk@pnt.edu.vn).
+          <strong>Đã gửi email xác nhận:</strong> Hệ thống đã tự động gửi email thông báo xác thực tới Điều dưỡng <strong>${staffName}</strong> (chỉ gửi các ca vừa được duyệt mới) kèm lời nhắc làm phiếu giấy theo quy định, đồng thời gửi BCC tới <strong>ĐD Nghĩa</strong> (nghiadn.pk@pnt.edu.vn).
         </div>
       `,
     });
