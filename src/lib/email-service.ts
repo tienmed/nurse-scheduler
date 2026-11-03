@@ -57,6 +57,9 @@ export interface LeaveItemSummary {
   reason: LeaveReason;
   note?: string;
   isUrgent?: boolean;
+  existingLeaveCount?: number;
+  existingStaffNames?: string[];
+  isQuotaExceeded?: boolean;
 }
 
 export interface UpcomingLeavePreviewItem {
@@ -200,7 +203,7 @@ export interface SendApprovalRequestEmailParams {
 
 /**
  * [QWEN3] Gửi email yêu cầu phê duyệt đơn nghỉ phép tới tienmed@gmail.com
- * Kèm nút bấm Duyệt nhanh 1 chạm, nút xem lịch web, và bảng xem nhanh lịch nghỉ 7 ngày tới
+ * Kèm nút bấm Duyệt nhanh 1 chạm, nút xem lịch web, cột đối soát số ca đã đăng ký trước đó, và bảng xem nhanh lịch nghỉ 7 ngày tới
  */
 export async function sendLeaveApprovalRequestEmail(
   params: SendApprovalRequestEmailParams,
@@ -240,6 +243,35 @@ export async function sendLeaveApprovalRequestEmail(
         ? `<span style="background-color:#fee2e2;color:#991b1b;padding:2px 8px;border-radius:9999px;font-size:11px;font-weight:bold;">Cấp thiết (Vượt định mức)</span>`
         : `<span style="background-color:#f0fdf4;color:#166534;padding:2px 8px;border-radius:9999px;font-size:11px;font-weight:bold;">Bình thường</span>`;
 
+      // [QWEN3] Render cột đối soát số người đã nghỉ cùng ca trước đó & cảnh báo vượt ngưỡng
+      const count = item.existingLeaveCount ?? 0;
+      const names = item.existingStaffNames && item.existingStaffNames.length > 0
+        ? item.existingStaffNames.join(", ")
+        : "";
+
+      let quotaCellHtml = "";
+      if (item.isQuotaExceeded || count >= 2) {
+        quotaCellHtml = `
+          <span style="background-color:#fee2e2;color:#991b1b;padding:4px 8px;border-radius:6px;font-size:11px;font-weight:bold;border:1px solid #fecaca;display:inline-block;">
+            ⚠️ ${count}/2 người (VƯỢT ĐỊNH MỨC)
+            ${names ? `<br/><span style="font-weight:normal;font-size:10px;color:#7f1d1d;">Đã có: ${names}</span>` : ""}
+          </span>
+        `;
+      } else if (count === 1) {
+        quotaCellHtml = `
+          <span style="background-color:#eff6ff;color:#1e40af;padding:4px 8px;border-radius:6px;font-size:11px;font-weight:bold;border:1px solid #bfdbfe;display:inline-block;">
+            1/2 người (Còn 1 chỗ)
+            ${names ? `<br/><span style="font-weight:normal;font-size:10px;color:#1e3a8a;">Đã có: ${names}</span>` : ""}
+          </span>
+        `;
+      } else {
+        quotaCellHtml = `
+          <span style="background-color:#f0fdf4;color:#166534;padding:4px 8px;border-radius:6px;font-size:11px;font-weight:bold;border:1px solid #bbf7d0;display:inline-block;">
+            0/2 người (Còn trống 2 chỗ)
+          </span>
+        `;
+      }
+
       return `
         <tr style="border-bottom:1px solid #e2e8f0;${idx % 2 === 1 ? "background-color:#f8fafc;" : ""}">
           <td style="padding:10px 14px;font-weight:600;color:#0f172a;">${dateLabel}</td>
@@ -249,6 +281,7 @@ export async function sendLeaveApprovalRequestEmail(
             </span>
             <span style="margin-left:4px;">${shiftLabel}</span>
           </td>
+          <td style="padding:10px 14px;">${quotaCellHtml}</td>
           <td style="padding:10px 14px;color:#334155;">${reasonLabel}</td>
           <td style="padding:10px 14px;">${urgentBadge}</td>
           <td style="padding:10px 14px;color:#64748b;font-size:13px;">${item.note || "—"}</td>
@@ -280,7 +313,7 @@ export async function sendLeaveApprovalRequestEmail(
       <title>Yêu cầu duyệt nghỉ phép</title>
     </head>
     <body style="margin:0;padding:24px;background-color:#f1f5f9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#1e293b;">
-      <div style="max-width:640px;margin:0 auto;background-color:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.06);border:1px solid #e2e8f0;">
+      <div style="max-width:720px;margin:0 auto;background-color:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.06);border:1px solid #e2e8f0;">
         
         <!-- Header -->
         <div style="background:linear-gradient(135deg,#0f766e 0%,#0d9488 100%);padding:24px 28px;color:#ffffff;">
@@ -319,6 +352,7 @@ export async function sendLeaveApprovalRequestEmail(
                 <tr style="background-color:#0f766e;color:#ffffff;font-size:12px;">
                   <th style="padding:10px 14px;">Ngày (dd/mm/yyyy)</th>
                   <th style="padding:10px 14px;">Ca (S/C/CN)</th>
+                  <th style="padding:10px 14px;">Đã đăng ký trước & Định mức</th>
                   <th style="padding:10px 14px;">Lý do</th>
                   <th style="padding:10px 14px;">Phân loại</th>
                   <th style="padding:10px 14px;">Ghi chú</th>

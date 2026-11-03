@@ -1,10 +1,11 @@
 import Link from "next/link";
-import { LogOut, CalendarCheck, ShieldAlert, HeartPulse, CalendarDays } from "lucide-react";
+import { LogOut, CalendarCheck, ShieldAlert, HeartPulse, CalendarDays, BarChart3 } from "lucide-react";
 import { signOut } from "@/auth";
 import { getAppData, calculateYearlyApprovedLeaveStats } from "@/lib/repository";
 import { getUserContext } from "@/lib/session";
 import { FlexibleLeaveForm } from "@/components/leave-portal/flexible-leave-form";
 import { PortalLeaveCalendar } from "@/components/leave-portal/portal-leave-calendar";
+import { MyLeaveStatsView } from "@/components/leave-portal/my-leave-stats-view";
 
 interface PageProps {
   searchParams: Promise<{
@@ -174,29 +175,45 @@ export default async function LeavePortalPage({ searchParams }: PageProps) {
           </div>
         )}
 
-        {/* ĐIỀU HƯỚNG TABS (RESPONSIVE GRID) */}
-        <div className="grid grid-cols-2 border-b border-slate-200 gap-1 sm:gap-2">
+        {/* ĐIỀU HƯỚNG TABS (RESPONSIVE GRID 3 TABS) */}
+        <div className="grid grid-cols-3 border-b border-slate-200 gap-1 sm:gap-2">
+          {/* Tab 1: Đăng ký nghỉ phép */}
           <Link
             href="/dang-ky-phep?tab=register"
-            className={`inline-flex items-center justify-center gap-1.5 sm:gap-2 px-2.5 sm:px-5 py-2.5 sm:py-3 text-xs sm:text-sm font-bold border-b-2 transition text-center ${
+            className={`inline-flex items-center justify-center gap-1.5 sm:gap-2 px-2 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-bold border-b-2 transition text-center ${
               tab === "register"
                 ? "border-teal-600 text-teal-700 bg-teal-50/40 rounded-t-xl"
                 : "border-transparent text-slate-500 hover:text-slate-900"
             }`}
           >
             <CalendarCheck className="h-4 w-4 shrink-0" />
-            <span className="truncate">Đăng ký nghỉ phép</span>
+            <span className="truncate">Đăng ký phép</span>
           </Link>
+
+          {/* Tab 2: Thống kê phép của tôi (MỤC MỚI) */}
+          <Link
+            href="/dang-ky-phep?tab=stats"
+            className={`inline-flex items-center justify-center gap-1.5 sm:gap-2 px-2 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-bold border-b-2 transition text-center ${
+              tab === "stats"
+                ? "border-teal-600 text-teal-700 bg-teal-50/40 rounded-t-xl"
+                : "border-transparent text-slate-500 hover:text-slate-900"
+            }`}
+          >
+            <BarChart3 className="h-4 w-4 shrink-0" />
+            <span className="truncate">Thống kê phép của tôi</span>
+          </Link>
+
+          {/* Tab 3: Lịch các thành viên */}
           <Link
             href="/dang-ky-phep?tab=calendar"
-            className={`inline-flex items-center justify-center gap-1.5 sm:gap-2 px-2.5 sm:px-5 py-2.5 sm:py-3 text-xs sm:text-sm font-bold border-b-2 transition text-center ${
+            className={`inline-flex items-center justify-center gap-1.5 sm:gap-2 px-2 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-bold border-b-2 transition text-center ${
               tab === "calendar"
                 ? "border-teal-600 text-teal-700 bg-teal-50/40 rounded-t-xl"
                 : "border-transparent text-slate-500 hover:text-slate-900"
             }`}
           >
             <CalendarDays className="h-4 w-4 shrink-0" />
-            <span className="truncate">Lịch nghỉ các thành viên</span>
+            <span className="truncate">Lịch các thành viên</span>
           </Link>
         </div>
 
@@ -206,6 +223,12 @@ export default async function LeavePortalPage({ searchParams }: PageProps) {
             currentStaff={currentStaff}
             allStaff={data.staff.some((s) => s.id === currentStaff.id) ? data.staff : [currentStaff, ...data.staff]}
             allLeaves={data.leaveRequests}
+          />
+        ) : tab === "stats" ? (
+          <MyLeaveStatsView
+            currentStaff={currentStaff}
+            allLeaves={data.leaveRequests}
+            yearlyStats={yearlyStats}
           />
         ) : (
           <FlexibleLeaveForm

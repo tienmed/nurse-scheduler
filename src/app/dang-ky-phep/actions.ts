@@ -27,7 +27,7 @@ function isRedirectError(error: unknown): boolean {
  * - Kiểm tra định mức từng ca
  * - Ràng buộc phân quyền loại nghỉ: Nhân sự thường chỉ được đăng ký Nghỉ phép (phep), loại bỏ Việc riêng/Khác
  * - Ghi nhận tạm (status: pending)
- * - Gửi email thông báo kèm nút Duyệt 1 chạm tới tienmed@gmail.com
+ * - Gửi email thông báo kèm nút Duyệt 1 chạm tới tienmed@gmail.com, bổ sung chi tiết đối soát quota ca
  */
 export async function submitLeavePortalAction(formData: FormData) {
   try {
@@ -185,16 +185,42 @@ export async function submitLeavePortalAction(formData: FormData) {
     // Lấy danh sách 7 ngày tới đã được duyệt để người duyệt xem nhanh trong email
     const upcoming7DaysLeaves = getUpcoming7DaysApprovedLeaves(data.leaveRequests, data.staff);
 
-    // Gửi email duyệt tới tienmed@gmail.com
-    const emailResult = await sendLeaveApprovalRequestEmail({
-      staff: currentStaff,
-      leaveItems: slots.map((s) => ({
+    // [QWEN3] Chuẩn bị thông tin đối soát số lượng và tên nhân sự đã đăng ký trước cho từng ca
+    const leaveItemsWithQuotaDetails = slots.map((s) => {
+      const sameDayLeaves = data.leaveRequests.filter(
+        (l) => l.date === s.date && l.reason !== "dihoc" && l.staffId !== currentStaff.id && l.status !== "rejected",
+      );
+
+      const matchingLeaves = sameDayLeaves.filter((l) => {
+        if (s.shift === "full-day") return true;
+        return l.shift === "full-day" || l.shift === s.shift;
+      });
+
+      const existingStaffNames: string[] = [];
+      for (const ml of matchingLeaves) {
+        const staffObj = data.staff.find((st) => st.id === ml.staffId);
+        const name = staffObj?.name || ml.staffId;
+        if (!existingStaffNames.includes(name)) {
+          existingStaffNames.push(name);
+        }
+      }
+
+      return {
         date: s.date,
         shift: s.shift,
         reason: s.reason || "phep",
         note: s.note,
         isUrgent: s.isUrgent || isUrgent,
-      })),
+        existingLeaveCount: matchingLeaves.length,
+        existingStaffNames,
+        isQuotaExceeded: matchingLeaves.length >= 2,
+      };
+    });
+
+    // Gửi email duyệt tới tienmed@gmail.com
+    const emailResult = await sendLeaveApprovalRequestEmail({
+      staff: currentStaff,
+      leaveItems: leaveItemsWithQuotaDetails,
       yearlyStats,
       approveToken,
       hasUrgent: isUrgent || hasQuotaExceeded,
