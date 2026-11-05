@@ -102,7 +102,8 @@ export function getUpcoming7DaysApprovedLeaves(
 }
 
 /**
- * [QWEN3] Render bảng HTML xem nhanh lịch nghỉ 7 ngày tới trực tiếp trong email (Tối ưu Responsive di động)
+ * [QWEN3] Render danh sách xem nhanh lịch nghỉ 7 ngày tới (Tối ưu 100% Responsive trên Mobile)
+ * Không sử dụng min-width hay overflow-x: auto để tránh lỗi co nhỏ (auto-shrink) trên ứng dụng Gmail
  */
 function renderUpcoming7DaysTableHtml(items?: UpcomingLeavePreviewItem[], baseUrl = ""): string {
   const today = startOfToday();
@@ -114,7 +115,7 @@ function renderUpcoming7DaysTableHtml(items?: UpcomingLeavePreviewItem[], baseUr
   if (!items || items.length === 0) {
     rows = `
       <tr>
-        <td colspan="4" style="padding:14px;text-align:center;color:#64748b;font-style:italic;">
+        <td colspan="4" style="padding:12px;text-align:center;color:#64748b;font-style:italic;font-size:12px;">
           Hiện tại chưa có nhân sự nào được duyệt nghỉ trong 7 ngày sắp tới.
         </td>
       </tr>
@@ -124,7 +125,7 @@ function renderUpcoming7DaysTableHtml(items?: UpcomingLeavePreviewItem[], baseUr
       .map((item, idx) => {
         let dStr = item.date;
         try {
-          dStr = format(parseISO(item.date), "dd/MM (EEEE)", { locale: vi });
+          dStr = format(parseISO(item.date), "dd/MM (EEE)", { locale: vi });
         } catch {}
 
         const isMorning = item.shift === "morning";
@@ -133,25 +134,25 @@ function renderUpcoming7DaysTableHtml(items?: UpcomingLeavePreviewItem[], baseUr
         const shiftBg = isMorning ? "#f59e0b" : isAfternoon ? "#2563eb" : "#7e22ce";
         const shiftDesc = isMorning ? "Sáng" : isAfternoon ? "Chiều" : "Cả ngày";
 
-        let reasonBadge = `<span style="background-color:#dcfce7;color:#166534;padding:2px 7px;border-radius:5px;font-size:11px;font-weight:bold;border:1px solid #bbf7d0;">Phép</span>`;
+        let reasonBadge = `<span style="background-color:#dcfce7;color:#166534;padding:2px 6px;border-radius:4px;font-size:11px;font-weight:bold;border:1px solid #bbf7d0;">Phép</span>`;
         if (item.reason === "om") {
-          reasonBadge = `<span style="background-color:#fee2e2;color:#991b1b;padding:2px 7px;border-radius:5px;font-size:11px;font-weight:bold;border:1px solid #fecaca;">Ốm</span>`;
+          reasonBadge = `<span style="background-color:#fee2e2;color:#991b1b;padding:2px 6px;border-radius:4px;font-size:11px;font-weight:bold;border:1px solid #fecaca;">Ốm</span>`;
         } else if (item.reason === "dihoc") {
-          reasonBadge = `<span style="background-color:#e0e7ff;color:#3730a3;padding:2px 7px;border-radius:5px;font-size:11px;font-weight:bold;border:1px solid #c7d2fe;">Đi học</span>`;
+          reasonBadge = `<span style="background-color:#e0e7ff;color:#3730a3;padding:2px 6px;border-radius:4px;font-size:11px;font-weight:bold;border:1px solid #c7d2fe;">Đi học</span>`;
         } else if (item.reason === "khac") {
-          reasonBadge = `<span style="background-color:#f1f5f9;color:#334155;padding:2px 7px;border-radius:5px;font-size:11px;font-weight:bold;border:1px solid #e2e8f0;">Khác</span>`;
+          reasonBadge = `<span style="background-color:#f1f5f9;color:#334155;padding:2px 6px;border-radius:4px;font-size:11px;font-weight:bold;border:1px solid #e2e8f0;">Khác</span>`;
         }
 
         return `
           <tr style="border-bottom:1px solid #e2e8f0;${idx % 2 === 1 ? "background-color:#f8fafc;" : ""}">
-            <td style="padding:9px 10px;font-weight:600;color:#0f172a;font-size:12px;white-space:nowrap;">${dStr}</td>
-            <td style="padding:9px 10px;color:#1e293b;font-weight:bold;font-size:12px;">${item.staffName}</td>
-            <td style="padding:9px 10px;">${reasonBadge}</td>
-            <td style="padding:9px 10px;text-align:center;white-space:nowrap;">
-              <span style="background-color:${shiftBg};color:#ffffff;padding:2px 7px;border-radius:5px;font-size:11px;font-weight:900;">
+            <td style="padding:7px 8px;font-weight:600;color:#0f172a;font-size:12px;white-space:nowrap;">${dStr}</td>
+            <td style="padding:7px 8px;color:#1e293b;font-weight:bold;font-size:12px;">${item.staffName}</td>
+            <td style="padding:7px 8px;white-space:nowrap;">${reasonBadge}</td>
+            <td style="padding:7px 8px;text-align:center;white-space:nowrap;">
+              <span style="background-color:${shiftBg};color:#ffffff;padding:2px 6px;border-radius:4px;font-size:11px;font-weight:900;">
                 ${shiftCode}
               </span>
-              <span style="font-size:10px;color:#64748b;margin-left:3px;">(${shiftDesc})</span>
+              <span style="font-size:10px;color:#64748b;margin-left:2px;">(${shiftDesc})</span>
             </td>
           </tr>
         `;
@@ -160,37 +161,35 @@ function renderUpcoming7DaysTableHtml(items?: UpcomingLeavePreviewItem[], baseUr
   }
 
   return `
-    <div style="margin-top:24px;border:1px solid #cbd5e1;border-radius:12px;overflow:hidden;background:#ffffff;box-shadow:0 2px 8px rgba(0,0,0,0.04);">
-      <!-- Header bảng dùng Table thay vì flexbox để tương thích mobile 100% -->
-      <table style="width:100%;border-collapse:collapse;background-color:#0f172a;color:#ffffff;">
+    <div style="margin-top:20px;border:1px solid #cbd5e1;border-radius:12px;overflow:hidden;background:#ffffff;box-shadow:0 1px 4px rgba(0,0,0,0.03);">
+      <!-- Header bảng 7 ngày -->
+      <table role="presentation" style="width:100%;border-collapse:collapse;background-color:#0f172a;color:#ffffff;">
         <tr>
-          <td style="padding:10px 14px;font-size:13px;font-weight:bold;text-align:left;">
+          <td style="padding:10px 12px;font-size:13px;font-weight:bold;text-align:left;">
             📋 Lịch nghỉ 7 ngày tới (Đã duyệt)
           </td>
-          <td style="padding:10px 14px;font-size:11px;color:#94a3b8;text-align:right;white-space:nowrap;">
+          <td style="padding:10px 12px;font-size:11px;color:#94a3b8;text-align:right;">
             ${dateRangeText}
           </td>
         </tr>
       </table>
 
-      <!-- Khung cuộn ngang mượt mà cho thiết bị di động -->
-      <div style="width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch;">
-        <table style="width:100%;min-width:440px;border-collapse:collapse;text-align:left;font-size:12px;">
-          <thead>
-            <tr style="background-color:#f1f5f9;color:#475569;border-bottom:1px solid #e2e8f0;font-size:11px;text-transform:uppercase;">
-              <th style="padding:8px 10px;">Ngày</th>
-              <th style="padding:8px 10px;">Nhân sự</th>
-              <th style="padding:8px 10px;">Loại nghỉ</th>
-              <th style="padding:8px 10px;text-align:center;">Ca (S/C/CN)</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${rows}
-          </tbody>
-        </table>
-      </div>
+      <!-- Danh sách bảng 100% chiều rộng -->
+      <table role="presentation" style="width:100%;border-collapse:collapse;text-align:left;font-size:12px;">
+        <thead>
+          <tr style="background-color:#f1f5f9;color:#475569;border-bottom:1px solid #e2e8f0;font-size:11px;text-transform:uppercase;">
+            <th style="padding:8px 8px;">Ngày</th>
+            <th style="padding:8px 8px;">Nhân sự</th>
+            <th style="padding:8px 8px;">Loại</th>
+            <th style="padding:8px 8px;text-align:center;">Ca</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows}
+        </tbody>
+      </table>
 
-      <div style="padding:9px 14px;background-color:#f8fafc;border-top:1px solid #e2e8f0;text-align:right;">
+      <div style="padding:8px 12px;background-color:#f8fafc;border-top:1px solid #e2e8f0;text-align:right;">
         <a href="${calendarUrl}" target="_blank" style="font-size:11px;font-weight:bold;color:#0d9488;text-decoration:none;">
           Mở Cổng Portal xem toàn bộ lịch trên Web →
         </a>
@@ -215,7 +214,8 @@ export interface SendApprovalRequestEmailParams {
 
 /**
  * [QWEN3] Gửi email yêu cầu phê duyệt đơn nghỉ phép tới tienmed@gmail.com
- * Thiết kế chuẩn Responsive tương thích hoàn hảo trên Mobile và Desktop
+ * Thiết kế chuẩn Mobile Card Layout: Co giãn 100% tự nhiên trên mọi kích thước màn hình
+ * Không sử dụng min-width hay overflow-x: auto, đảm bảo hiển thị hoàn hảo trên ứng dụng Gmail di động
  */
 export async function sendLeaveApprovalRequestEmail(
   params: SendApprovalRequestEmailParams,
@@ -237,8 +237,9 @@ export async function sendLeaveApprovalRequestEmail(
   const subjectPrefix = hasUrgent ? "🚨 [CẤP THIẾT - CHỜ DUYỆT]" : "📋 [CHỜ DUYỆT]";
   const subject = `${subjectPrefix} Đơn xin nghỉ phép của ĐD ${staff.name} (${staff.code}) - ${leaveItems.length} ca`;
 
-  const leaveRowsHtml = leaveItems
-    .map((item, idx) => {
+  // Render từng ca xin nghỉ thành các Thẻ Khối (Cards) 100% width, tự thích ứng trên Mobile
+  const leaveCardsHtml = leaveItems
+    .map((item) => {
       let dateLabel = item.date;
       try {
         dateLabel = format(parseISO(item.date), "dd/MM/yyyy (EEEE)", { locale: vi });
@@ -251,60 +252,89 @@ export async function sendLeaveApprovalRequestEmail(
       const shiftBg = isMorning ? "#f59e0b" : isAfternoon ? "#2563eb" : "#7e22ce";
 
       const reasonLabel = LEAVE_REASON_LABELS[item.reason] || item.reason;
-      const urgentBadge = item.isUrgent
-        ? `<span style="background-color:#fee2e2;color:#991b1b;padding:2px 7px;border-radius:9999px;font-size:10px;font-weight:bold;white-space:nowrap;">Cấp thiết</span>`
-        : `<span style="background-color:#f0fdf4;color:#166534;padding:2px 7px;border-radius:9999px;font-size:10px;font-weight:bold;white-space:nowrap;">Bình thường</span>`;
+      let reasonBadge = `<span style="background-color:#dcfce7;color:#166534;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:bold;border:1px solid #bbf7d0;">${reasonLabel}</span>`;
+      if (item.reason === "om") {
+        reasonBadge = `<span style="background-color:#fee2e2;color:#991b1b;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:bold;border:1px solid #fecaca;">${reasonLabel}</span>`;
+      } else if (item.reason === "dihoc") {
+        reasonBadge = `<span style="background-color:#e0e7ff;color:#3730a3;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:bold;border:1px solid #c7d2fe;">${reasonLabel}</span>`;
+      } else if (item.reason === "khac") {
+        reasonBadge = `<span style="background-color:#f1f5f9;color:#334155;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:bold;border:1px solid #e2e8f0;">${reasonLabel}</span>`;
+      }
 
-      // Render cột đối soát số người đã nghỉ cùng ca trước đó & cảnh báo vượt ngưỡng
+      const urgentBadge = item.isUrgent
+        ? `<span style="background-color:#fee2e2;color:#991b1b;padding:3px 8px;border-radius:9999px;font-size:10px;font-weight:bold;border:1px solid #fecaca;white-space:nowrap;">🚨 Cấp thiết</span>`
+        : `<span style="background-color:#f0fdf4;color:#166534;padding:3px 8px;border-radius:9999px;font-size:10px;font-weight:bold;border:1px solid #bbf7d0;white-space:nowrap;">Bình thường</span>`;
+
+      // Phân tích định mức và hiển thị cảnh báo
       const count = item.existingLeaveCount ?? 0;
       const names = item.existingStaffNames && item.existingStaffNames.length > 0
         ? item.existingStaffNames.join(", ")
         : "";
 
-      let quotaCellHtml = "";
+      let quotaHtml = "";
       if (item.isQuotaExceeded || count >= 2) {
-        quotaCellHtml = `
-          <span style="background-color:#fee2e2;color:#991b1b;padding:3px 7px;border-radius:6px;font-size:11px;font-weight:bold;border:1px solid #fecaca;display:inline-block;">
-            ⚠️ ${count}/2 (VƯỢT ĐỊNH MỨC)
-            ${names ? `<br/><span style="font-weight:normal;font-size:10px;color:#7f1d1d;">Đã có: ${names}</span>` : ""}
-          </span>
+        quotaHtml = `
+          <div style="background-color:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:6px 10px;color:#991b1b;font-size:12px;font-weight:bold;margin-top:5px;">
+            ⚠️ ${count}/2 (VƯỢT ĐỊNH MỨC NGHỈ/CA)
+            ${names ? `<div style="font-weight:normal;font-size:11px;color:#7f1d1d;margin-top:2px;">Đã có: <strong>${names}</strong></div>` : ""}
+          </div>
         `;
       } else if (count === 1) {
-        quotaCellHtml = `
-          <span style="background-color:#eff6ff;color:#1e40af;padding:3px 7px;border-radius:6px;font-size:11px;font-weight:bold;border:1px solid #bfdbfe;display:inline-block;">
-            1/2 (Còn 1 chỗ)
-            ${names ? `<br/><span style="font-weight:normal;font-size:10px;color:#1e3a8a;">Đã có: ${names}</span>` : ""}
-          </span>
+        quotaHtml = `
+          <div style="background-color:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:6px 10px;color:#1e40af;font-size:12px;font-weight:bold;margin-top:5px;">
+            ℹ️ 1/2 (Đã có 1 người - Còn trống 1 chỗ)
+            ${names ? `<div style="font-weight:normal;font-size:11px;color:#1e3a8a;margin-top:2px;">Đã có: <strong>${names}</strong></div>` : ""}
+          </div>
         `;
       } else {
-        quotaCellHtml = `
-          <span style="background-color:#f0fdf4;color:#166534;padding:3px 7px;border-radius:6px;font-size:11px;font-weight:bold;border:1px solid #bbf7d0;display:inline-block;white-space:nowrap;">
-            0/2 (Còn trống)
-          </span>
+        quotaHtml = `
+          <div style="background-color:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:6px 10px;color:#166534;font-size:12px;font-weight:bold;margin-top:5px;">
+            ✓ 0/2 (Ca còn trống chỗ)
+          </div>
         `;
       }
 
       return `
-        <tr style="border-bottom:1px solid #e2e8f0;${idx % 2 === 1 ? "background-color:#f8fafc;" : ""}">
-          <td style="padding:9px 10px;font-weight:600;color:#0f172a;white-space:nowrap;">${dateLabel}</td>
-          <td style="padding:9px 10px;color:#334155;font-weight:600;white-space:nowrap;">
-            <span style="background-color:${shiftBg};color:#ffffff;padding:2px 7px;border-radius:5px;font-size:11px;font-weight:900;">
-              ${shiftCode}
-            </span>
-            <span style="margin-left:3px;font-size:11px;">${shiftLabel}</span>
-          </td>
-          <td style="padding:9px 10px;">${quotaCellHtml}</td>
-          <td style="padding:9px 10px;color:#334155;white-space:nowrap;">${reasonLabel}</td>
-          <td style="padding:9px 10px;">${urgentBadge}</td>
-          <td style="padding:9px 10px;color:#64748b;font-size:12px;">${item.note || "—"}</td>
-        </tr>
+        <table role="presentation" style="width:100%;border-collapse:collapse;margin-bottom:12px;border:1px solid #cbd5e1;border-radius:10px;background-color:#ffffff;box-shadow:0 1px 4px rgba(0,0,0,0.03);">
+          <!-- Hàng Tiêu đề Thẻ -->
+          <tr style="background-color:#f8fafc;border-bottom:1px solid #e2e8f0;">
+            <td style="padding:10px 12px;font-size:13px;font-weight:bold;color:#0f172a;text-align:left;">
+              📅 ${dateLabel}
+            </td>
+            <td style="padding:10px 12px;text-align:right;white-space:nowrap;">
+              <span style="background-color:${shiftBg};color:#ffffff;padding:3px 8px;border-radius:5px;font-size:11px;font-weight:900;display:inline-block;">
+                ${shiftCode} · ${shiftLabel}
+              </span>
+              <span style="margin-left:4px;display:inline-block;">
+                ${urgentBadge}
+              </span>
+            </td>
+          </tr>
+          <!-- Hàng Chi tiết Thẻ -->
+          <tr>
+            <td colspan="2" style="padding:10px 12px;font-size:12px;line-height:1.5;color:#334155;">
+              <div style="margin-bottom:6px;">
+                <span style="color:#64748b;font-size:11px;font-weight:bold;text-transform:uppercase;">Loại nghỉ: </span>
+                ${reasonBadge}
+              </div>
+              <div style="margin-bottom:6px;">
+                <span style="color:#64748b;font-size:11px;font-weight:bold;text-transform:uppercase;">Tình trạng định mức ca:</span>
+                ${quotaHtml}
+              </div>
+              ${item.note ? `
+              <div style="background-color:#f1f5f9;border-left:3px solid #94a3b8;border-radius:4px;padding:6px 10px;margin-top:6px;font-size:12px;color:#475569;font-style:italic;">
+                <strong>Ghi chú:</strong> ${item.note}
+              </div>` : ""}
+            </td>
+          </tr>
+        </table>
       `;
     })
     .join("");
 
   const urgentAlertHtml = hasUrgent
     ? `
-    <div style="background-color:#fff7ed;border-left:4px solid #f97316;padding:12px 16px;margin-bottom:18px;border-radius:8px;">
+    <div style="background-color:#fff7ed;border-left:4px solid #f97316;padding:12px 14px;margin-bottom:16px;border-radius:8px;">
       <p style="margin:0 0 4px 0;font-weight:bold;color:#9a3412;font-size:13px;">⚠️ Lưu ý: Đơn có ca vượt định mức (≥ 2 người/ca)</p>
       <p style="margin:0;font-size:12px;color:#7c2d12;line-height:1.5;">
         Nhân sự đã đánh dấu <strong>Cấp thiết</strong>.<br/>
@@ -323,94 +353,82 @@ export async function sendLeaveApprovalRequestEmail(
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
       <title>Yêu cầu duyệt nghỉ phép</title>
-      <style>
-        /* Mobile Responsive Styles */
-        @media only screen and (max-width: 600px) {
-          .email-wrapper { padding: 8px 4px !important; }
-          .email-card { border-radius: 12px !important; width: 100% !important; max-width: 100% !important; }
-          .email-header { padding: 18px 14px !important; }
-          .email-header h1 { font-size: 17px !important; }
-          .email-body { padding: 16px 12px !important; }
-          .info-table td { font-size: 13px !important; padding: 3px 0 !important; }
-          .btn-primary { display: block !important; width: 100% !important; box-sizing: border-box !important; padding: 14px 16px !important; font-size: 15px !important; margin-bottom: 10px !important; }
-          .btn-secondary { display: block !important; width: 100% !important; box-sizing: border-box !important; padding: 11px 14px !important; font-size: 12px !important; }
-        }
-      </style>
     </head>
-    <body class="email-wrapper" style="margin:0;padding:20px 10px;background-color:#f1f5f9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#1e293b;">
-      <div class="email-card" style="max-width:680px;margin:0 auto;background-color:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.06);border:1px solid #e2e8f0;">
-        
+    <body style="margin:0;padding:12px 6px;background-color:#f1f5f9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#1e293b;">
+      <table role="presentation" style="width:100%;border-collapse:collapse;margin:0 auto;max-width:600px;background-color:#ffffff;border-radius:14px;overflow:hidden;box-shadow:0 4px 16px rgba(0,0,0,0.06);border:1px solid #e2e8f0;">
         <!-- Header -->
-        <div class="email-header" style="background:linear-gradient(135deg,#0f766e 0%,#0d9488 100%);padding:22px 24px;color:#ffffff;">
-          <p style="margin:0 0 4px 0;font-size:11px;font-weight:bold;text-transform:uppercase;letter-spacing:1px;opacity:0.85;">NurseFlow · Hệ thống phân công điều dưỡng</p>
-          <h1 style="margin:0;font-size:19px;font-weight:bold;line-height:1.3;">Yêu cầu phê duyệt Đơn xin nghỉ phép</h1>
-        </div>
+        <tr>
+          <td style="background:linear-gradient(135deg,#0f766e 0%,#0d9488 100%);padding:18px 16px;color:#ffffff;text-align:left;">
+            <p style="margin:0 0 4px 0;font-size:11px;font-weight:bold;text-transform:uppercase;letter-spacing:1px;opacity:0.85;">NurseFlow · Hệ thống phân công điều dưỡng</p>
+            <h1 style="margin:0;font-size:18px;font-weight:bold;line-height:1.3;">Yêu cầu phê duyệt Đơn xin nghỉ phép</h1>
+          </td>
+        </tr>
 
-        <div class="email-body" style="padding:22px 20px;">
-          ${urgentAlertHtml}
+        <!-- Body -->
+        <tr>
+          <td style="padding:16px 14px;">
+            ${urgentAlertHtml}
 
-          <!-- Thông tin nhân sự -->
-          <div style="background-color:#f8fafc;border-radius:12px;padding:12px 16px;margin-bottom:18px;border:1px solid #e2e8f0;">
-            <table class="info-table" style="width:100%;border-collapse:collapse;font-size:13px;">
+            <!-- Thông tin nhân sự -->
+            <table role="presentation" style="width:100%;border-collapse:collapse;background-color:#f8fafc;border-radius:10px;border:1px solid #e2e8f0;margin-bottom:16px;">
               <tr>
-                <td style="padding:3px 0;color:#64748b;width:120px;">Điều dưỡng:</td>
-                <td style="padding:3px 0;font-weight:bold;color:#0f172a;">${staff.name} (${staff.code})</td>
-              </tr>
-              <tr>
-                <td style="padding:3px 0;color:#64748b;">Email:</td>
-                <td style="padding:3px 0;color:#0f172a;">${staff.email}</td>
-              </tr>
-              <tr>
-                <td style="padding:3px 0;color:#64748b;">Quỹ phép ${yearlyStats.year}:</td>
-                <td style="padding:3px 0;font-weight:bold;color:#0d9488;">
-                  Đã nghỉ: ${yearlyStats.totalDays} ngày (${yearlyStats.totalSessions} buổi)
+                <td style="padding:10px 12px;font-size:13px;">
+                  <table role="presentation" style="width:100%;border-collapse:collapse;">
+                    <tr>
+                      <td style="padding:3px 0;color:#64748b;width:110px;font-size:12px;">Điều dưỡng:</td>
+                      <td style="padding:3px 0;font-weight:bold;color:#0f172a;font-size:13px;">${staff.name} (${staff.code})</td>
+                    </tr>
+                    <tr>
+                      <td style="padding:3px 0;color:#64748b;font-size:12px;">Email:</td>
+                      <td style="padding:3px 0;color:#0f172a;font-size:13px;">${staff.email}</td>
+                    </tr>
+                    <tr>
+                      <td style="padding:3px 0;color:#64748b;font-size:12px;">Quỹ phép ${yearlyStats.year}:</td>
+                      <td style="padding:3px 0;font-weight:bold;color:#0d9488;font-size:13px;">
+                        Đã nghỉ: ${yearlyStats.totalDays} ngày (${yearlyStats.totalSessions} buổi)
+                      </td>
+                    </tr>
+                  </table>
                 </td>
               </tr>
             </table>
-          </div>
 
-          <!-- Danh sách ca xin nghỉ -->
-          <h2 style="font-size:14px;font-weight:bold;color:#0f172a;margin:0 0 10px 0;">Danh sách ca xin nghỉ phép (${leaveItems.length} ca):</h2>
-          
-          <!-- Khung cuộn ngang mượt mà cho Mobile -->
-          <div style="width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch;border:1px solid #e2e8f0;border-radius:10px;margin-bottom:20px;">
-            <table style="width:100%;min-width:580px;border-collapse:collapse;font-size:12px;text-align:left;">
-              <thead>
-                <tr style="background-color:#0f766e;color:#ffffff;font-size:11px;text-transform:uppercase;">
-                  <th style="padding:9px 10px;">Ngày (dd/mm/yyyy)</th>
-                  <th style="padding:9px 10px;">Ca (S/C/CN)</th>
-                  <th style="padding:9px 10px;">Đã đăng ký trước & Định mức</th>
-                  <th style="padding:9px 10px;">Lý do</th>
-                  <th style="padding:9px 10px;">Phân loại</th>
-                  <th style="padding:9px 10px;">Ghi chú</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${leaveRowsHtml}
-              </tbody>
+            <!-- Tiêu đề danh sách ca -->
+            <h2 style="font-size:14px;font-weight:bold;color:#0f172a;margin:0 0 10px 0;">
+              Danh sách ca xin nghỉ phép (${leaveItems.length} ca):
+            </h2>
+
+            <!-- Khối Thẻ ca xin nghỉ - Tự động co giãn 100% trên Mobile & Desktop -->
+            ${leaveCardsHtml}
+
+            <!-- Nút bấm phê duyệt 1 chạm Touch-Friendly -->
+            <table role="presentation" style="width:100%;border-collapse:collapse;margin:16px 0 12px 0;">
+              <tr>
+                <td align="center">
+                  <a href="${approveUrl}" target="_blank" style="display:block;width:100%;max-width:380px;box-sizing:border-box;background-color:#0d9488;color:#ffffff;text-decoration:none;padding:15px 18px;border-radius:12px;font-size:16px;font-weight:bold;text-align:center;box-shadow:0 4px 14px rgba(13,148,136,0.3);letter-spacing:0.3px;">
+                    ✅ DUYỆT ĐƠN NGHỈ PHÉP (1 CHẠM)
+                  </a>
+                </td>
+              </tr>
+              <tr>
+                <td align="center" style="padding-top:10px;">
+                  <a href="${calendarUrl}" target="_blank" style="display:block;width:100%;max-width:380px;box-sizing:border-box;background-color:#f1f5f9;color:#0f766e;text-decoration:none;padding:11px 16px;border-radius:10px;font-size:12px;font-weight:bold;text-align:center;border:1px solid #ccfbf1;">
+                    📅 Xem lịch đăng ký nghỉ phép trên Web →
+                  </a>
+                </td>
+              </tr>
             </table>
-          </div>
 
-          <!-- CÁC NÚT THAO TÁC DUYỆT & XEM LỊCH (RESPONSIVE TOUCH-FRIENDLY) -->
-          <div style="text-align:center;padding:10px 0 16px 0;">
-            <a href="${approveUrl}" target="_blank" class="btn-primary" style="display:inline-block;width:100%;max-width:380px;box-sizing:border-box;background-color:#0d9488;color:#ffffff;text-decoration:none;padding:14px 28px;border-radius:12px;font-size:15px;font-weight:bold;box-shadow:0 4px 14px rgba(13,148,136,0.3);margin-bottom:10px;">
-              ✅ DUYỆT ĐƠN NGHỈ PHÉP (1 CHẠM)
-            </a>
-            <br/>
-            <a href="${calendarUrl}" target="_blank" class="btn-secondary" style="display:inline-block;width:100%;max-width:380px;box-sizing:border-box;background-color:#f1f5f9;color:#0f766e;text-decoration:none;padding:10px 20px;border-radius:10px;font-size:12px;font-weight:bold;border:1px solid #ccfbf1;">
-              📅 Xem lịch đăng ký nghỉ phép trên Web →
-            </a>
-          </div>
+            <!-- Khối xem nhanh lịch nghỉ 7 ngày tới -->
+            ${upcoming7DaysTableHtml}
 
-          <!-- KHỐI XEM NHANH LỊCH NGHỈ 7 NGÀY TỚI TRỰC TIẾP TRONG EMAIL -->
-          ${upcoming7DaysTableHtml}
-
-          <hr style="border:none;border-top:1px solid #e2e8f0;margin:20px 0 14px 0;" />
-          <p style="margin:0;font-size:11px;color:#94a3b8;line-height:1.5;">
-            Sau khi duyệt, dữ liệu sẽ được ghi nhận chính thức vào Google Sheets và tự động gửi email thông báo xác thực tới Điều dưỡng ${staff.name} (BCC tới ĐD Nghĩa).
-          </p>
-        </div>
-      </div>
+            <hr style="border:none;border-top:1px solid #e2e8f0;margin:20px 0 12px 0;" />
+            <p style="margin:0;font-size:11px;color:#94a3b8;line-height:1.5;">
+              Sau khi duyệt, dữ liệu sẽ được ghi nhận chính thức vào Google Sheets và tự động gửi email thông báo xác thực tới Điều dưỡng ${staff.name} (BCC tới ĐD Nghĩa).
+            </p>
+          </td>
+        </tr>
+      </table>
     </body>
     </html>
   `;
@@ -441,7 +459,7 @@ export interface SendApprovedNotificationEmailParams {
 /**
  * [QWEN3] Gửi email thông báo đơn đã duyệt tới người xin nghỉ phép
  * Đồng thời BCC tới ĐD Nghĩa (nghiadn.pk@pnt.edu.vn)
- * Thiết kế chuẩn Responsive tương thích trên Mobile và Desktop
+ * Thiết kế chuẩn Mobile Card Layout: Co giãn 100% tự nhiên trên mọi kích thước màn hình
  */
 export async function sendLeaveApprovedNotificationEmail(
   params: SendApprovedNotificationEmailParams,
@@ -462,8 +480,9 @@ export async function sendLeaveApprovedNotificationEmail(
 
   const subject = `[XÁC THỰC ĐỒNG Ý] Đơn xin nghỉ phép của ĐD ${staff.name} đã được phê duyệt`;
 
-  const leaveRowsHtml = leaveItems
-    .map((item, idx) => {
+  // Render từng ca đã duyệt thành các thẻ khối (Cards) 100% width trên Mobile
+  const leaveCardsHtml = leaveItems
+    .map((item) => {
       let dateLabel = item.date;
       try {
         dateLabel = format(parseISO(item.date), "dd/MM/yyyy (EEEE)", { locale: vi });
@@ -476,19 +495,40 @@ export async function sendLeaveApprovedNotificationEmail(
       const shiftBg = isMorning ? "#f59e0b" : isAfternoon ? "#2563eb" : "#7e22ce";
 
       const reasonLabel = LEAVE_REASON_LABELS[item.reason] || item.reason;
+      let reasonBadge = `<span style="background-color:#dcfce7;color:#166534;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:bold;border:1px solid #bbf7d0;">${reasonLabel}</span>`;
+      if (item.reason === "om") {
+        reasonBadge = `<span style="background-color:#fee2e2;color:#991b1b;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:bold;border:1px solid #fecaca;">${reasonLabel}</span>`;
+      } else if (item.reason === "dihoc") {
+        reasonBadge = `<span style="background-color:#e0e7ff;color:#3730a3;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:bold;border:1px solid #c7d2fe;">${reasonLabel}</span>`;
+      } else if (item.reason === "khac") {
+        reasonBadge = `<span style="background-color:#f1f5f9;color:#334155;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:bold;border:1px solid #e2e8f0;">${reasonLabel}</span>`;
+      }
 
       return `
-        <tr style="border-bottom:1px solid #e2e8f0;${idx % 2 === 1 ? "background-color:#f8fafc;" : ""}">
-          <td style="padding:9px 10px;font-weight:600;color:#0f172a;white-space:nowrap;">${dateLabel}</td>
-          <td style="padding:9px 10px;color:#334155;font-weight:600;white-space:nowrap;">
-            <span style="background-color:${shiftBg};color:#ffffff;padding:2px 7px;border-radius:5px;font-size:11px;font-weight:900;">
-              ${shiftCode}
-            </span>
-            <span style="margin-left:3px;font-size:11px;">${shiftLabel}</span>
-          </td>
-          <td style="padding:9px 10px;color:#334155;white-space:nowrap;">${reasonLabel}</td>
-          <td style="padding:9px 10px;color:#059669;font-weight:bold;white-space:nowrap;">✓ Đã duyệt chính thức</td>
-        </tr>
+        <table role="presentation" style="width:100%;border-collapse:collapse;margin-bottom:10px;border:1px solid #cbd5e1;border-radius:10px;background-color:#ffffff;box-shadow:0 1px 4px rgba(0,0,0,0.03);">
+          <tr style="background-color:#f0fdf4;border-bottom:1px solid #dcfce7;">
+            <td style="padding:10px 12px;font-size:13px;font-weight:bold;color:#0f172a;text-align:left;">
+              📅 ${dateLabel}
+            </td>
+            <td style="padding:10px 12px;text-align:right;white-space:nowrap;">
+              <span style="background-color:${shiftBg};color:#ffffff;padding:3px 8px;border-radius:5px;font-size:11px;font-weight:900;display:inline-block;">
+                ${shiftCode} · ${shiftLabel}
+              </span>
+            </td>
+          </tr>
+          <tr>
+            <td colspan="2" style="padding:10px 12px;font-size:12px;line-height:1.5;color:#334155;">
+              <div style="margin-bottom:4px;">
+                <span style="color:#64748b;font-size:11px;font-weight:bold;text-transform:uppercase;">Loại nghỉ: </span>
+                ${reasonBadge}
+              </div>
+              <div>
+                <span style="color:#64748b;font-size:11px;font-weight:bold;text-transform:uppercase;">Trạng thái: </span>
+                <span style="color:#059669;font-weight:bold;font-size:12px;">✓ Đã phê duyệt chính thức</span>
+              </div>
+            </td>
+          </tr>
+        </table>
       `;
     })
     .join("");
@@ -502,78 +542,66 @@ export async function sendLeaveApprovedNotificationEmail(
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
       <title>Đơn nghỉ phép đã được phê duyệt</title>
-      <style>
-        /* Mobile Responsive Styles */
-        @media only screen and (max-width: 600px) {
-          .email-wrapper { padding: 8px 4px !important; }
-          .email-card { border-radius: 12px !important; width: 100% !important; max-width: 100% !important; }
-          .email-header { padding: 18px 14px !important; }
-          .email-header h1 { font-size: 17px !important; }
-          .email-body { padding: 16px 12px !important; }
-          .btn-primary { display: block !important; width: 100% !important; box-sizing: border-box !important; padding: 13px 16px !important; font-size: 14px !important; }
-        }
-      </style>
     </head>
-    <body class="email-wrapper" style="margin:0;padding:20px 10px;background-color:#f1f5f9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#1e293b;">
-      <div class="email-card" style="max-width:680px;margin:0 auto;background-color:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.06);border:1px solid #e2e8f0;">
-        
+    <body style="margin:0;padding:12px 6px;background-color:#f1f5f9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#1e293b;">
+      <table role="presentation" style="width:100%;border-collapse:collapse;margin:0 auto;max-width:600px;background-color:#ffffff;border-radius:14px;overflow:hidden;box-shadow:0 4px 16px rgba(0,0,0,0.06);border:1px solid #e2e8f0;">
         <!-- Header -->
-        <div class="email-header" style="background:linear-gradient(135deg,#059669 0%,#10b981 100%);padding:22px 24px;color:#ffffff;">
-          <p style="margin:0 0 4px 0;font-size:11px;font-weight:bold;text-transform:uppercase;letter-spacing:1px;opacity:0.85;">NurseFlow · Xác thực phê duyệt</p>
-          <h1 style="margin:0;font-size:19px;font-weight:bold;line-height:1.3;">Đơn xin nghỉ phép đã được PHÊ DUYỆT</h1>
-        </div>
+        <tr>
+          <td style="background:linear-gradient(135deg,#059669 0%,#10b981 100%);padding:18px 16px;color:#ffffff;text-align:left;">
+            <p style="margin:0 0 4px 0;font-size:11px;font-weight:bold;text-transform:uppercase;letter-spacing:1px;opacity:0.85;">NurseFlow · Xác thực phê duyệt</p>
+            <h1 style="margin:0;font-size:18px;font-weight:bold;line-height:1.3;">Đơn xin nghỉ phép đã được PHÊ DUYỆT</h1>
+          </td>
+        </tr>
 
-        <div class="email-body" style="padding:22px 20px;">
-          <p style="margin:0 0 14px 0;font-size:14px;line-height:1.6;color:#1e293b;">
-            Kính gửi Điều dưỡng <strong>${staff.name}</strong> (${staff.code}),
-          </p>
-          <p style="margin:0 0 18px 0;font-size:13px;line-height:1.6;color:#334155;">
-            Phiếu xin nghỉ phép của bạn đã được quản lý (<strong>tienmed@gmail.com</strong>) kiểm tra và <strong>chính thức phê duyệt</strong> vào lúc <strong>${approvedTimeStr}</strong>. Dữ liệu đã được cập nhật chính thức vào hệ thống.
-          </p>
+        <!-- Body -->
+        <tr>
+          <td style="padding:16px 14px;">
+            <p style="margin:0 0 12px 0;font-size:14px;line-height:1.6;color:#1e293b;">
+              Kính gửi Điều dưỡng <strong>${staff.name}</strong> (${staff.code}),
+            </p>
+            <p style="margin:0 0 16px 0;font-size:13px;line-height:1.6;color:#334155;">
+              Phiếu xin nghỉ phép của bạn đã được quản lý (<strong>tienmed@gmail.com</strong>) kiểm tra và <strong>chính thức phê duyệt</strong> vào lúc <strong>${approvedTimeStr}</strong>. Dữ liệu đã được cập nhật chính thức vào hệ thống.
+            </p>
 
-          <!-- Danh sách ca đã duyệt (Khung cuộn ngang trên Mobile) -->
-          <div style="width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch;border:1px solid #e2e8f0;border-radius:10px;margin-bottom:20px;">
-            <table style="width:100%;min-width:440px;border-collapse:collapse;font-size:12px;text-align:left;">
-              <thead>
-                <tr style="background-color:#059669;color:#ffffff;font-size:11px;text-transform:uppercase;">
-                  <th style="padding:9px 10px;">Ngày (dd/mm/yyyy)</th>
-                  <th style="padding:9px 10px;">Ca (S/C/CN)</th>
-                  <th style="padding:9px 10px;">Lý do</th>
-                  <th style="padding:9px 10px;">Trạng thái</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${leaveRowsHtml}
-              </tbody>
+            <!-- Tiêu đề danh sách ca -->
+            <h2 style="font-size:14px;font-weight:bold;color:#0f172a;margin:0 0 10px 0;">
+              Danh sách ca nghỉ đã duyệt:
+            </h2>
+
+            <!-- Danh sách ca đã duyệt dạng Thẻ Card Mobile -->
+            ${leaveCardsHtml}
+
+            <!-- LƯU Ý LÀM PHIẾU GIẤY THEO QUI ĐỊNH -->
+            <div style="background-color:#eff6ff;border:1px solid #bfdbfe;border-left:4px solid #3b82f6;border-radius:8px;padding:12px 14px;margin:16px 0 18px 0;">
+              <p style="margin:0 0 4px 0;font-weight:bold;color:#1e40af;font-size:13px;">
+                📝 LƯU Ý THỦ TỤC QUAN TRỌNG:
+              </p>
+              <p style="margin:0;font-size:12px;color:#1e3a8a;line-height:1.5;">
+                Sau khi phiếu nghỉ đã được phê duyệt trên hệ thống, <strong>bạn vui lòng tiến hành làm phiếu giấy xin nghỉ phép theo đúng quy định</strong> của đơn vị/bệnh viện và nộp lại cho bộ phận quản lý.
+              </p>
+            </div>
+
+            <!-- NÚT XEM LỊCH TRÊN HỆ THỐNG (TOUCH-FRIENDLY) -->
+            <table role="presentation" style="width:100%;border-collapse:collapse;margin:10px 0 14px 0;">
+              <tr>
+                <td align="center">
+                  <a href="${calendarUrl}" target="_blank" style="display:block;width:100%;max-width:380px;box-sizing:border-box;background-color:#0f766e;color:#ffffff;text-decoration:none;padding:13px 20px;border-radius:12px;font-size:14px;font-weight:bold;text-align:center;box-shadow:0 3px 12px rgba(15,118,110,0.25);">
+                    📅 XEM LỊCH ĐĂNG KÝ NGHỈ PHÉP TRÊN WEB →
+                  </a>
+                </td>
+              </tr>
             </table>
-          </div>
 
-          <!-- LƯU Ý LÀM PHIẾU GIẤY THEO QUI ĐỊNH -->
-          <div style="background-color:#eff6ff;border:1px solid #bfdbfe;border-left:4px solid #3b82f6;border-radius:8px;padding:14px 16px;margin-bottom:20px;">
-            <p style="margin:0 0 4px 0;font-weight:bold;color:#1e40af;font-size:13px;">
-              📝 LƯU Ý THỦ TỤC QUAN TRỌNG:
+            <!-- KHỐI XEM NHANH LỊCH NGHỈ 7 NGÀY TỚI TRỰC TIẾP TRONG EMAIL -->
+            ${upcoming7DaysTableHtml}
+
+            <hr style="border:none;border-top:1px solid #e2e8f0;margin:20px 0 12px 0;" />
+            <p style="margin:0;font-size:11px;color:#94a3b8;line-height:1.5;">
+              Email này được gửi tự động từ hệ thống NurseFlow tới người gửi phiếu và được đồng gửi (BCC) tới ĐD Nghĩa (${NOTIFY_BCC_EMAIL}) để theo dõi và đối soát.
             </p>
-            <p style="margin:0;font-size:12px;color:#1e3a8a;line-height:1.5;">
-              Sau khi phiếu nghỉ đã được phê duyệt trên hệ thống, <strong>bạn vui lòng tiến hành làm phiếu giấy xin nghỉ phép theo đúng quy định</strong> của đơn vị/bệnh viện và nộp lại cho bộ phận quản lý.
-            </p>
-          </div>
-
-          <!-- NÚT XEM LỊCH TRÊN HỆ THỐNG (TOUCH-FRIENDLY) -->
-          <div style="text-align:center;padding:6px 0 16px 0;">
-            <a href="${calendarUrl}" target="_blank" class="btn-primary" style="display:inline-block;width:100%;max-width:380px;box-sizing:border-box;background-color:#0f766e;color:#ffffff;text-decoration:none;padding:12px 24px;border-radius:12px;font-size:13px;font-weight:bold;box-shadow:0 3px 12px rgba(15,118,110,0.25);">
-              📅 XEM LỊCH ĐĂNG KÝ NGHỈ PHÉP TRÊN WEB →
-            </a>
-          </div>
-
-          <!-- KHỐI XEM NHANH LỊCH NGHỈ 7 NGÀY TỚI TRỰC TIẾP TRONG EMAIL -->
-          ${upcoming7DaysTableHtml}
-
-          <hr style="border:none;border-top:1px solid #e2e8f0;margin:20px 0 14px 0;" />
-          <p style="margin:0;font-size:11px;color:#94a3b8;line-height:1.5;">
-            Email này được gửi tự động từ hệ thống NurseFlow tới người gửi phiếu và được đồng gửi (BCC) tới ĐD Nghĩa (${NOTIFY_BCC_EMAIL}) để theo dõi và đối soát.
-          </p>
-        </div>
-      </div>
+          </td>
+        </tr>
+      </table>
     </body>
     </html>
   `;
