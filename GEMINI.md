@@ -46,6 +46,7 @@ Quy định trong GEMINI.md LUÔN thắng.
 ## NGUYÊN TẮC KHI PHÁT TRIỂN TÍNH NĂNG
 1. Khi bắt đầu làm việc với tính năng mới bắt buộc phải tìm hiểu kỹ lưỡng về tính năng đó.
 2. Nếu không chắc chắn 100% về tính năng bắt buộc phải search trên internet về tính năng và tổng hợp kiến thức.
+3. **BẮT BUỘC** sử dụng `graphify` (ví dụ: `graphify query`, `graphify explain`, `graphify path` hoặc kiểm tra `graphify-out/GRAPH_REPORT.md`) để tìm hiểu kiến trúc, tìm code liên quan và đánh giá sự phụ thuộc TRƯỚC KHI bắt đầu triển khai code mới.
 
 ## NGUYÊN TẮC KHI PHÁT TRIỂN UI
 1. Các UI style phải đồng bộ với những gì đã có: nút, màu sắc, font, kích thước, v.v.

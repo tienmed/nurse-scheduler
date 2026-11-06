@@ -1,0 +1,33 @@
+# Dependency directories
+node_modules/
+*/node_modules/
+
+# Build and cache outputs
+.next/
+*/.next/
+__pycache__/
+*/__pycache__/
+.pytest_cache/
+tsconfig.tsbuildinfo
+package-lock.json
+
+# Tool & index caches
+.codex/
+.git/
+.vscode/
+
+# Generated runtime outputs & logs
+reports/
+logs/
+scratch/
+*.log
+
+# Output & binary files
+graphify-out/
+*.docx
+*.xlsx
+*.pdf
+*.zip
+*.db
+*.db-wal
+*.db-shm
