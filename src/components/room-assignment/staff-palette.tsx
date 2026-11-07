@@ -1,7 +1,7 @@
-"use client";
+﻿"use client";
 
 import { useMemo, useState } from "react";
-import { GripVertical, Search, User, Users } from "lucide-react";
+import { GripVertical, Search, Users } from "lucide-react";
 import type { StaffMember } from "@/lib/types";
 import { getStaffColorStyle, getStaffMatrixLabel, getStaffShortName } from "./types";
 
@@ -14,7 +14,7 @@ interface StaffPaletteProps {
   onDragStaffEnd: () => void;
 }
 
-// [QWEN3] Kho thẻ nhân viên phía trên ma trận, ghi nhận số phòng/ca được gán trong tuần
+// [QWEN3] Kho tháº» nhÃ¢n viÃªn phÃ­a trÃªn ma tráº­n, ghi nháº­n sá»‘ phÃ²ng/ca Ä‘Æ°á»£c gÃ¡n trong tuáº§n
 export function StaffPalette({
   staff,
   staffCounts,
@@ -36,7 +36,7 @@ export function StaffPalette({
           getStaffShortName(s.name).toLowerCase().includes(q),
       );
     }
-    // Sắp xếp theo tên gọi ngắn
+    // Sáº¯p xáº¿p theo tÃªn gá»i ngáº¯n
     return list.sort((a, b) => getStaffShortName(a.name).localeCompare(getStaffShortName(b.name)));
   }, [staff, search]);
 
@@ -48,19 +48,19 @@ export function StaffPalette({
             <Users className="h-4 w-4" />
           </span>
           <div>
-            <h3 className="text-sm font-bold text-slate-900">Kho Thẻ Nhân Viên</h3>
+            <h3 className="text-sm font-bold text-slate-900">Kho Tháº» NhÃ¢n ViÃªn</h3>
             <p className="text-[11px] text-slate-500">
-              Kéo thẻ vào ô phòng trong ma trận • Hoặc nhấp chọn thẻ rồi nhấp ô phòng
+              KÃ©o tháº» vÃ o Ã´ phÃ²ng trong ma tráº­n â€¢ Hoáº·c nháº¥p chá»n tháº» rá»“i nháº¥p Ã´ phÃ²ng
             </p>
           </div>
         </div>
 
-        {/* Ô tìm kiếm nhân sự */}
+        {/* Ã” tÃ¬m kiáº¿m nhÃ¢n sá»± */}
         <div className="relative">
           <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
           <input
             type="text"
-            placeholder="Tìm nhân sự..."
+            placeholder="TÃ¬m nhÃ¢n sá»±..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="w-full sm:w-56 rounded-2xl border border-slate-200 bg-slate-50 py-1.5 pl-8 pr-3 text-xs text-slate-800 placeholder:text-slate-400 focus:border-teal-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-100 transition-all"
@@ -68,7 +68,7 @@ export function StaffPalette({
         </div>
       </div>
 
-      {/* Danh sách thẻ nhân viên cuộn ngang / flex wrap */}
+      {/* Danh sÃ¡ch tháº» nhÃ¢n viÃªn cuá»™n ngang / flex wrap */}
       <div className="mt-3 flex flex-wrap gap-2 max-h-36 overflow-y-auto pr-1">
         {filteredStaff.map((person) => {
           const isSelected = selectedStaffId === person.id;
@@ -99,7 +99,7 @@ export function StaffPalette({
                   ? `${colorStyle.bg} ${colorStyle.border} ${colorStyle.text} ring-2 ring-teal-500 ring-offset-1 scale-105 shadow-md`
                   : `${colorStyle.bg} ${colorStyle.border} ${colorStyle.text} hover:scale-102 hover:shadow-xs`
               }`}
-              title={`${person.name} (${person.code || "NV"}) - Đã gán ${assignedCount} ca trong tuần. Nhấp chọn hoặc kéo thả vào ô phòng.`}
+              title={`${person.name} (${person.code || "NV"}) - ÄÃ£ gÃ¡n ${assignedCount} ca trong tuáº§n. Nháº¥p chá»n hoáº·c kÃ©o tháº£ vÃ o Ã´ phÃ²ng.`}
             >
               <GripVertical className="h-3 w-3 opacity-40 group-hover:opacity-100 transition-opacity" />
 
@@ -107,12 +107,12 @@ export function StaffPalette({
                 {getStaffShortName(person.name).slice(0, 1).toUpperCase()}
               </span>
 
-              {/* Tên gọn: ĐD Tên */}
+              {/* TÃªn gá»n: ÄD TÃªn */}
               <span className="font-bold tracking-tight">
                 {matrixLabel}
               </span>
 
-              {/* Badge số ca đã gán */}
+              {/* Badge sá»‘ ca Ä‘Ã£ gÃ¡n */}
               <span
                 className={`ml-1 rounded-full px-1.5 py-0.2 text-[10px] font-bold ${
                   assignedCount > 0
@@ -128,7 +128,7 @@ export function StaffPalette({
 
         {filteredStaff.length === 0 && (
           <div className="py-4 text-center text-xs text-slate-400 w-full">
-            Không tìm thấy nhân sự phù hợp
+            KhÃ´ng tÃ¬m tháº¥y nhÃ¢n sá»± phÃ¹ há»£p
           </div>
         )}
       </div>

@@ -1,7 +1,7 @@
 <!-- BEGIN:nextjs-agent-rules -->
-# This is NOT the Next.js you know
+# Cảnh báo phiên bản Next.js mới (Next.js 16)
 
-This version has breaking changes â€” APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
+Phiên bản này có nhiều thay đổi lớn (breaking changes) về APIs, quy ước và cấu trúc tệp so với dữ liệu huấn luyện thông thường. Bắt buộc đọc tài liệu liên quan trong `node_modules/next/dist/docs/` trước khi viết code và chú ý các cảnh báo không dùng nữa (deprecation notices).
 <!-- END:nextjs-agent-rules -->
 <!-- BEGIN:qwen3-agent-rules -->
 # QWEN3 - AI Coding Assistant

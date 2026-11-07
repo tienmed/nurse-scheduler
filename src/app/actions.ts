@@ -1,4 +1,4 @@
-"use server";
+﻿"use server";
 
 import { addDays, parseISO, format, differenceInCalendarDays } from "date-fns";
 import { revalidatePath } from "next/cache";
@@ -82,7 +82,7 @@ async function assertAdmin() {
 }
 
 function revalidateWorkspace() {
-  ["/", "/schedule", "/template", "/staff", "/leave", "/reports", "/areas"].forEach((path) => {
+  ["/", "/schedule", "/template", "/staff", "/leave", "/reports", "/areas", "/room-assignment", "/dang-ky-phep"].forEach((path) => {
     revalidatePath(path);
   });
 }

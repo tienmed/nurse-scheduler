@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Be_Vietnam_Pro, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
 
@@ -14,10 +14,22 @@ const plexMono = IBM_Plex_Mono({
   weight: ["400", "500", "600"],
 });
 
+export const viewport: Viewport = {
+  themeColor: "#0d9488",
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+};
+
 export const metadata: Metadata = {
   title: "NurseFlow | Phân công lịch điều dưỡng",
   description:
     "Ứng dụng lập lịch điều dưỡng theo tuần với Google OAuth, Google Sheets và xuất Excel.",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "NurseFlow",
+  },
 };
 
 export default function RootLayout({

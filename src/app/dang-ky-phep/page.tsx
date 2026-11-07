@@ -1,15 +1,18 @@
 import Link from "next/link";
-import { LogOut, CalendarCheck, ShieldAlert, HeartPulse, CalendarDays, BarChart3 } from "lucide-react";
+import { LogOut, CalendarCheck, ShieldAlert, HeartPulse, CalendarDays, BarChart3, Compass } from "lucide-react";
 import { signOut } from "@/auth";
 import { getAppData, calculateYearlyApprovedLeaveStats } from "@/lib/repository";
 import { getUserContext } from "@/lib/session";
+import { getWeekStartFromInput } from "@/lib/date";
 import { FlexibleLeaveForm } from "@/components/leave-portal/flexible-leave-form";
 import { PortalLeaveCalendar } from "@/components/leave-portal/portal-leave-calendar";
 import { MyLeaveStatsView } from "@/components/leave-portal/my-leave-stats-view";
+import { MyPersonalScheduleView } from "@/components/leave-portal/my-personal-schedule-view";
 
 interface PageProps {
   searchParams: Promise<{
     tab?: string;
+    week?: string;
     message?: string;
     error?: string;
   }>;
@@ -18,7 +21,9 @@ interface PageProps {
 export const dynamic = "force-dynamic";
 
 export default async function LeavePortalPage({ searchParams }: PageProps) {
-  const { tab = "register", message, error } = await searchParams;
+  const { tab = "my-schedule", week, message, error } = await searchParams;
+  const activeTab = tab || "my-schedule";
+  const weekStart = getWeekStartFromInput(week);
   const { authEnabled, user } = await getUserContext({ required: false });
 
   // 1. KIỂM TRA ĐĂNG NHẬP
@@ -30,9 +35,9 @@ export default async function LeavePortalPage({ searchParams }: PageProps) {
             <HeartPulse className="h-7 w-7 sm:h-8 sm:w-8" />
           </div>
           <div className="space-y-2">
-            <h1 className="text-xl sm:text-2xl font-bold text-slate-900">Cổng Đăng Ký Nghỉ Phép</h1>
+            <h1 className="text-xl sm:text-2xl font-bold text-slate-900">Cổng Nhân Sự Cá Nhân</h1>
             <p className="text-xs sm:text-sm text-slate-500 leading-relaxed">
-              Vui lòng đăng nhập bằng tài khoản Google cơ quan của bạn để truy cập hệ thống đăng ký phép.
+              Vui lòng đăng nhập bằng tài khoản Google cơ quan của bạn để theo dõi lịch phân vị trí và đăng ký nghỉ phép.
             </p>
           </div>
           <Link
@@ -121,7 +126,7 @@ export default async function LeavePortalPage({ searchParams }: PageProps) {
                   NurseFlow Portal
                 </h1>
                 <p className="text-[10px] sm:text-[11px] font-medium text-teal-600 uppercase tracking-wider truncate">
-                  Cổng Đăng Ký Nghỉ Phép
+                  Cổng Nhân Sự Cá Nhân
                 </p>
               </div>
             </div>
@@ -176,13 +181,26 @@ export default async function LeavePortalPage({ searchParams }: PageProps) {
           </div>
         )}
 
-        {/* ĐIỀU HƯỚNG TABS (RESPONSIVE GRID 3 TABS) */}
-        <div className="grid grid-cols-3 border-b border-slate-200 gap-1 sm:gap-2">
-          {/* Tab 1: Đăng ký nghỉ phép */}
+        {/* ĐIỀU HƯỚNG 4 TABS (RESPONSIVE GRID) */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 border-b border-slate-200 gap-1 sm:gap-2">
+          {/* Tab 1: Lịch trực của tôi (MỚI - MẶC ĐỊNH) */}
+          <Link
+            href="/dang-ky-phep?tab=my-schedule"
+            className={`inline-flex items-center justify-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-2.5 sm:py-3 text-xs sm:text-sm font-bold border-b-2 transition text-center ${
+              activeTab === "my-schedule"
+                ? "border-teal-600 text-teal-700 bg-teal-50/40 rounded-t-xl"
+                : "border-transparent text-slate-500 hover:text-slate-900"
+            }`}
+          >
+            <Compass className="h-4 w-4 shrink-0" />
+            <span className="truncate">Lịch của tôi</span>
+          </Link>
+
+          {/* Tab 2: Đăng ký nghỉ phép */}
           <Link
             href="/dang-ky-phep?tab=register"
-            className={`inline-flex items-center justify-center gap-1.5 sm:gap-2 px-2 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-bold border-b-2 transition text-center ${
-              tab === "register"
+            className={`inline-flex items-center justify-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-2.5 sm:py-3 text-xs sm:text-sm font-bold border-b-2 transition text-center ${
+              activeTab === "register"
                 ? "border-teal-600 text-teal-700 bg-teal-50/40 rounded-t-xl"
                 : "border-transparent text-slate-500 hover:text-slate-900"
             }`}
@@ -191,53 +209,62 @@ export default async function LeavePortalPage({ searchParams }: PageProps) {
             <span className="truncate">Đăng ký phép</span>
           </Link>
 
-          {/* Tab 2: Thống kê phép của tôi (MỤC MỚI) */}
+          {/* Tab 3: Thống kê phép của tôi */}
           <Link
             href="/dang-ky-phep?tab=stats"
-            className={`inline-flex items-center justify-center gap-1.5 sm:gap-2 px-2 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-bold border-b-2 transition text-center ${
-              tab === "stats"
+            className={`inline-flex items-center justify-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-2.5 sm:py-3 text-xs sm:text-sm font-bold border-b-2 transition text-center ${
+              activeTab === "stats"
                 ? "border-teal-600 text-teal-700 bg-teal-50/40 rounded-t-xl"
                 : "border-transparent text-slate-500 hover:text-slate-900"
             }`}
           >
             <BarChart3 className="h-4 w-4 shrink-0" />
-            <span className="truncate">Thống kê phép của tôi</span>
+            <span className="truncate">Thống kê phép</span>
           </Link>
 
-          {/* Tab 3: Lịch các thành viên */}
+          {/* Tab 4: Lịch các thành viên */}
           <Link
             href="/dang-ky-phep?tab=calendar"
-            className={`inline-flex items-center justify-center gap-1.5 sm:gap-2 px-2 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-bold border-b-2 transition text-center ${
-              tab === "calendar"
+            className={`inline-flex items-center justify-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-2.5 sm:py-3 text-xs sm:text-sm font-bold border-b-2 transition text-center ${
+              activeTab === "calendar"
                 ? "border-teal-600 text-teal-700 bg-teal-50/40 rounded-t-xl"
                 : "border-transparent text-slate-500 hover:text-slate-900"
             }`}
           >
             <CalendarDays className="h-4 w-4 shrink-0" />
-            <span className="truncate">Lịch các thành viên</span>
+            <span className="truncate">Lịch thành viên</span>
           </Link>
         </div>
 
         {/* NỘI DUNG TƯƠNG ỨNG TỪNG TAB */}
-        {tab === "calendar" ? (
+        {activeTab === "calendar" ? (
           <PortalLeaveCalendar
             currentStaff={currentStaff}
             allStaff={data.staff.some((s) => s.id === currentStaff.id) ? data.staff : [currentStaff, ...data.staff]}
             allLeaves={data.leaveRequests}
           />
-        ) : tab === "stats" ? (
+        ) : activeTab === "stats" ? (
           <MyLeaveStatsView
             currentStaff={currentStaff}
             allLeaves={data.leaveRequests}
             yearlyStats={yearlyStats}
           />
-        ) : (
+        ) : activeTab === "register" ? (
           <FlexibleLeaveForm
             currentStaff={currentStaff}
             allStaff={activeStaffList}
             existingLeaves={data.leaveRequests}
             yearlyStats={yearlyStats}
             isAdmin={user?.role === "admin" || user?.role === "coordinator" || user?.email?.toLowerCase() === "admin@nurseflow.local"}
+          />
+        ) : (
+          <MyPersonalScheduleView
+            currentStaff={currentStaff}
+            weeklySchedule={data.weeklySchedule}
+            positions={data.positions}
+            leaveRequests={data.leaveRequests}
+            weekStart={weekStart}
+            holidays={data.holidays}
           />
         )}
       </main>

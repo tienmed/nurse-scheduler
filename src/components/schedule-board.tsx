@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useMemo, useState, useTransition } from "react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -46,7 +46,7 @@ interface ScheduleBoardProps {
   emptyTitle?: string;
   emptyDescription?: string;
 
-  // Các tham số mới phục vụ Popup
+  // CÃ¡c tham sá»‘ má»›i phá»¥c vá»¥ Popup
   staff?: StaffMember[];
   leaveRequests?: LeaveRecord[];
   workload?: WorkloadSummary[];
@@ -55,7 +55,7 @@ interface ScheduleBoardProps {
   editable?: boolean;
   mode?: "weekly" | "template";
   showEmptySlotSummary?: boolean;
-  // Giữ nguyên ngày/buổi đang xem khi redirect (template mode)
+  // Giá»¯ nguyÃªn ngÃ y/buá»•i Ä‘ang xem khi redirect (template mode)
   templateDay?: number;
   templateShift?: "morning" | "afternoon";
 }
@@ -63,7 +63,7 @@ interface ScheduleBoardProps {
 function groupEntriesByArea(entries: BoardEntry[]) {
   const groups = new Map<string, BoardEntry[]>();
   for (const entry of entries) {
-    const area = entry.position.area || "Khác";
+    const area = entry.position.area || "KhÃ¡c";
     const list = groups.get(area) ?? [];
     list.push(entry);
     groups.set(area, list);
@@ -76,7 +76,7 @@ function getRotationTooltip(person: StaffMember, positions: Position[]) {
   const names = person.positionIds
     .map((id) => positions.find((p) => p.id === id)?.name)
     .filter(Boolean);
-  return names.length > 0 ? `Có thể luân chuyển: ${names.join(", ")}` : "";
+  return names.length > 0 ? `CÃ³ thá»ƒ luÃ¢n chuyá»ƒn: ${names.join(", ")}` : "";
 }
 
 const AREA_THEME_COLORS = [
@@ -92,8 +92,8 @@ const AREA_THEME_COLORS = [
 export function ScheduleBoard({
   board,
   positions = [],
-  emptyTitle = "Chưa có khung lịch để hiển thị",
-  emptyDescription = "Hãy thêm vị trí và bật ít nhất một ca làm trong lịch nền để bắt đầu lập lịch tuần.",
+  emptyTitle = "ChÆ°a cÃ³ khung lá»‹ch Ä‘á»ƒ hiá»ƒn thá»‹",
+  emptyDescription = "HÃ£y thÃªm vá»‹ trÃ­ vÃ  báº­t Ã­t nháº¥t má»™t ca lÃ m trong lá»‹ch ná»n Ä‘á»ƒ báº¯t Ä‘áº§u láº­p lá»‹ch tuáº§n.",
 
   staff = [],
   leaveRequests = [],
@@ -106,7 +106,7 @@ export function ScheduleBoard({
   templateDay,
   templateShift,
 }: ScheduleBoardProps) {
-  // Build returnTo cho template mode, giữ nguyên ngày/buổi đang xem
+  // Build returnTo cho template mode, giá»¯ nguyÃªn ngÃ y/buá»•i Ä‘ang xem
   const templateReturnTo = useMemo(() => 
     templateDay != null && templateShift
       ? `/template?day=${templateDay}&shift=${templateShift}`
@@ -114,7 +114,7 @@ export function ScheduleBoard({
     [templateDay, templateShift]
   );
 
-  // Trạng thái modal
+  // Tráº¡ng thÃ¡i modal
   const [editingSlot, setEditingSlot] = useState<{
     slot: BoardSlot;
     entry: BoardEntry;
@@ -132,7 +132,7 @@ export function ScheduleBoard({
   const [pendingClearKey, setPendingClearKey] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
 
-  // Lọc board theo searchQuery
+  // Lá»c board theo searchQuery
   const filteredBoard = useMemo(() => {
     if (!searchQuery.trim()) return board;
     const query = searchQuery.toLowerCase();
@@ -186,8 +186,8 @@ export function ScheduleBoard({
         title={emptyTitle}
         description={emptyDescription}
         tips={[
-          "Thêm vị trí làm việc ở trang Nhân sự.",
-          "Bật ca làm ở trang Lịch nền.",
+          "ThÃªm vá»‹ trÃ­ lÃ m viá»‡c á»Ÿ trang NhÃ¢n sá»±.",
+          "Báº­t ca lÃ m á»Ÿ trang Lá»‹ch ná»n.",
         ]}
         tone="slate"
       />
@@ -201,7 +201,7 @@ export function ScheduleBoard({
           <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
           <input
             type="text"
-            placeholder="Tìm theo tên nhân sự hoặc vị trí..."
+            placeholder="TÃ¬m theo tÃªn nhÃ¢n sá»± hoáº·c vá»‹ trÃ­..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full rounded-2xl border border-slate-200 bg-white/50 py-2.5 pl-10 pr-4 text-sm font-medium transition focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-500/20"
@@ -216,7 +216,7 @@ export function ScheduleBoard({
           )}
         </div>
         <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
-          Hiển thị {filteredBoard.length} ca trực
+          Hiá»ƒn thá»‹ {filteredBoard.length} ca trá»±c
         </div>
       </div>
 
@@ -231,8 +231,8 @@ export function ScheduleBoard({
             <div className="rounded-full bg-slate-100 p-4 mb-4">
               <Search className="h-8 w-8 text-slate-400" />
             </div>
-            <h4 className="text-lg font-bold text-slate-900">Không tìm thấy kết quả</h4>
-            <p className="text-sm text-slate-500">Thử tìm kiếm với từ khóa khác nhé.</p>
+            <h4 className="text-lg font-bold text-slate-900">KhÃ´ng tÃ¬m tháº¥y káº¿t quáº£</h4>
+            <p className="text-sm text-slate-500">Thá»­ tÃ¬m kiáº¿m vá»›i tá»« khÃ³a khÃ¡c nhÃ©.</p>
           </motion.div>
         ) : (
           filteredBoard.map((slot) => {
@@ -252,19 +252,19 @@ export function ScheduleBoard({
                     <p className="text-sm text-white/72">{formatDate(slot.date, "dd/MM/yyyy")}</p>
                   </div>
                   <div className="flex gap-2">
-                    <Pill tone="teal">{slot.entries.flatMap(e => e.slots).filter((s) => s.assignment).length} vị trí đã gán</Pill>
+                    <Pill tone="teal">{slot.entries.flatMap(e => e.slots).filter((s) => s.assignment).length} vá»‹ trÃ­ Ä‘Ã£ gÃ¡n</Pill>
                     <Pill tone="amber">
-                      {slot.entries.flatMap((e) => e.slots).filter((s) => !s.person && s.assignment?.staffId !== "CLOSED").length} slot trống
+                      {slot.entries.flatMap((e) => e.slots).filter((s) => !s.person && s.assignment?.staffId !== "CLOSED").length} slot trá»‘ng
                     </Pill>
                     {isOvertimeSlot(slot.date, slot.shift) ? (
-                      <Pill tone="amber">Tăng ca</Pill>
+                      <Pill tone="amber">TÄƒng ca</Pill>
                     ) : null}
                   </div>
                 </div>
 
                 {showEmptySlotSummary && (
                   <div className="rounded-2xl border border-amber-200 bg-amber-50/70 p-3">
-                    <p className="mb-2 text-sm font-semibold text-amber-900">Tổng quan slot trống đang mở</p>
+                    <p className="mb-2 text-sm font-semibold text-amber-900">Tá»•ng quan slot trá»‘ng Ä‘ang má»Ÿ</p>
                     <div className="flex flex-wrap gap-2">
                       {slot.entries.flatMap((entry) =>
                         entry.slots
@@ -283,14 +283,14 @@ export function ScheduleBoard({
                                 }
                                 className="rounded-full border border-amber-300 bg-white px-3 py-1 text-xs font-medium text-amber-900 hover:bg-amber-100"
                               >
-                                {entry.position.area ? `${entry.position.area} · ` : ""}{entry.position.name} · Slot {subslot.slotIndex + 1}
+                                {entry.position.area ? `${entry.position.area} Â· ` : ""}{entry.position.name} Â· Slot {subslot.slotIndex + 1}
                               </button>
                             ) : (
                               <span
                                 key={`quick-${slot.date}-${slot.shift}-${entry.position.id}-${subslot.slotIndex}`}
                                 className="rounded-full border border-amber-300 bg-white px-3 py-1 text-xs font-medium text-amber-900"
                               >
-                                {entry.position.area ? `${entry.position.area} · ` : ""}{entry.position.name} · Slot {subslot.slotIndex + 1}
+                                {entry.position.area ? `${entry.position.area} Â· ` : ""}{entry.position.name} Â· Slot {subslot.slotIndex + 1}
                               </span>
                             )
                           )),
@@ -298,14 +298,14 @@ export function ScheduleBoard({
                       {slot.entries.flatMap((entry) =>
                         entry.slots.filter((subslot) => !subslot.person && subslot.assignment?.staffId !== "CLOSED"),
                       ).length === 0 && (
-                        <span className="text-xs text-amber-700">Không có slot trống trong ca này.</span>
+                        <span className="text-xs text-amber-700">KhÃ´ng cÃ³ slot trá»‘ng trong ca nÃ y.</span>
                       )}
                     </div>
                   </div>
                 )}
 
                 {[...areaGroups.entries()].map(([areaName, entries], areaIndex) => {
-                  const theme = areaName === "Khác" ? "bg-slate-50/40 ring-slate-200" : AREA_THEME_COLORS[areaIndex % AREA_THEME_COLORS.length];
+                  const theme = areaName === "KhÃ¡c" ? "bg-slate-50/40 ring-slate-200" : AREA_THEME_COLORS[areaIndex % AREA_THEME_COLORS.length];
 
                   return (
                     <div key={areaName} className="space-y-3">
@@ -338,7 +338,7 @@ export function ScheduleBoard({
                               if (duplicateNames.size === 0) return null;
                               return (
                                 <div className="mb-2 rounded-xl border border-rose-300 bg-rose-50 px-3 py-2 text-xs text-rose-800">
-                                  ⚠️ Trùng nhân sự trong cùng vị trí: {Array.from(duplicateNames).join(", ")}
+                                  âš ï¸ TrÃ¹ng nhÃ¢n sá»± trong cÃ¹ng vá»‹ trÃ­: {Array.from(duplicateNames).join(", ")}
                                 </div>
                               );
                             })()}
@@ -346,18 +346,18 @@ export function ScheduleBoard({
                               <h4 className="font-semibold text-slate-800">{entry.position.name}</h4>
                               <div className="flex items-center gap-1.5">
                                 <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-600">
-                                  {entry.slots.length} người
+                                  {entry.slots.length} ngÆ°á»i
                                 </span>
                                 {editable && mode !== "template" && !isPastShift(slot.date, slot.shift) && (
                                   <>
                                     <button
                                       type="button"
-                                      onClick={(e) => {
+                                      onClick={() => {
                                         const hasClosedSlot = entry.slots.some(
                                           (s) => s.assignment?.staffId === "CLOSED"
                                         );
                                         if (hasClosedSlot) {
-                                          alert("Không thể sao chép vì vị trí này đang có ca bị khóa (Đóng vị trí này). Vui lòng mở khóa trước khi sao chép.");
+                                          alert("KhÃ´ng thá»ƒ sao chÃ©p vÃ¬ vá»‹ trÃ­ nÃ y Ä‘ang cÃ³ ca bá»‹ khÃ³a (ÄÃ³ng vá»‹ trÃ­ nÃ y). Vui lÃ²ng má»Ÿ khÃ³a trÆ°á»›c khi sao chÃ©p.");
                                           return;
                                         }
                                         setCopyingEntry({
@@ -367,11 +367,11 @@ export function ScheduleBoard({
                                           position: entry.position,
                                         });
                                       }}
-                                      title="Sao chép phân công"
+                                      title="Sao chÃ©p phÃ¢n cÃ´ng"
                                       className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-100 text-slate-600 transition hover:bg-indigo-100 hover:text-indigo-700"
                                     >
                                       <Copy className="h-3.5 w-3.5" />
-                                      <span className="sr-only">Sao chép phân công</span>
+                                      <span className="sr-only">Sao chÃ©p phÃ¢n cÃ´ng</span>
                                     </button>
                                     <button
                                       type="button"
@@ -382,11 +382,11 @@ export function ScheduleBoard({
                                           rect: e.currentTarget.getBoundingClientRect(),
                                         });
                                       }}
-                                      title="Chỉnh sửa phân công"
+                                      title="Chá»‰nh sá»­a phÃ¢n cÃ´ng"
                                       className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-100 text-slate-600 transition hover:bg-teal-100 hover:text-teal-700"
                                     >
                                       <Edit2 className="h-3.5 w-3.5" />
-                                      <span className="sr-only">Chỉnh sửa phân công</span>
+                                      <span className="sr-only">Chá»‰nh sá»­a phÃ¢n cÃ´ng</span>
                                     </button>
                                   </>
                                 )}
@@ -406,7 +406,7 @@ export function ScheduleBoard({
                                   const isPreview = !subslot.assignment && !!subslot.person;
 
                                   const tone = isClosed ? "slate" : isAssigned ? getStatusTone(subslot.assignment!.status) : isPreview ? "indigo" : "slate";
-                                  const statusLabel = isClosed ? "Đã Khóa" : isAssigned ? ASSIGNMENT_STATUS_LABELS[subslot.assignment!.status] : isPreview ? "Dự kiến" : "Trống";
+                                  const statusLabel = isClosed ? "ÄÃ£ KhÃ³a" : isAssigned ? ASSIGNMENT_STATUS_LABELS[subslot.assignment!.status] : isPreview ? "Dá»± kiáº¿n" : "Trá»‘ng";
 
                                   let slotBaseClass = "flex w-full items-start justify-between rounded-[16px] p-3 text-left transition-all ";
 
@@ -451,7 +451,7 @@ export function ScheduleBoard({
                                               <>
                                                 <NotebookPen className="h-4 w-4 shrink-0 text-slate-500" />
                                                 <span className="font-medium text-slate-500 line-through decoration-slate-400/50">
-                                                  Vị trí bị đóng ca này
+                                                  Vá»‹ trÃ­ bá»‹ Ä‘Ã³ng ca nÃ y
                                                 </span>
                                               </>
                                             ) : subslot.person ? (
@@ -466,7 +466,7 @@ export function ScheduleBoard({
                                               </>
                                             ) : (
                                               <span className="truncate text-sm italic text-slate-400">
-                                                Chưa xếp người
+                                                ChÆ°a xáº¿p ngÆ°á»i
                                               </span>
                                             )}
                                           </div>
@@ -480,7 +480,7 @@ export function ScheduleBoard({
                                                   }`}
                                               >
                                                 <Clock className="h-3 w-3" />
-                                                {subslot.person.prefersOvertime ? "Sẵn sàng TC" : "Không đk TC"}
+                                                {subslot.person.prefersOvertime ? "Sáºµn sÃ ng TC" : "KhÃ´ng Ä‘k TC"}
                                               </span>
                                             </div>
                                           )}
@@ -495,7 +495,7 @@ export function ScheduleBoard({
                                           {subslot.leave && (
                                             <div className="ml-6 mt-1.5 flex items-center gap-1.5 text-xs font-medium text-rose-600">
                                               <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
-                                              <span>Nghỉ {LEAVE_REASON_LABELS[subslot.leave.reason].toLowerCase()}</span>
+                                              <span>Nghá»‰ {LEAVE_REASON_LABELS[subslot.leave.reason].toLowerCase()}</span>
                                             </div>
                                           )}
                                         </div>
@@ -508,7 +508,7 @@ export function ScheduleBoard({
                                           type="button"
                                           onClick={() => clearAssignmentQuickly(slot, entry, subslot)}
                                           disabled={isPending && pendingClearKey === rowKey}
-                                          title="Bỏ trống nhanh"
+                                          title="Bá» trá»‘ng nhanh"
                                           className="mt-1 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-rose-200 bg-rose-50 text-rose-600 transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-60"
                                         >
                                           <X className="h-4 w-4" />

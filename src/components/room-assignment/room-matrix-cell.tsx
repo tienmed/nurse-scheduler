@@ -1,9 +1,9 @@
-"use client";
+﻿"use client";
 
 import { useState } from "react";
 import { AlertCircle, Plus, X } from "lucide-react";
 import type { LeaveRecord, Position, StaffMember } from "@/lib/types";
-import { getStaffColorStyle, getStaffMatrixLabel, getStaffShortName } from "./types";
+import { getStaffColorStyle, getStaffMatrixLabel } from "./types";
 import type { SlotInfo } from "./room-summary-matrix";
 
 interface RoomMatrixCellProps {
@@ -24,7 +24,7 @@ interface RoomMatrixCellProps {
   ) => void;
 }
 
-// [QWEN3] Ô ma trận phân phòng theo ca: nhận kéo thả thẻ nhân viên, hiển thị "ĐD Tên", có nút tháo phòng
+// [QWEN3] Ã” ma tráº­n phÃ¢n phÃ²ng theo ca: nháº­n kÃ©o tháº£ tháº» nhÃ¢n viÃªn, hiá»ƒn thá»‹ "ÄD TÃªn", cÃ³ nÃºt thÃ¡o phÃ²ng
 export function RoomMatrixCell({
   position,
   slot,
@@ -61,7 +61,7 @@ export function RoomMatrixCell({
       const data = JSON.parse(dataStr);
 
       if (data.type === "staff" && data.staffId) {
-        // Nếu kéo từ một ô khác sang
+        // Náº¿u kÃ©o tá»« má»™t Ã´ khÃ¡c sang
         if (data.sourcePositionId && data.sourceSlotKey && onMoveStaff) {
           onMoveStaff(
             data.staffId,
@@ -71,12 +71,12 @@ export function RoomMatrixCell({
             slotKey,
           );
         } else {
-          // Kéo mới từ kho thẻ nhân viên
+          // KÃ©o má»›i tá»« kho tháº» nhÃ¢n viÃªn
           onAssignStaff(data.staffId, position.id, slotKey);
         }
       }
     } catch (err) {
-      console.error("Lỗi khi drop thẻ nhân sự:", err);
+      console.error("Lá»—i khi drop tháº» nhÃ¢n sá»±:", err);
     }
   };
 
@@ -127,23 +127,23 @@ export function RoomMatrixCell({
                   ? "bg-amber-100 text-amber-950 border-amber-400 ring-2 ring-amber-400/80"
                   : `${colorStyle.bg} ${colorStyle.border} ${colorStyle.text} hover:shadow-xs`
               } ${editable ? "cursor-grab active:cursor-grabbing hover:scale-102" : ""}`}
-              title={`${matrixLabel} (${person.name}) - Kéo để chuyển phòng, hoặc nhấp ✕ để tháo.`}
+              title={`${matrixLabel} (${person.name}) - KÃ©o Ä‘á»ƒ chuyá»ƒn phÃ²ng, hoáº·c nháº¥p âœ• Ä‘á»ƒ thÃ¡o.`}
             >
               <div className="flex items-center gap-1.5 min-w-0">
                 {hasLeave ? (
-                  <span title="Nhân sự có đơn nghỉ phép ca này!">
+                  <span title="NhÃ¢n sá»± cÃ³ Ä‘Æ¡n nghá»‰ phÃ©p ca nÃ y!">
                     <AlertCircle className="h-3 w-3 shrink-0 text-amber-600" />
                   </span>
                 ) : (
                   <span className={`h-2 w-2 shrink-0 rounded-full ${colorStyle.avatarBg}`} />
                 )}
-                {/* [QWEN3] Hiển thị gọn 'ĐD Tên' với màu sắc đặc trưng của từng nhân sự */}
+                {/* [QWEN3] Hiá»ƒn thá»‹ gá»n 'ÄD TÃªn' vá»›i mÃ u sáº¯c Ä‘áº·c trÆ°ng cá»§a tá»«ng nhÃ¢n sá»± */}
                 <span className="truncate text-[11px] font-bold">
                   {matrixLabel}
                 </span>
               </div>
 
-              {/* Nút tháo phòng: gỡ nhân sự khỏi phòng */}
+              {/* NÃºt thÃ¡o phÃ²ng: gá»¡ nhÃ¢n sá»± khá»i phÃ²ng */}
               {editable && (
                 <button
                   type="button"
@@ -152,7 +152,7 @@ export function RoomMatrixCell({
                     onRemoveStaff(person.id, position.id, slotKey);
                   }}
                   className="ml-1 flex h-4 w-4 shrink-0 items-center justify-center rounded-full opacity-60 hover:opacity-100 hover:bg-rose-100 hover:text-rose-600 transition-all cursor-pointer"
-                  title={`Tháo ${matrixLabel} khỏi phòng ${position.name}`}
+                  title={`ThÃ¡o ${matrixLabel} khá»i phÃ²ng ${position.name}`}
                 >
                   <X className="h-3 w-3" />
                 </button>
@@ -161,12 +161,12 @@ export function RoomMatrixCell({
           );
         })}
 
-        {/* Nút gợi ý gán khi ô trống và đang chọn nhân sự */}
+        {/* NÃºt gá»£i Ã½ gÃ¡n khi Ã´ trá»‘ng vÃ  Ä‘ang chá»n nhÃ¢n sá»± */}
         {assignedStaff.length === 0 && (
           <div className="flex items-center justify-center py-1 text-slate-300 text-[11px]">
             {selectedStaffId ? (
               <span className="flex items-center gap-1 text-teal-600 font-semibold text-[10px] bg-teal-50/80 rounded-lg px-1.5 py-0.5 border border-teal-200">
-                <Plus className="h-3 w-3" /> Thả / Nhấp
+                <Plus className="h-3 w-3" /> Tháº£ / Nháº¥p
               </span>
             ) : (
               <span className="select-none">-</span>

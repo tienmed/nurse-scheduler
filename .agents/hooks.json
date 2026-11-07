@@ -1,0 +1,24 @@
+{
+  "nurseflow-safety-harness": {
+    "enabled": true,
+    "PreToolUse": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node scripts/hook_pre_tool.mjs",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "type": "command",
+        "command": "node scripts/hook_stop_check.mjs",
+        "timeout": 5
+      }
+    ]
+  }
+}

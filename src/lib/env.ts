@@ -15,6 +15,7 @@ const envSchema = z.object({
   AUTHORIZED_ADMIN_EMAILS: z.string().optional(),
   AUTHORIZED_COORDINATOR_EMAILS: z.string().optional(),
   AUTHORIZED_VIEWER_EMAILS: z.string().optional(),
+  AI_API_TOKEN: z.string().optional(),
 });
 
 const parsed = envSchema.parse({
@@ -30,6 +31,7 @@ const parsed = envSchema.parse({
   AUTHORIZED_ADMIN_EMAILS: process.env.AUTHORIZED_ADMIN_EMAILS,
   AUTHORIZED_COORDINATOR_EMAILS: process.env.AUTHORIZED_COORDINATOR_EMAILS,
   AUTHORIZED_VIEWER_EMAILS: process.env.AUTHORIZED_VIEWER_EMAILS,
+  AI_API_TOKEN: process.env.AI_API_TOKEN,
 });
 
 const splitEmails = (value?: string) =>
@@ -66,4 +68,3 @@ export function isSheetsConfigured() {
 export function getServiceAccountPrivateKey() {
   return env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY?.replace(/\\n/g, "\n");
 }
-

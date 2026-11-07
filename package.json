@@ -1,6 +1,6 @@
 {
   "name": "nurse-scheduler",
-  "version": "0.1.0",
+  "version": "1.4.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -9,6 +9,8 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "setup:sheet": "node --env-file=.env.local scripts/setup-google-sheet.mjs"
   },
   "dependencies": {
@@ -35,6 +37,8 @@
     "eslint": "^9",
     "eslint-config-next": "16.2.1",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vite": "^8.3.6",
+    "vitest": "^5.1.0"
   }
 }

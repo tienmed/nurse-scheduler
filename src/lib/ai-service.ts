@@ -1,3 +1,5 @@
+import { env } from "@/lib/env";
+
 export type AIModelType = 'qwen3' | 'qwen2.5' | 'gemma4';
 
 export interface AIResponse {
@@ -16,7 +18,7 @@ class AIService {
         'unified': 'https://pnt.badt.vn/ai_agent'
     };
 
-    private readonly apiToken = process.env.AI_API_TOKEN || '68f67779de494d422cc6fe17f7f20b3974a6fdcb46cb804fbab24b232aaa6013';
+    private readonly apiToken = env.AI_API_TOKEN || process.env.AI_API_TOKEN || '';
 
     private constructor() {}
 
@@ -33,6 +35,10 @@ class AIService {
         model: AIModelType = 'gemma4'
     ): Promise<string> {
         try {
+            if (!this.apiToken) {
+                throw new Error("Missing AI_API_TOKEN in environment configuration.");
+            }
+
             const url = this.urls[model];
             const response = await fetch(url, {
                 method: 'POST',
@@ -120,6 +126,7 @@ Hãy viết một lời chào thân thiện, tóm tắt lại các buổi trực
 `;
         return this.callAI(prompt, "Bạn là trợ lý ảo NurseFlow thân thiện, chuyên nghiệp.", 'gemma4');
     }
+
     /**
      * Sinh báo cáo tóm tắt điều hành tháng bằng Qwen3
      */

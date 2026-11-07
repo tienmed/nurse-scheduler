@@ -1,7 +1,7 @@
-"use client";
+﻿"use client";
 
 import { useState, useTransition } from "react";
-import { format, parseISO, isBefore, startOfToday, eachDayOfInterval } from "date-fns";
+import { format, parseISO, isBefore, eachDayOfInterval } from "date-fns";
 import { vi } from "date-fns/locale";
 import { Calendar, Plus, Trash2, AlertTriangle, CheckCircle2, Clock, Send, Sparkles, UserCog } from "lucide-react";
 import { LEAVE_SHIFT_LABELS } from "@/lib/constants";
@@ -28,7 +28,7 @@ interface FlexibleLeaveFormProps {
   isAdmin?: boolean;
 }
 
-// [QWEN3] Helper tính toán quỹ phép năm của nhân sự bất kỳ
+// [QWEN3] Helper tÃ­nh toÃ¡n quá»¹ phÃ©p nÄƒm cá»§a nhÃ¢n sá»± báº¥t ká»³
 function calculateStaffYearlyStats(staffId: string, leaves: LeaveRecord[], year: number) {
   const yearPrefix = `${year}-`;
   const approvedLeaves = leaves.filter((l) => {
@@ -37,7 +37,7 @@ function calculateStaffYearlyStats(staffId: string, leaves: LeaveRecord[], year:
     if (l.reason !== "phep") return false;
     try {
       const d = parseISO(l.date).getDay();
-      if (d === 0 || d === 6) return false; // Không tính Thứ 7 và Chủ nhật
+      if (d === 0 || d === 6) return false; // KhÃ´ng tÃ­nh Thá»© 7 vÃ  Chá»§ nháº­t
     } catch {
       return false;
     }
@@ -64,7 +64,7 @@ export function FlexibleLeaveForm({
   yearlyStats,
   isAdmin = false,
 }: FlexibleLeaveFormProps) {
-  // [QWEN3] Quản trị viên có thể chọn đăng ký hộ cho nhân sự khác
+  // [QWEN3] Quáº£n trá»‹ viÃªn cÃ³ thá»ƒ chá»n Ä‘Äƒng kÃ½ há»™ cho nhÃ¢n sá»± khÃ¡c
   const [selectedStaffId, setSelectedStaffId] = useState<string>(currentStaff.id);
   const activeTargetStaff = allStaff.find((s) => s.id === selectedStaffId) || currentStaff;
   const isRegisteringForOther = isAdmin && activeTargetStaff.id !== currentStaff.id;
@@ -77,7 +77,7 @@ export function FlexibleLeaveForm({
   const [slots, setSlots] = useState<SlotItem[]>([
     {
       id: "slot-initial-1",
-      date: "", // Không mặc nhiên chọn ngày mai, hiện lên chưa chọn ngày
+      date: "", // KhÃ´ng máº·c nhiÃªn chá»n ngÃ y mai, hiá»‡n lÃªn chÆ°a chá»n ngÃ y
       shift: "full-day",
       reason: "phep",
       note: "",
@@ -97,7 +97,7 @@ export function FlexibleLeaveForm({
   const [isPending, startTransition] = useTransition();
   const [clientError, setClientError] = useState<string | null>(null);
 
-  // Helper tính số lượng người đã nghỉ cho 1 ca cụ thể (loại trừ chính nhân sự mục tiêu)
+  // Helper tÃ­nh sá»‘ lÆ°á»£ng ngÆ°á»i Ä‘Ã£ nghá»‰ cho 1 ca cá»¥ thá»ƒ (loáº¡i trá»« chÃ­nh nhÃ¢n sá»± má»¥c tiÃªu)
   function checkSlotQuota(date: string, shift: LeaveShift) {
     if (!date) return { count: 0, exceeded: false };
 
@@ -139,7 +139,7 @@ export function FlexibleLeaveForm({
     };
   }
 
-  // Thêm một ca lẻ
+  // ThÃªm má»™t ca láº»
   function handleAddSlot() {
     setClientError(null);
     setSlots((prev) => [
@@ -154,13 +154,13 @@ export function FlexibleLeaveForm({
     ]);
   }
 
-  // Xóa một ca
+  // XÃ³a má»™t ca
   function handleRemoveSlot(id: string) {
     setClientError(null);
     setSlots((prev) => prev.filter((s) => s.id !== id));
   }
 
-  // Cập nhật trường của một ca
+  // Cáº­p nháº­t trÆ°á»ng cá»§a má»™t ca
   function handleUpdateSlot(id: string, field: keyof SlotItem, value: any) {
     setClientError(null);
     setSlots((prev) =>
@@ -168,30 +168,30 @@ export function FlexibleLeaveForm({
     );
   }
 
-  // Áp dụng chọn theo khoảng ngày
+  // Ãp dá»¥ng chá»n theo khoáº£ng ngÃ y
   function handleApplyRange() {
     setClientError(null);
     try {
       if (!rangeFromDate || !rangeToDate) {
-        setClientError("Vui lòng chọn đầy đủ ngày bắt đầu và ngày kết thúc (định dạng dd/mm/yyyy).");
+        setClientError("Vui lÃ²ng chá»n Ä‘áº§y Ä‘á»§ ngÃ y báº¯t Ä‘áº§u vÃ  ngÃ y káº¿t thÃºc (Ä‘á»‹nh dáº¡ng dd/mm/yyyy).");
         return;
       }
       const start = parseISO(rangeFromDate);
       const end = parseISO(rangeToDate);
 
       if (isBefore(end, start)) {
-        setClientError("Ngày kết thúc phải lớn hơn hoặc bằng ngày bắt đầu.");
+        setClientError("NgÃ y káº¿t thÃºc pháº£i lá»›n hÆ¡n hoáº·c báº±ng ngÃ y báº¯t Ä‘áº§u.");
         return;
       }
 
       const days = eachDayOfInterval({ start, end });
       if (days.length > 20) {
-        setClientError("Chỉ có thể chọn dải tối đa 20 ngày.");
+        setClientError("Chá»‰ cÃ³ thá»ƒ chá»n dáº£i tá»‘i Ä‘a 20 ngÃ y.");
         return;
       }
 
       const newSlots: SlotItem[] = days
-        .filter((d) => d.getDay() !== 0 && d.getDay() !== 6) // Loại bỏ Thứ 7 và Chủ nhật
+        .filter((d) => d.getDay() !== 0 && d.getDay() !== 6) // Loáº¡i bá» Thá»© 7 vÃ  Chá»§ nháº­t
         .map((d) => ({
           id: `slot-range-${format(d, "yyyy-MM-dd")}-${Math.random()}`,
           date: format(d, "yyyy-MM-dd"),
@@ -201,18 +201,18 @@ export function FlexibleLeaveForm({
         }));
 
       if (newSlots.length === 0) {
-        setClientError("Khoảng ngày bạn chọn không có ngày làm việc hợp lệ (trùng Thứ 7 hoặc Chủ nhật).");
+        setClientError("Khoáº£ng ngÃ y báº¡n chá»n khÃ´ng cÃ³ ngÃ y lÃ m viá»‡c há»£p lá»‡ (trÃ¹ng Thá»© 7 hoáº·c Chá»§ nháº­t).");
         return;
       }
 
       setSlots(newSlots);
       setMode("individual");
     } catch {
-      setClientError("Định dạng ngày không hợp lệ.");
+      setClientError("Äá»‹nh dáº¡ng ngÃ y khÃ´ng há»£p lá»‡.");
     }
   }
 
-  // Kiểm tra xem danh sách có ca nào vượt định mức không
+  // Kiá»ƒm tra xem danh sÃ¡ch cÃ³ ca nÃ o vÆ°á»£t Ä‘á»‹nh má»©c khÃ´ng
   const slotsWithQuota = slots.map((s) => ({
     ...s,
     quota: checkSlotQuota(s.date, s.shift),
@@ -220,7 +220,7 @@ export function FlexibleLeaveForm({
 
   const hasExceededQuota = slotsWithQuota.some((s) => s.quota.exceeded);
 
-  // Tính tổng số buổi và ngày phép đăng ký trong phiếu này
+  // TÃ­nh tá»•ng sá»‘ buá»•i vÃ  ngÃ y phÃ©p Ä‘Äƒng kÃ½ trong phiáº¿u nÃ y
   let pendingSessions = 0;
   for (const s of slots) {
     if (s.reason === "phep") {
@@ -229,18 +229,18 @@ export function FlexibleLeaveForm({
   }
   const pendingDays = pendingSessions / 2;
 
-  // Xử lý gửi Form
+  // Xá»­ lÃ½ gá»­i Form
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setClientError(null);
 
     if (slots.length === 0) {
-      setClientError("Vui lòng thêm ít nhất một ngày nghỉ.");
+      setClientError("Vui lÃ²ng thÃªm Ã­t nháº¥t má»™t ngÃ y nghá»‰.");
       return;
     }
 
     if (slots.some((s) => !s.date)) {
-      setClientError("Vui lòng chọn ngày nghỉ (định dạng dd/mm/yyyy) cho tất cả các ca trong danh sách.");
+      setClientError("Vui lÃ²ng chá»n ngÃ y nghá»‰ (Ä‘á»‹nh dáº¡ng dd/mm/yyyy) cho táº¥t cáº£ cÃ¡c ca trong danh sÃ¡ch.");
       return;
     }
 
@@ -255,13 +255,13 @@ export function FlexibleLeaveForm({
     });
 
     if (weekendSlot) {
-      setClientError("Nghỉ phép không áp dụng vào Thứ 7 và Chủ nhật. Vui lòng chọn các ngày từ Thứ 2 đến Thứ 6.");
+      setClientError("Nghá»‰ phÃ©p khÃ´ng Ã¡p dá»¥ng vÃ o Thá»© 7 vÃ  Chá»§ nháº­t. Vui lÃ²ng chá»n cÃ¡c ngÃ y tá»« Thá»© 2 Ä‘áº¿n Thá»© 6.");
       return;
     }
 
-    // Nếu không phải đăng ký hộ hoặc vượt định mức quá cao
+    // Náº¿u khÃ´ng pháº£i Ä‘Äƒng kÃ½ há»™ hoáº·c vÆ°á»£t Ä‘á»‹nh má»©c quÃ¡ cao
     if (hasExceededQuota && (!isUrgent || !urgentNote.trim()) && !isRegisteringForOther) {
-      setClientError("Phiếu có ca vượt định mức (≥ 2 người). Vui lòng đánh dấu 'Nghỉ cấp thiết' và nhập nội dung giải trình để gửi quản lý duyệt.");
+      setClientError("Phiáº¿u cÃ³ ca vÆ°á»£t Ä‘á»‹nh má»©c (â‰¥ 2 ngÆ°á»i). Vui lÃ²ng Ä‘Ã¡nh dáº¥u 'Nghá»‰ cáº¥p thiáº¿t' vÃ  nháº­p ná»™i dung giáº£i trÃ¬nh Ä‘á»ƒ gá»­i quáº£n lÃ½ duyá»‡t.");
       return;
     }
 
@@ -278,7 +278,7 @@ export function FlexibleLeaveForm({
 
   return (
     <div className="space-y-4 sm:space-y-6">
-      {/* KHỐI 0: CHẾ ĐỘ ĐĂNG KÝ HỘ DÀNH CHO QUẢN TRỊ VIÊN (CHỈ ADMIN THẤY) */}
+      {/* KHá»I 0: CHáº¾ Äá»˜ ÄÄ‚NG KÃ Há»˜ DÃ€NH CHO QUáº¢N TRá»Š VIÃŠN (CHá»ˆ ADMIN THáº¤Y) */}
       {isAdmin && allStaff && allStaff.length > 0 && (
         <div className="overflow-hidden rounded-2xl sm:rounded-3xl border-2 border-indigo-200 bg-gradient-to-r from-indigo-50/90 via-white to-indigo-50/50 p-4 sm:p-5 shadow-sm">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -288,17 +288,17 @@ export function FlexibleLeaveForm({
                   <UserCog className="h-4 w-4" />
                 </span>
                 <span className="text-xs font-black uppercase tracking-wider text-indigo-950">
-                  Chế độ Quản trị viên: Đăng ký nghỉ phép hộ
+                  Cháº¿ Ä‘á»™ Quáº£n trá»‹ viÃªn: ÄÄƒng kÃ½ nghá»‰ phÃ©p há»™
                 </span>
               </div>
               <p className="text-xs text-indigo-800">
-                Chọn nhân sự cần đăng ký hộ. Đơn do Quản trị viên trực tiếp tạo sẽ được <strong>Duyệt chính thức ngay</strong>.
+                Chá»n nhÃ¢n sá»± cáº§n Ä‘Äƒng kÃ½ há»™. ÄÆ¡n do Quáº£n trá»‹ viÃªn trá»±c tiáº¿p táº¡o sáº½ Ä‘Æ°á»£c <strong>Duyá»‡t chÃ­nh thá»©c ngay</strong>.
               </p>
             </div>
 
             <div className="w-full sm:w-80">
               <label className="text-[11px] font-bold text-indigo-900 block mb-1">
-                Chọn nhân sự nhận đơn:
+                Chá»n nhÃ¢n sá»± nháº­n Ä‘Æ¡n:
               </label>
               <select
                 value={selectedStaffId}
@@ -306,9 +306,9 @@ export function FlexibleLeaveForm({
                 className="w-full min-h-[42px] rounded-xl border-2 border-indigo-300 bg-white px-3 py-2 text-xs sm:text-sm font-bold text-slate-900 outline-none focus:border-indigo-600 shadow-sm"
               >
                 <option value={currentStaff.id}>
-                  {currentStaff.name} ({currentStaff.code}) - [Bản thân]
+                  {currentStaff.name} ({currentStaff.code}) - [Báº£n thÃ¢n]
                 </option>
-                <optgroup label="Tất cả nhân sự trong đơn vị">
+                <optgroup label="Táº¥t cáº£ nhÃ¢n sá»± trong Ä‘Æ¡n vá»‹">
                   {allStaff
                     .filter((s) => s.id !== currentStaff.id)
                     .sort((a, b) => a.name.localeCompare(b.name, "vi"))
@@ -327,24 +327,24 @@ export function FlexibleLeaveForm({
               <span className="font-bold text-indigo-900 flex items-center gap-1.5">
                 <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
                 <span>
-                  Đang lập đơn hộ cho: <strong className="text-indigo-950">{activeTargetStaff.name} ({activeTargetStaff.code})</strong>
+                  Äang láº­p Ä‘Æ¡n há»™ cho: <strong className="text-indigo-950">{activeTargetStaff.name} ({activeTargetStaff.code})</strong>
                 </span>
               </span>
               <span className="rounded-full bg-emerald-100 text-emerald-900 px-2.5 py-0.5 text-[11px] font-black border border-emerald-300">
-                ✓ Sẽ duyệt chính thức ngay
+                âœ“ Sáº½ duyá»‡t chÃ­nh thá»©c ngay
               </span>
             </div>
           )}
         </div>
       )}
 
-      {/* KHỐI 1: THÔNG TIN NHÂN SỰ & QUỸ PHÉP NĂM (RESPONSIVE) */}
+      {/* KHá»I 1: THÃ”NG TIN NHÃ‚N Sá»° & QUá»¸ PHÃ‰P NÄ‚M (RESPONSIVE) */}
       <div className="overflow-hidden rounded-2xl sm:rounded-3xl border border-teal-100 bg-gradient-to-br from-teal-50/80 via-white to-slate-50 p-4 sm:p-6 shadow-sm">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="space-y-1">
             <span className="inline-flex items-center gap-1.5 rounded-full bg-teal-100/80 px-2.5 py-0.5 sm:px-3 sm:py-1 text-[11px] sm:text-xs font-semibold text-teal-800">
               <Sparkles className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-teal-600" />
-              {isRegisteringForOther ? "Hồ sơ nhân sự được đăng ký hộ" : "Tài khoản điều dưỡng đã xác thực"}
+              {isRegisteringForOther ? "Há»“ sÆ¡ nhÃ¢n sá»± Ä‘Æ°á»£c Ä‘Äƒng kÃ½ há»™" : "TÃ i khoáº£n Ä‘iá»u dÆ°á»¡ng Ä‘Ã£ xÃ¡c thá»±c"}
             </span>
             <h2 className="text-lg font-bold text-slate-900 sm:text-2xl">
               {activeTargetStaff.name} <span className="text-slate-400 font-medium">({activeTargetStaff.code})</span>
@@ -354,35 +354,35 @@ export function FlexibleLeaveForm({
             </p>
           </div>
 
-          {/* Thẻ thống kê số ngày nghỉ phép trong năm của nhân sự mục tiêu */}
+          {/* Tháº» thá»‘ng kÃª sá»‘ ngÃ y nghá»‰ phÃ©p trong nÄƒm cá»§a nhÃ¢n sá»± má»¥c tiÃªu */}
           <div className="w-full sm:w-auto rounded-2xl border border-teal-200/80 bg-white/95 p-3.5 sm:p-4 shadow-sm text-left sm:text-right">
             <div className="flex items-center gap-1.5 sm:justify-end">
               <Clock className="h-4 w-4 text-teal-600 shrink-0" />
               <p className="text-[11px] sm:text-xs font-bold uppercase tracking-wider text-slate-500">
-                Quỹ phép năm {activeYearlyStats.year} (Đã duyệt)
+                Quá»¹ phÃ©p nÄƒm {activeYearlyStats.year} (ÄÃ£ duyá»‡t)
               </p>
             </div>
             <p className="mt-0.5 sm:mt-1 text-2xl sm:text-3xl font-extrabold text-teal-700">
-              {activeYearlyStats.totalDays} <span className="text-xs sm:text-sm font-semibold text-slate-600">ngày</span>
+              {activeYearlyStats.totalDays} <span className="text-xs sm:text-sm font-semibold text-slate-600">ngÃ y</span>
             </p>
             <p className="text-[11px] sm:text-xs text-slate-500">
-              Tương đương <strong>{activeYearlyStats.totalSessions} buổi</strong> (2 buổi = 1 ngày)
+              TÆ°Æ¡ng Ä‘Æ°Æ¡ng <strong>{activeYearlyStats.totalSessions} buá»•i</strong> (2 buá»•i = 1 ngÃ y)
             </p>
           </div>
         </div>
       </div>
 
-      {/* KHỐI 2: FORM ĐĂNG KÝ PHÉP LINH HOẠT (RESPONSIVE) */}
+      {/* KHá»I 2: FORM ÄÄ‚NG KÃ PHÃ‰P LINH HOáº T (RESPONSIVE) */}
       <div className="rounded-2xl sm:rounded-3xl border border-slate-200 bg-white p-4 sm:p-6 lg:p-8 shadow-sm">
         <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-slate-100 pb-4">
           <div>
-            <h3 className="text-base sm:text-lg font-bold text-slate-900">Chi tiết ngày & ca xin nghỉ</h3>
+            <h3 className="text-base sm:text-lg font-bold text-slate-900">Chi tiáº¿t ngÃ y & ca xin nghá»‰</h3>
             <p className="text-xs text-slate-500">
-              Chọn linh hoạt nhiều ngày rời rạc hoặc chọn nhanh dải ngày liên tục.
+              Chá»n linh hoáº¡t nhiá»u ngÃ y rá»i ráº¡c hoáº·c chá»n nhanh dáº£i ngÃ y liÃªn tá»¥c.
             </p>
           </div>
 
-          {/* Nút chuyển chế độ chọn */}
+          {/* NÃºt chuyá»ƒn cháº¿ Ä‘á»™ chá»n */}
           <div className="w-full sm:w-auto grid grid-cols-2 sm:inline-flex rounded-xl sm:rounded-2xl bg-slate-100 p-1">
             <button
               type="button"
@@ -393,7 +393,7 @@ export function FlexibleLeaveForm({
                   : "text-slate-600 hover:text-slate-900"
               }`}
             >
-              Chọn từng ca rời
+              Chá»n tá»«ng ca rá»i
             </button>
             <button
               type="button"
@@ -404,21 +404,21 @@ export function FlexibleLeaveForm({
                   : "text-slate-600 hover:text-slate-900"
               }`}
             >
-              Chọn khoảng ngày
+              Chá»n khoáº£ng ngÃ y
             </button>
           </div>
         </div>
 
-        {/* CÔNG CỤ CHỌN NHANH THEO KHOẢNG NGÀY */}
+        {/* CÃ”NG Cá»¤ CHá»ŒN NHANH THEO KHOáº¢NG NGÃ€Y */}
         {mode === "range" && (
           <div className="mb-5 rounded-2xl border border-indigo-100 bg-indigo-50/50 p-4 sm:p-5">
             <div className="flex items-center gap-2 mb-3 text-indigo-900 font-bold text-xs sm:text-sm">
               <Calendar className="h-4 w-4 text-indigo-600 shrink-0" />
-              Chọn nhanh khoảng ngày liên tục (Loại bỏ Thứ 7, CN)
+              Chá»n nhanh khoáº£ng ngÃ y liÃªn tá»¥c (Loáº¡i bá» Thá»© 7, CN)
             </div>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
               <label className="space-y-1 text-xs text-slate-700">
-                <span className="font-semibold block">Từ ngày (dd/mm/yyyy)</span>
+                <span className="font-semibold block">Tá»« ngÃ y (dd/mm/yyyy)</span>
                 <input
                   type="date"
                   value={rangeFromDate}
@@ -426,11 +426,11 @@ export function FlexibleLeaveForm({
                   className="w-full min-h-[42px] rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-indigo-500 font-medium"
                 />
                 <span className="block text-[11px] font-semibold text-indigo-700">
-                  {rangeFromDate ? format(parseISO(rangeFromDate), "dd/MM/yyyy") : "Chưa chọn ngày"}
+                  {rangeFromDate ? format(parseISO(rangeFromDate), "dd/MM/yyyy") : "ChÆ°a chá»n ngÃ y"}
                 </span>
               </label>
               <label className="space-y-1 text-xs text-slate-700">
-                <span className="font-semibold block">Đến ngày (dd/mm/yyyy)</span>
+                <span className="font-semibold block">Äáº¿n ngÃ y (dd/mm/yyyy)</span>
                 <input
                   type="date"
                   value={rangeToDate}
@@ -438,31 +438,31 @@ export function FlexibleLeaveForm({
                   className="w-full min-h-[42px] rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-indigo-500 font-medium"
                 />
                 <span className="block text-[11px] font-semibold text-indigo-700">
-                  {rangeToDate ? format(parseISO(rangeToDate), "dd/MM/yyyy") : "Chưa chọn ngày"}
+                  {rangeToDate ? format(parseISO(rangeToDate), "dd/MM/yyyy") : "ChÆ°a chá»n ngÃ y"}
                 </span>
               </label>
               <label className="space-y-1 text-xs text-slate-700">
-                <span className="font-semibold block">Áp dụng ca</span>
+                <span className="font-semibold block">Ãp dá»¥ng ca</span>
                 <select
                   value={rangeShift}
                   onChange={(e) => setRangeShift(e.target.value as LeaveShift)}
                   className="w-full min-h-[42px] rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-indigo-500 font-medium"
                 >
-                  <option value="full-day">Cả ngày</option>
-                  <option value="morning">Chỉ buổi Sáng</option>
-                  <option value="afternoon">Chỉ buổi Chiều</option>
+                  <option value="full-day">Cáº£ ngÃ y</option>
+                  <option value="morning">Chá»‰ buá»•i SÃ¡ng</option>
+                  <option value="afternoon">Chá»‰ buá»•i Chiá»u</option>
                 </select>
               </label>
               <label className="space-y-1 text-xs text-slate-700">
-                <span className="font-semibold block">Lý do</span>
+                <span className="font-semibold block">LÃ½ do</span>
                 <select
                   value={rangeReason}
                   onChange={(e) => setRangeReason(e.target.value as LeaveReason)}
                   className="w-full min-h-[42px] rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-indigo-500 font-medium"
                 >
-                  <option value="phep">Nghỉ phép</option>
-                  {isAdmin && <option value="om">Nghỉ ốm (Admin)</option>}
-                  {isAdmin && <option value="dihoc">Đi học (Admin)</option>}
+                  <option value="phep">Nghá»‰ phÃ©p</option>
+                  {isAdmin && <option value="om">Nghá»‰ á»‘m (Admin)</option>}
+                  {isAdmin && <option value="dihoc">Äi há»c (Admin)</option>}
                 </select>
               </label>
             </div>
@@ -472,25 +472,25 @@ export function FlexibleLeaveForm({
                 onClick={handleApplyRange}
                 className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-5 py-2.5 text-xs font-bold text-white shadow-sm hover:bg-indigo-700 transition"
               >
-                Áp dụng dải ngày này
+                Ãp dá»¥ng dáº£i ngÃ y nÃ y
               </button>
             </div>
           </div>
         )}
 
-        {/* DANH SÁCH CÁC CA ĐĂNG KÝ (RESPONSIVE CARDS) */}
+        {/* DANH SÃCH CÃC CA ÄÄ‚NG KÃ (RESPONSIVE CARDS) */}
         <form onSubmit={handleSubmit} className="space-y-5 sm:space-y-6">
           <div className="space-y-3 sm:space-y-4">
             {slotsWithQuota.map((slot, index) => {
               let isWeekend = false;
-              let dateDisplayTitle = "Chưa chọn ngày (dd/mm/yyyy)";
+              let dateDisplayTitle = "ChÆ°a chá»n ngÃ y (dd/mm/yyyy)";
               if (slot.date) {
                 try {
                   const d = parseISO(slot.date);
                   const day = d.getDay();
                   if (day === 0 || day === 6) {
                     isWeekend = true;
-                    dateDisplayTitle = `${format(d, "dd/MM/yyyy")} (${day === 6 ? "Thứ 7" : "Chủ nhật"} - Không áp dụng)`;
+                    dateDisplayTitle = `${format(d, "dd/MM/yyyy")} (${day === 6 ? "Thá»© 7" : "Chá»§ nháº­t"} - KhÃ´ng Ã¡p dá»¥ng)`;
                   } else {
                     dateDisplayTitle = `${format(d, "dd/MM/yyyy")} (${format(d, "EEEE", { locale: vi })})`;
                   }
@@ -506,7 +506,7 @@ export function FlexibleLeaveForm({
                       : "border-slate-200 bg-white hover:border-slate-300"
                   }`}
                 >
-                  {/* Card Header: Số thứ tự + Ngày + Nút xóa tiện bấm */}
+                  {/* Card Header: Sá»‘ thá»© tá»± + NgÃ y + NÃºt xÃ³a tiá»‡n báº¥m */}
                   <div className="flex items-center justify-between border-b border-slate-100 pb-2.5 mb-3">
                     <div className="flex items-center gap-2 min-w-0">
                       <span className="flex h-6 w-6 sm:h-7 sm:w-7 shrink-0 items-center justify-center rounded-full bg-slate-900 text-xs font-bold text-white">
@@ -521,19 +521,19 @@ export function FlexibleLeaveForm({
                       type="button"
                       onClick={() => handleRemoveSlot(slot.id)}
                       disabled={slots.length <= 1}
-                      title="Xóa ca này"
+                      title="XÃ³a ca nÃ y"
                       className="inline-flex h-8 w-8 items-center justify-center rounded-xl text-slate-400 hover:bg-rose-50 hover:text-rose-600 transition disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-slate-400 shrink-0"
                     >
                       <Trash2 className="h-4 w-4" />
                     </button>
                   </div>
 
-                  {/* Card Body: Các ô chọn (Responsive Grid) */}
+                  {/* Card Body: CÃ¡c Ã´ chá»n (Responsive Grid) */}
                   <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
-                    {/* Ngày */}
+                    {/* NgÃ y */}
                     <div className="space-y-1">
                       <label className="text-[11px] font-semibold text-slate-600 block">
-                        Ngày nghỉ (dd/mm/yyyy)
+                        NgÃ y nghá»‰ (dd/mm/yyyy)
                       </label>
                       <input
                         type="date"
@@ -542,14 +542,14 @@ export function FlexibleLeaveForm({
                         className="w-full min-h-[42px] rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-teal-500 font-medium"
                       />
                       <span className="block text-[11px] font-semibold text-teal-700">
-                        {slot.date ? format(parseISO(slot.date), "dd/MM/yyyy") : "Chưa chọn ngày"}
+                        {slot.date ? format(parseISO(slot.date), "dd/MM/yyyy") : "ChÆ°a chá»n ngÃ y"}
                       </span>
                     </div>
 
-                    {/* Buổi */}
+                    {/* Buá»•i */}
                     <div className="space-y-1">
                       <label className="text-[11px] font-semibold text-slate-600 block">
-                        Buổi / Ca
+                        Buá»•i / Ca
                       </label>
                       <select
                         value={slot.shift}
@@ -564,30 +564,30 @@ export function FlexibleLeaveForm({
                       </select>
                     </div>
 
-                    {/* Lý do */}
+                    {/* LÃ½ do */}
                     <div className="space-y-1">
                       <label className="text-[11px] font-semibold text-slate-600 block">
-                        Lý do nghỉ
+                        LÃ½ do nghá»‰
                       </label>
                       <select
                         value={slot.reason}
                         onChange={(e) => handleUpdateSlot(slot.id, "reason", e.target.value as LeaveReason)}
                         className="w-full min-h-[42px] rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-teal-500 font-medium"
                       >
-                        <option value="phep">Nghỉ phép</option>
-                        {isAdmin && <option value="om">Nghỉ ốm (Admin)</option>}
-                        {isAdmin && <option value="dihoc">Đi học (Admin)</option>}
+                        <option value="phep">Nghá»‰ phÃ©p</option>
+                        {isAdmin && <option value="om">Nghá»‰ á»‘m (Admin)</option>}
+                        {isAdmin && <option value="dihoc">Äi há»c (Admin)</option>}
                       </select>
                     </div>
 
-                    {/* Ghi chú */}
+                    {/* Ghi chÃº */}
                     <div className="space-y-1">
                       <label className="text-[11px] font-semibold text-slate-600 block">
-                        Ghi chú thêm
+                        Ghi chÃº thÃªm
                       </label>
                       <input
                         type="text"
-                        placeholder="Ghi chú thêm..."
+                        placeholder="Ghi chÃº thÃªm..."
                         value={slot.note}
                         onChange={(e) => handleUpdateSlot(slot.id, "note", e.target.value)}
                         className="w-full min-h-[42px] rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-teal-500"
@@ -595,22 +595,22 @@ export function FlexibleLeaveForm({
                     </div>
                   </div>
 
-                  {/* Card Footer: Thanh định mức Quota */}
+                  {/* Card Footer: Thanh Ä‘á»‹nh má»©c Quota */}
                   <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between">
                     {isWeekend ? (
                       <span className="inline-flex items-center gap-1.5 rounded-lg bg-rose-100 px-2.5 py-1 text-xs font-bold text-rose-800">
                         <AlertTriangle className="h-3.5 w-3.5 text-rose-600" />
-                        Thứ 7 / CN không áp dụng nghỉ phép
+                        Thá»© 7 / CN khÃ´ng Ã¡p dá»¥ng nghá»‰ phÃ©p
                       </span>
                     ) : slot.quota.exceeded ? (
                       <span className="inline-flex items-center gap-1.5 rounded-lg bg-rose-100 px-2.5 py-1 text-xs font-bold text-rose-800">
                         <AlertTriangle className="h-3.5 w-3.5 text-rose-600" />
-                        Vượt định mức: Đã đủ {slot.quota.count}/2 người nghỉ
+                        VÆ°á»£t Ä‘á»‹nh má»©c: ÄÃ£ Ä‘á»§ {slot.quota.count}/2 ngÆ°á»i nghá»‰
                       </span>
                     ) : (
                       <span className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
                         <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
-                        Định mức ca: {slot.quota.count}/2 người đã nghỉ
+                        Äá»‹nh má»©c ca: {slot.quota.count}/2 ngÆ°á»i Ä‘Ã£ nghá»‰
                       </span>
                     )}
                   </div>
@@ -619,7 +619,7 @@ export function FlexibleLeaveForm({
             })}
           </div>
 
-          {/* Nút thêm ca & Tóm tắt số ngày tạm tính */}
+          {/* NÃºt thÃªm ca & TÃ³m táº¯t sá»‘ ngÃ y táº¡m tÃ­nh */}
           <div className="flex flex-col-reverse sm:flex-row gap-3 sm:items-center sm:justify-between pt-2">
             <button
               type="button"
@@ -627,17 +627,17 @@ export function FlexibleLeaveForm({
               className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 rounded-xl sm:rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 sm:py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-100 transition shadow-sm"
             >
               <Plus className="h-4 w-4 text-slate-500" />
-              Thêm ngày/ca nghỉ khác
+              ThÃªm ngÃ y/ca nghá»‰ khÃ¡c
             </button>
 
-            {/* Tóm tắt số ngày xin nghỉ */}
+            {/* TÃ³m táº¯t sá»‘ ngÃ y xin nghá»‰ */}
             <div className="text-center sm:text-right text-xs text-slate-600 bg-slate-50 sm:bg-transparent p-2.5 sm:p-0 rounded-xl">
-              Đang chọn: <strong>{slots.length} ca</strong> · Tạm tính:{" "}
-              <span className="text-teal-700 font-extrabold">{pendingDays} ngày phép</span> ({pendingSessions} buổi)
+              Äang chá»n: <strong>{slots.length} ca</strong> Â· Táº¡m tÃ­nh:{" "}
+              <span className="text-teal-700 font-extrabold">{pendingDays} ngÃ y phÃ©p</span> ({pendingSessions} buá»•i)
             </div>
           </div>
 
-          {/* KHỐI CẢNH BÁO NGHỈ CẤP THIẾT KHI VƯỢT ĐỊNH MỨC */}
+          {/* KHá»I Cáº¢NH BÃO NGHá»ˆ Cáº¤P THIáº¾T KHI VÆ¯á»¢T Äá»ŠNH Má»¨C */}
           {hasExceededQuota && (
             <div className="rounded-2xl border-2 border-orange-300 bg-orange-50/80 p-4 sm:p-5 space-y-4">
               <div className="flex items-start gap-3">
@@ -646,13 +646,13 @@ export function FlexibleLeaveForm({
                 </div>
                 <div>
                   <h4 className="text-sm font-bold text-orange-950">
-                    Cảnh báo: Ca nghỉ đã vượt số lượng cho phép (tối đa 2 người/ca)
+                    Cáº£nh bÃ¡o: Ca nghá»‰ Ä‘Ã£ vÆ°á»£t sá»‘ lÆ°á»£ng cho phÃ©p (tá»‘i Ä‘a 2 ngÆ°á»i/ca)
                   </h4>
                   <p className="mt-0.5 text-xs text-orange-800 leading-relaxed">
-                    Theo quy định, một ca làm việc chỉ cho phép tối đa 2 người nghỉ cùng lúc.
+                    Theo quy Ä‘á»‹nh, má»™t ca lÃ m viá»‡c chá»‰ cho phÃ©p tá»‘i Ä‘a 2 ngÆ°á»i nghá»‰ cÃ¹ng lÃºc.
                     {isRegisteringForOther
-                      ? " Do bạn là Quản trị viên đăng ký hộ, đơn sẽ được duyệt trực tiếp vào hệ thống."
-                      : " Để tiếp tục gửi, bạn cần đánh dấu đây là Trường hợp Cấp thiết và nhập lý do giải trình để Quản lý (tienmed@gmail.com) xem xét phê duyệt."}
+                      ? " Do báº¡n lÃ  Quáº£n trá»‹ viÃªn Ä‘Äƒng kÃ½ há»™, Ä‘Æ¡n sáº½ Ä‘Æ°á»£c duyá»‡t trá»±c tiáº¿p vÃ o há»‡ thá»‘ng."
+                      : " Äá»ƒ tiáº¿p tá»¥c gá»­i, báº¡n cáº§n Ä‘Ã¡nh dáº¥u Ä‘Ã¢y lÃ  TrÆ°á»ng há»£p Cáº¥p thiáº¿t vÃ  nháº­p lÃ½ do giáº£i trÃ¬nh Ä‘á»ƒ Quáº£n lÃ½ (tienmed@gmail.com) xem xÃ©t phÃª duyá»‡t."}
                   </p>
                 </div>
               </div>
@@ -666,20 +666,20 @@ export function FlexibleLeaveForm({
                     className="h-4 w-4 rounded border-orange-300 text-orange-600 focus:ring-orange-500"
                   />
                   <span className="text-xs sm:text-sm font-bold text-orange-900">
-                    Xác nhận đây là trường hợp nghỉ Cấp thiết
+                    XÃ¡c nháº­n Ä‘Ã¢y lÃ  trÆ°á»ng há»£p nghá»‰ Cáº¥p thiáº¿t
                   </span>
                 </label>
 
                 {isUrgent && (
                   <div className="space-y-1.5 sm:pl-7">
                     <span className="text-xs font-semibold text-orange-900 block">
-                      Ghi chú nội dung giải trình <span className="text-rose-600">*</span>:
+                      Ghi chÃº ná»™i dung giáº£i trÃ¬nh <span className="text-rose-600">*</span>:
                     </span>
                     <textarea
                       rows={2}
                       value={urgentNote}
                       onChange={(e) => setUrgentNote(e.target.value)}
-                      placeholder="Ví dụ: Việc gia đình khẩn cấp, phân công đột xuất..."
+                      placeholder="VÃ­ dá»¥: Viá»‡c gia Ä‘Ã¬nh kháº©n cáº¥p, phÃ¢n cÃ´ng Ä‘á»™t xuáº¥t..."
                       className="w-full rounded-xl border border-orange-200 bg-white p-3 text-sm outline-none focus:border-orange-500 text-slate-800 placeholder:text-slate-400"
                       required
                     />
@@ -689,14 +689,14 @@ export function FlexibleLeaveForm({
             </div>
           )}
 
-          {/* THÔNG BÁO LỖI CLIENT */}
+          {/* THÃ”NG BÃO Lá»–I CLIENT */}
           {clientError && (
             <div className="rounded-xl sm:rounded-2xl border border-rose-200 bg-rose-50 p-3.5 sm:p-4 text-xs font-semibold text-rose-800">
               {clientError}
             </div>
           )}
 
-          {/* NÚT SUBMIT (THAY ĐỔI THEO CHẾ ĐỘ ĐĂNG KÝ HỘ) */}
+          {/* NÃšT SUBMIT (THAY Äá»”I THEO CHáº¾ Äá»˜ ÄÄ‚NG KÃ Há»˜) */}
           <div className="pt-2">
             <button
               type="submit"
@@ -711,22 +711,22 @@ export function FlexibleLeaveForm({
                 <>
                   <Clock className="h-4 w-4 animate-spin" />
                   {isRegisteringForOther
-                    ? "Đang ghi nhận và duyệt chính thức..."
-                    : "Đang ghi nhận tạm và gửi email duyệt..."}
+                    ? "Äang ghi nháº­n vÃ  duyá»‡t chÃ­nh thá»©c..."
+                    : "Äang ghi nháº­n táº¡m vÃ  gá»­i email duyá»‡t..."}
                 </>
               ) : (
                 <>
                   {isRegisteringForOther ? <CheckCircle2 className="h-4 w-4" /> : <Send className="h-4 w-4" />}
                   {isRegisteringForOther
-                    ? `Đăng ký & Duyệt chính thức cho ĐD ${activeTargetStaff.name}`
-                    : "Gửi phiếu xin nghỉ phép"}
+                    ? `ÄÄƒng kÃ½ & Duyá»‡t chÃ­nh thá»©c cho ÄD ${activeTargetStaff.name}`
+                    : "Gá»­i phiáº¿u xin nghá»‰ phÃ©p"}
                 </>
               )}
             </button>
             <p className="mt-2 text-center text-[11px] sm:text-xs text-slate-400">
               {isRegisteringForOther
-                ? "Đơn do Quản trị viên trực tiếp tạo sẽ được Duyệt chính thức ngay và gửi email thông báo xác nhận tới điều dưỡng."
-                : "Đơn sẽ được ghi nhận tạm và chuyển email tới quản lý để duyệt 1 chạm."}
+                ? "ÄÆ¡n do Quáº£n trá»‹ viÃªn trá»±c tiáº¿p táº¡o sáº½ Ä‘Æ°á»£c Duyá»‡t chÃ­nh thá»©c ngay vÃ  gá»­i email thÃ´ng bÃ¡o xÃ¡c nháº­n tá»›i Ä‘iá»u dÆ°á»¡ng."
+                : "ÄÆ¡n sáº½ Ä‘Æ°á»£c ghi nháº­n táº¡m vÃ  chuyá»ƒn email tá»›i quáº£n lÃ½ Ä‘á»ƒ duyá»‡t 1 cháº¡m."}
             </p>
           </div>
         </form>

@@ -1,9 +1,8 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 import {
   ExternalLink,
   Download,
   RefreshCcw,
-  SendHorizontal,
 } from "lucide-react";
 import {
   generateWeekAction,
@@ -45,25 +44,25 @@ interface SchedulePageProps {
 function getDefaultDayAndShift(weekStart: string): { day: number; shift: "morning" | "afternoon" } {
   const now = new Date();
   const weekStartDate = parseISO(weekStart);
-  const weekEndDate = addDays(weekStartDate, 5); // Thứ 7
+  const weekEndDate = addDays(weekStartDate, 5); // Thá»© 7
 
-  // Nếu ngày hiện tại nằm trong tuần đang xem
+  // Náº¿u ngÃ y hiá»‡n táº¡i náº±m trong tuáº§n Ä‘ang xem
   if (now >= weekStartDate && now <= addDays(weekEndDate, 1)) {
     const currentDay = now.getDay(); // 0=CN, 1=T2, ...6=T7
     const hour = now.getHours();
 
-    // Nếu là CN hoặc ngoài phạm vi T2-T7, mặc định Sáng T2
+    // Náº¿u lÃ  CN hoáº·c ngoÃ i pháº¡m vi T2-T7, máº·c Ä‘á»‹nh SÃ¡ng T2
     if (currentDay === 0 || currentDay > 6) {
       return { day: 1, shift: "morning" };
     }
 
     return {
-      day: currentDay, // 1=T2, 2=T3... khớp dayOfWeek
+      day: currentDay, // 1=T2, 2=T3... khá»›p dayOfWeek
       shift: hour < 12 ? "morning" : "afternoon",
     };
   }
 
-  // Tuần chưa tới hoặc đã qua → mặc định Sáng T2
+  // Tuáº§n chÆ°a tá»›i hoáº·c Ä‘Ã£ qua â†’ máº·c Ä‘á»‹nh SÃ¡ng T2
   return { day: 1, shift: "morning" };
 }
 
@@ -76,8 +75,8 @@ export default async function SchedulePage({ searchParams }: SchedulePageProps) 
     return (
       <AppShell
         currentPath="/schedule"
-        title="Lịch tuần"
-        description="Tạo dự thảo từ lịch nền, điều chỉnh ca phát sinh và chốt lịch tuần chính thức khi đã đủ nhân sự."
+        title="Lá»‹ch tuáº§n"
+        description="Táº¡o dá»± tháº£o tá»« lá»‹ch ná»n, Ä‘iá»u chá»‰nh ca phÃ¡t sinh vÃ  chá»‘t lá»‹ch tuáº§n chÃ­nh thá»©c khi Ä‘Ã£ Ä‘á»§ nhÃ¢n sá»±."
         authEnabled={authEnabled}
         user={user}
         message={message}
@@ -121,25 +120,25 @@ export default async function SchedulePage({ searchParams }: SchedulePageProps) 
   const monthKey = weekStart.slice(0, 7);
   const workload = calculateMonthlyWorkload(actualAssignments, monthKey, data.holidays);
 
-  // Tính ngày + buổi đang chọn
+  // TÃ­nh ngÃ y + buá»•i Ä‘ang chá»n
   const defaults = getDefaultDayAndShift(weekStart);
   const selectedDay = dayParam ? Number(dayParam) : defaults.day;
   const selectedShift: "morning" | "afternoon" =
     shiftParam === "morning" || shiftParam === "afternoon" ? shiftParam : defaults.shift;
 
-  // Filter board: chỉ lấy 1 slot khớp
+  // Filter board: chá»‰ láº¥y 1 slot khá»›p
   const filteredBoard = fullBoard.filter(
     (slot) => slot.dayOfWeek === selectedDay && slot.shift === selectedShift,
   );
 
-  // Build danh sách tabs cho điều hướng buổi
+  // Build danh sÃ¡ch tabs cho Ä‘iá»u hÆ°á»›ng buá»•i
   const slotTabs = activeRules.map((rule) => {
     const date = format(addDays(parseISO(weekStart), rule.dayOfWeek - 1), "yyyy-MM-dd");
     const isActive = rule.dayOfWeek === selectedDay && rule.shift === selectedShift;
     return {
       dayOfWeek: rule.dayOfWeek,
       shift: rule.shift,
-      label: `${rule.shift === "morning" ? "S" : "C"} ${WEEKDAY_LABELS[rule.dayOfWeek].replace("Thứ ", "T")}`,
+      label: `${rule.shift === "morning" ? "S" : "C"} ${WEEKDAY_LABELS[rule.dayOfWeek].replace("Thá»© ", "T")}`,
       href: `/schedule?week=${weekStart}&day=${rule.dayOfWeek}&shift=${rule.shift}`,
       isActive,
       date,
@@ -150,17 +149,17 @@ export default async function SchedulePage({ searchParams }: SchedulePageProps) 
   return (
     <AppShell
       currentPath="/schedule"
-      title="Lịch tuần"
-      description="Tạo dự thảo từ lịch nền, điều chỉnh ca phát sinh và chốt lịch tuần chính thức khi đã đủ nhân sự."
+      title="Lá»‹ch tuáº§n"
+      description="Táº¡o dá»± tháº£o tá»« lá»‹ch ná»n, Ä‘iá»u chá»‰nh ca phÃ¡t sinh vÃ  chá»‘t lá»‹ch tuáº§n chÃ­nh thá»©c khi Ä‘Ã£ Ä‘á»§ nhÃ¢n sá»±."
       authEnabled={authEnabled}
       user={currentUser}
       message={message}
       error={error}
     >
       <SurfaceSection
-        eyebrow="Điều phối tuần"
-        title={`Tuần bắt đầu ${formatDate(weekStart)}`}
-        description="Chọn buổi bên dưới để xem và điều chỉnh phân công theo từng ca."
+        eyebrow="Äiá»u phá»‘i tuáº§n"
+        title={`Tuáº§n báº¯t Ä‘áº§u ${formatDate(weekStart)}`}
+        description="Chá»n buá»•i bÃªn dÆ°á»›i Ä‘á»ƒ xem vÃ  Ä‘iá»u chá»‰nh phÃ¢n cÃ´ng theo tá»«ng ca."
         action={
           <div className="flex flex-wrap gap-2">
             <AIAssistant weekStart={weekStart} mode="schedule" />
@@ -169,14 +168,14 @@ export default async function SchedulePage({ searchParams }: SchedulePageProps) 
               className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 px-4 py-3 text-sm font-medium text-slate-700 transition hover:border-slate-300 hover:bg-slate-100"
             >
               <Download className="h-4 w-4" />
-              Xuất Excel
+              Xuáº¥t Excel
             </Link>
             <Link
               href="/board"
               className="inline-flex items-center gap-2 rounded-2xl border border-teal-200 bg-teal-50 px-4 py-3 text-sm font-medium text-teal-800 transition hover:border-teal-300 hover:bg-teal-100"
             >
               <ExternalLink className="h-4 w-4" />
-              Lịch Public
+              Lá»‹ch Public
             </Link>
             {currentUser.role === "admin" && canPlan && (
               <form action={generateWeekAction}>
@@ -184,11 +183,11 @@ export default async function SchedulePage({ searchParams }: SchedulePageProps) 
                 <input type="hidden" name="returnTo" value={returnTo} />
                 <SubmitButton
                   variant="outline"
-                  pendingText="Đang sinh lịch..."
-                  confirmMessage="CẢNH BÁO: Hành động này sẽ CẬP NHẬT LẠI TOÀN BỘ lịch tuần dựa trên lịch nền. Mọi sự thay đổi, điều chỉnh nhân sự đã thực hiện thủ công trên lịch tuần hiện tại sẽ bị xoá và khôi phục về trạng thái mặc định của lịch nền. Bạn có chắc chắn muốn tiếp tục?"
+                  pendingText="Äang sinh lá»‹ch..."
+                  confirmMessage="Cáº¢NH BÃO: HÃ nh Ä‘á»™ng nÃ y sáº½ Cáº¬P NHáº¬T Láº I TOÃ€N Bá»˜ lá»‹ch tuáº§n dá»±a trÃªn lá»‹ch ná»n. Má»i sá»± thay Ä‘á»•i, Ä‘iá»u chá»‰nh nhÃ¢n sá»± Ä‘Ã£ thá»±c hiá»‡n thá»§ cÃ´ng trÃªn lá»‹ch tuáº§n hiá»‡n táº¡i sáº½ bá»‹ xoÃ¡ vÃ  khÃ´i phá»¥c vá» tráº¡ng thÃ¡i máº·c Ä‘á»‹nh cá»§a lá»‹ch ná»n. Báº¡n cÃ³ cháº¯c cháº¯n muá»‘n tiáº¿p tá»¥c?"
                 >
                   <RefreshCcw className="h-4 w-4" />
-                  Sinh lại từ lịch nền
+                  Sinh láº¡i tá»« lá»‹ch ná»n
                 </SubmitButton>
               </form>
             )}
@@ -197,18 +196,18 @@ export default async function SchedulePage({ searchParams }: SchedulePageProps) 
       >
         <div className="mb-5 flex flex-wrap gap-2">
           <Pill tone={actualAssignments.length > 0 ? "teal" : "amber"}>
-            {actualAssignments.length > 0 ? "Lịch chính thức" : "Đang xem trước từ lịch nền"}
+            {actualAssignments.length > 0 ? "Lá»‹ch chÃ­nh thá»©c" : "Äang xem trÆ°á»›c tá»« lá»‹ch ná»n"}
           </Pill>
-          <Pill tone="slate">{displayedAssignments.length} dòng phân công</Pill>
+          <Pill tone="slate">{displayedAssignments.length} dÃ²ng phÃ¢n cÃ´ng</Pill>
           <Pill tone="rose">
-            {displayedAssignments.filter((item) => item.status === "needs-review").length} ca cần rà soát
+            {displayedAssignments.filter((item) => item.status === "needs-review").length} ca cáº§n rÃ  soÃ¡t
           </Pill>
           {!canPlan && (
-            <Pill tone="amber">Chỉ được sinh/chốt lịch cho tuần hiện tại hoặc tuần kế tiếp</Pill>
+            <Pill tone="amber">Chá»‰ Ä‘Æ°á»£c sinh/chá»‘t lá»‹ch cho tuáº§n hiá»‡n táº¡i hoáº·c tuáº§n káº¿ tiáº¿p</Pill>
           )}
         </div>
 
-        {/* Tabs ngang điều hướng buổi */}
+        {/* Tabs ngang Ä‘iá»u hÆ°á»›ng buá»•i */}
         <div className="mb-5 -mx-1 flex flex-wrap gap-1.5">
           {slotTabs.map((tab) => (
             <Link
@@ -237,8 +236,8 @@ export default async function SchedulePage({ searchParams }: SchedulePageProps) 
           <ScheduleBoard
             board={filteredBoard}
             positions={data.positions}
-            emptyTitle="Tuần này chưa có ca nào để điều phối"
-            emptyDescription="Bạn cần ít nhất một vị trí, một điều dưỡng đang hoạt động và một ca làm đang bật để tạo lịch tuần."
+            emptyTitle="Tuáº§n nÃ y chÆ°a cÃ³ ca nÃ o Ä‘á»ƒ Ä‘iá»u phá»‘i"
+            emptyDescription="Báº¡n cáº§n Ã­t nháº¥t má»™t vá»‹ trÃ­, má»™t Ä‘iá»u dÆ°á»¡ng Ä‘ang hoáº¡t Ä‘á»™ng vÃ  má»™t ca lÃ m Ä‘ang báº­t Ä‘á»ƒ táº¡o lá»‹ch tuáº§n."
             staff={data.staff}
             leaveRequests={data.leaveRequests}
             workload={workload}
