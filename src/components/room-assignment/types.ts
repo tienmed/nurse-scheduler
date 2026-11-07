@@ -1,6 +1,6 @@
-﻿import type { ShiftType, Position } from "@/lib/types";
+import type { ShiftType, Position } from "@/lib/types";
 
-// [QWEN3] Äá»‹nh nghÄ©a kiá»ƒu dá»¯ liá»‡u cho module PhÃ¢n phÃ²ng kÃ©o tháº£
+// [QWEN3] Định nghĩa kiểu dữ liệu cho module Phân phòng kéo thả
 export interface SlotKeyInfo {
   date: string;
   shift: ShiftType;
@@ -12,7 +12,7 @@ export interface RoomAssignmentRecord {
   staffId: string;
 }
 
-// MÃ u sáº¯c nháº­n diá»‡n cho tá»«ng khu vá»±c
+// Màu sắc nhận diện cho từng khu vực
 export interface AreaStyle {
   bg: string;
   border: string;
@@ -22,14 +22,14 @@ export interface AreaStyle {
 }
 
 export const AREA_STYLES: Record<string, AreaStyle> = {
-  "Sáº£nh": { bg: "bg-emerald-50", border: "border-emerald-200", badge: "bg-emerald-600", text: "text-emerald-800", lightBg: "bg-emerald-100/70" },
-  "Trá»‡t": { bg: "bg-sky-50", border: "border-sky-200", badge: "bg-sky-600", text: "text-sky-800", lightBg: "bg-sky-100/70" },
-  "Táº§ng 1": { bg: "bg-violet-50", border: "border-violet-200", badge: "bg-violet-600", text: "text-violet-800", lightBg: "bg-violet-100/70" },
-  "Táº§ng 2": { bg: "bg-amber-50", border: "border-amber-200", badge: "bg-amber-600", text: "text-amber-800", lightBg: "bg-amber-100/70" },
-  "Ngoáº¡i trÃº": { bg: "bg-rose-50", border: "border-rose-200", badge: "bg-rose-600", text: "text-rose-800", lightBg: "bg-rose-100/70" },
-  "Cáº­n lÃ¢m sÃ ng": { bg: "bg-indigo-50", border: "border-indigo-200", badge: "bg-indigo-600", text: "text-indigo-800", lightBg: "bg-indigo-100/70" },
-  "Thá»§ thuáº­t": { bg: "bg-teal-50", border: "border-teal-200", badge: "bg-teal-600", text: "text-teal-800", lightBg: "bg-teal-100/70" },
-  "HÃ nh chÃ­nh": { bg: "bg-slate-50", border: "border-slate-200", badge: "bg-slate-600", text: "text-slate-800", lightBg: "bg-slate-200/70" },
+  "Sảnh": { bg: "bg-emerald-50", border: "border-emerald-200", badge: "bg-emerald-600", text: "text-emerald-800", lightBg: "bg-emerald-100/70" },
+  "Trệt": { bg: "bg-sky-50", border: "border-sky-200", badge: "bg-sky-600", text: "text-sky-800", lightBg: "bg-sky-100/70" },
+  "Tầng 1": { bg: "bg-violet-50", border: "border-violet-200", badge: "bg-violet-600", text: "text-violet-800", lightBg: "bg-violet-100/70" },
+  "Tầng 2": { bg: "bg-amber-50", border: "border-amber-200", badge: "bg-amber-600", text: "text-amber-800", lightBg: "bg-amber-100/70" },
+  "Ngoại trú": { bg: "bg-rose-50", border: "border-rose-200", badge: "bg-rose-600", text: "text-rose-800", lightBg: "bg-rose-100/70" },
+  "Cận lâm sàng": { bg: "bg-indigo-50", border: "border-indigo-200", badge: "bg-indigo-600", text: "text-indigo-800", lightBg: "bg-indigo-100/70" },
+  "Thủ thuật": { bg: "bg-teal-50", border: "border-teal-200", badge: "bg-teal-600", text: "text-teal-800", lightBg: "bg-teal-100/70" },
+  "Hành chính": { bg: "bg-slate-50", border: "border-slate-200", badge: "bg-slate-600", text: "text-slate-800", lightBg: "bg-slate-200/70" },
 };
 
 export const DEFAULT_AREA_STYLE: AreaStyle = {
@@ -43,29 +43,29 @@ export const DEFAULT_AREA_STYLE: AreaStyle = {
 export function getAreaStyle(areaName?: string): AreaStyle {
   if (!areaName) return DEFAULT_AREA_STYLE;
   const lower = areaName.toLowerCase().trim();
-  if (lower.includes("trá»‡t")) {
-    return AREA_STYLES["Trá»‡t"];
+  if (lower.includes("trệt")) {
+    return AREA_STYLES["Trệt"];
   }
-  if (lower.includes("táº§ng 1")) {
-    return AREA_STYLES["Táº§ng 1"];
+  if (lower.includes("tầng 1")) {
+    return AREA_STYLES["Tầng 1"];
   }
-  if (lower.includes("táº§ng 2")) {
-    return AREA_STYLES["Táº§ng 2"];
+  if (lower.includes("tầng 2")) {
+    return AREA_STYLES["Tầng 2"];
   }
-  if (lower.includes("sáº£nh") || lower.includes("tiáº¿p nháº­n")) {
-    return AREA_STYLES["Sáº£nh"];
+  if (lower.includes("sảnh") || lower.includes("tiếp nhận")) {
+    return AREA_STYLES["Sảnh"];
   }
-  if (lower.includes("ngoáº¡i trÃº")) {
-    return AREA_STYLES["Ngoáº¡i trÃº"];
+  if (lower.includes("ngoại trú")) {
+    return AREA_STYLES["Ngoại trú"];
   }
-  if (lower.includes("cáº­n lÃ¢m sÃ ng")) {
-    return AREA_STYLES["Cáº­n lÃ¢m sÃ ng"];
+  if (lower.includes("cận lâm sàng")) {
+    return AREA_STYLES["Cận lâm sàng"];
   }
-  if (lower.includes("thá»§ thuáº­t")) {
-    return AREA_STYLES["Thá»§ thuáº­t"];
+  if (lower.includes("thủ thuật")) {
+    return AREA_STYLES["Thủ thuật"];
   }
-  if (lower.includes("hÃ nh chÃ­nh")) {
-    return AREA_STYLES["HÃ nh chÃ­nh"];
+  if (lower.includes("hành chính")) {
+    return AREA_STYLES["Hành chính"];
   }
   for (const [key, val] of Object.entries(AREA_STYLES)) {
     if (lower.includes(key.toLowerCase())) {
@@ -75,7 +75,7 @@ export function getAreaStyle(areaName?: string): AreaStyle {
   return DEFAULT_AREA_STYLE;
 }
 
-// [QWEN3] RÃºt gá»n tÃªn nhÃ¢n sá»± thÃ nh tÃªn gá»i thÃ¢n máº­t / tÃªn chÃ­nh giá»‘ng nhÆ° trong áº£nh máº«u Excel
+// [QWEN3] Rút gọn tên nhân sự thành tên gọi thân mật / tên chính giống như trong ảnh mẫu Excel
 export function getStaffShortName(fullName: string): string {
   if (!fullName) return "";
   const trimmed = fullName.trim();
@@ -84,17 +84,17 @@ export function getStaffShortName(fullName: string): string {
   if (lower.includes("lyna")) return "Lyna";
 
   const compoundNames = [
-    "PhÃºc Anh",
-    "BÃ­ch Tháº£o",
-    "BÃ­nh Tháº£o",
+    "Phúc Anh",
+    "Bích Thảo",
+    "Bính Thảo",
     "Kim Hoa",
-    "Kim LiÃªn",
-    "Kim Äiá»‡p",
-    "TÃº Trang",
-    "Má»¹ NhiÃªn",
-    "Ngá»c Háº¡nh",
-    "NhÃ¢n NghÄ©a",
-    "ThÃºy Háº±ng",
+    "Kim Liên",
+    "Kim Điệp",
+    "Tú Trang",
+    "Mỹ Nhiên",
+    "Ngọc Hạnh",
+    "Nhân Nghĩa",
+    "Thúy Hằng",
   ];
   for (const comp of compoundNames) {
     if (trimmed.endsWith(comp)) return comp;
@@ -104,36 +104,36 @@ export function getStaffShortName(fullName: string): string {
   return parts[parts.length - 1];
 }
 
-// [QWEN3] Äá»‹nh dáº¡ng gá»n cho tháº» nhÃ¢n viÃªn trong ma tráº­n phÃ¢n phÃ²ng: "ÄD TÃªn"
+// [QWEN3] Định dạng gọn cho thẻ nhân viên trong ma trận phân phòng: "ĐD Tên"
 export function getStaffMatrixLabel(fullName: string): string {
   const shortName = getStaffShortName(fullName);
   if (!shortName) return "";
-  if (shortName.startsWith("ÄD ") || shortName.startsWith("BS ")) return shortName;
-  return `ÄD ${shortName}`;
+  if (shortName.startsWith("ĐD ") || shortName.startsWith("BS ")) return shortName;
+  return `ĐD ${shortName}`;
 }
 
-// [QWEN3] RÃºt gá»n lÃ½ do nghá»‰: "phÃ©p", "á»‘m", "há»c", "khÃ¡c"
+// [QWEN3] Rút gọn lý do nghỉ: "phép", "ốm", "học", "khác"
 export function getLeaveReasonShortLabel(reason?: string, note?: string): string {
   if (!reason) {
     if (note && note.trim()) return note.trim().slice(0, 8);
-    return "phÃ©p";
+    return "phép";
   }
   const r = reason.toLowerCase().trim();
-  if (r === "om" || r === "á»‘m" || r.includes("á»‘m") || r.includes("bá»‡nh")) return "á»‘m";
-  if (r === "dihoc" || r === "há»c" || r.includes("há»c")) return "há»c";
-  if (r === "phep" || r === "phÃ©p" || r.includes("phÃ©p")) return "phÃ©p";
+  if (r === "om" || r === "ốm" || r.includes("ốm") || r.includes("bệnh")) return "ốm";
+  if (r === "dihoc" || r === "học" || r.includes("học")) return "học";
+  if (r === "phep" || r === "phép" || r.includes("phép")) return "phép";
   if (note && note.trim()) return note.trim().slice(0, 8);
-  return "phÃ©p";
+  return "phép";
 }
 
-// [QWEN3] Tháº» phÃ©p ghi chÃº táº¯t lÃ½ do nghá»‰: "ÄD Nga (á»‘m)", "ÄD BÃ­ch Tháº£o (phÃ©p)", "ÄD NghÄ©a (há»c)"
+// [QWEN3] Thẻ phép ghi chú tắt lý do nghỉ: "ĐD Nga (ốm)", "ĐD Bích Thảo (phép)", "ĐD Nghĩa (học)"
 export function getStaffLeaveLabel(fullName: string, reason?: string, note?: string): string {
   const matrixLabel = getStaffMatrixLabel(fullName);
   const reasonShort = getLeaveReasonShortLabel(reason, note);
   return `${matrixLabel} (${reasonShort})`;
 }
 
-// [QWEN3] Báº£ng mÃ u riÃªng biá»‡t cho tá»«ng nhÃ¢n sá»± Ä‘á»ƒ dá»… nháº­n diá»‡n trong ma tráº­n
+// [QWEN3] Bảng màu riêng biệt cho từng nhân sự để dễ nhận diện trong ma trận
 export interface StaffColorStyle {
   bg: string;
   border: string;
@@ -172,7 +172,7 @@ export function getStaffColorStyle(identifier: string): StaffColorStyle {
   return STAFF_COLOR_PALETTE[index];
 }
 
-// MÃ u sáº¯c phÃ¢n nhÃ³m phÃ²ng chuáº©n theo áº£nh máº«u Excel thá»±c táº¿
+// Màu sắc phân nhóm phòng chuẩn theo ảnh mẫu Excel thực tế
 export interface RoomGroupInfo {
   name: string;
   badgeBg: string;
@@ -185,21 +185,21 @@ export function getRoomGroupInfo(pos: Position): RoomGroupInfo {
   const name = pos.name.toLowerCase();
   const area = (pos.area || "").toLowerCase();
 
-  // 1. NhÃ³m VÃ ng: Da liá»…u, CSD, Máº¯t, TMH, TÃ¢m lÃ½, Tim máº¡ch, YHCT (hoáº·c Táº§ng 1)
+  // 1. Nhóm Vàng: Da liễu, CSD, Mắt, TMH, Tâm lý, Tim mạch, YHCT (hoặc Tầng 1)
   if (
-    name.includes("da liá»…u") ||
-    name.includes("chÄƒm sÃ³c da") ||
+    name.includes("da liễu") ||
+    name.includes("chăm sóc da") ||
     name.includes("csd") ||
-    name.includes("máº¯t") ||
+    name.includes("mắt") ||
     name.includes("tmh") ||
-    name.includes("tÃ¢m lÃ½") ||
-    name.includes("tháº§n kinh") ||
-    name.includes("tim máº¡ch") ||
+    name.includes("tâm lý") ||
+    name.includes("thần kinh") ||
+    name.includes("tim mạch") ||
     name.includes("yhct") ||
-    area.includes("táº§ng 1")
+    area.includes("tầng 1")
   ) {
     return {
-      name: "ChuyÃªn khoa",
+      name: "Chuyên khoa",
       badgeBg: "bg-amber-300",
       badgeText: "text-amber-950",
       rowBg: "bg-amber-50/40",
@@ -207,10 +207,10 @@ export function getRoomGroupInfo(pos: Position): RoomGroupInfo {
     };
   }
 
-  // 2. NhÃ³m Cam: ChuyÃªn gia, D.á»©/MD
-  if (name.includes("chuyÃªn gia") || name.includes("miá»…n dá»‹ch") || name.includes("d.á»©")) {
+  // 2. Nhóm Cam: Chuyên gia, D.ứ/MD
+  if (name.includes("chuyên gia") || name.includes("miễn dịch") || name.includes("d.ứ")) {
     return {
-      name: "ChuyÃªn gia",
+      name: "Chuyên gia",
       badgeBg: "bg-orange-200",
       badgeText: "text-orange-950",
       rowBg: "bg-orange-50/40",
@@ -218,10 +218,10 @@ export function getRoomGroupInfo(pos: Position): RoomGroupInfo {
     };
   }
 
-  // 3. NhÃ³m Há»“ng: Tiáº¿p nháº­n
-  if (name.includes("tiáº¿p nháº­n")) {
+  // 3. Nhóm Hồng: Tiếp nhận
+  if (name.includes("tiếp nhận")) {
     return {
-      name: "Tiáº¿p nháº­n",
+      name: "Tiếp nhận",
       badgeBg: "bg-pink-200",
       badgeText: "text-pink-950",
       rowBg: "bg-pink-50/40",
@@ -229,10 +229,10 @@ export function getRoomGroupInfo(pos: Position): RoomGroupInfo {
     };
   }
 
-  // 4. NhÃ³m Xanh lÃ¡: Nháº­p liá»‡u KSK, KHNV, Thanh trÃ¹ng
-  if (name.includes("nháº­p liá»‡u") || name.includes("ksk") || name.includes("khnv") || name.includes("thanh trÃ¹ng")) {
+  // 4. Nhóm Xanh lá: Nhập liệu KSK, KHNV, Thanh trùng
+  if (name.includes("nhập liệu") || name.includes("ksk") || name.includes("khnv") || name.includes("thanh trùng")) {
     return {
-      name: "KhÃ¡m sá»©c khá»e & NV",
+      name: "Khám sức khỏe & NV",
       badgeBg: "bg-emerald-200",
       badgeText: "text-emerald-950",
       rowBg: "bg-emerald-50/40",
@@ -240,9 +240,9 @@ export function getRoomGroupInfo(pos: Position): RoomGroupInfo {
     };
   }
 
-  // 5. NhÃ³m Xanh dÆ°Æ¡ng: KhÃ¡m Ä‘a khoa & Cáº­n lÃ¢m sÃ ng (SiÃªu Ã¢m, Cáº¥p cá»©u, CXK, Ná»™i, Ngoáº¡i, Sáº£n, ECG, Äo sinh hiá»‡u...)
+  // 5. Nhóm Xanh dương: Khám đa khoa & Cận lâm sàng (Siêu âm, Cấp cứu, CXK, Nội, Ngoại, Sản, ECG, Đo sinh hiệu...)
   return {
-    name: "KhÃ¡m & Cáº­n lÃ¢m sÃ ng",
+    name: "Khám & Cận lâm sàng",
     badgeBg: "bg-sky-200",
     badgeText: "text-sky-950",
     rowBg: "bg-sky-50/40",

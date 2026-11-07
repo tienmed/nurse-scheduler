@@ -1,4 +1,4 @@
-﻿import { addDays, compareAsc, differenceInCalendarDays, format, parseISO } from "date-fns";
+import { addDays, compareAsc, differenceInCalendarDays, format, parseISO } from "date-fns";
 import {
   DEFAULT_SCHEDULE_RULES,
   LEAVE_REASON_LABELS,
@@ -22,7 +22,7 @@ import type {
 } from "@/lib/types";
 
 /**
- * Thá»© 7 (dayOfWeek=6) ca sÃ¡ng Ä‘Æ°á»£c coi lÃ  ca tÄƒng ca.
+ * Thứ 7 (dayOfWeek=6) ca sáng được coi là ca tăng ca.
  */
 export const OVERTIME_DAY_OF_WEEK = 6;
 
@@ -147,7 +147,7 @@ export function buildAssignmentsFromTemplate(
         );
 
         const isDayOff = isOffDay(date, assignment.shift, holidays);
-        if (isDayOff) return null; // KhÃ´ng sinh assignment cho ngÃ y nghá»‰ máº·c Ä‘á»‹nh
+        if (isDayOff) return null; // Không sinh assignment cho ngày nghỉ mặc định
 
         const leave = leaveChecker.check(
           assignment.staffId,
@@ -155,7 +155,7 @@ export function buildAssignmentsFromTemplate(
           assignment.shift,
         );
 
-        // Ngoáº¡i lá»‡: Äi há»c + vá»‹ trÃ­ KHNV â†’ khÃ´ng coi lÃ  xung Ä‘á»™t
+        // Ngoại lệ: Đi học + vị trí KHNV → không coi là xung đột
         const positionName = positions.find((p) => p.id === assignment.positionId)?.name ?? "";
         const isExempt = leave?.reason === "dihoc" && positionName.toUpperCase().includes("KHNV");
         const effectiveLeave = isExempt ? undefined : leave;
@@ -166,12 +166,12 @@ export function buildAssignmentsFromTemplate(
           date,
           shift: assignment.shift,
           positionId: assignment.positionId,
-          staffId: effectiveLeave ? "" : assignment.staffId, // Náº¿u nghá»‰ thÃ¬ Ä‘á»ƒ trá»‘ng ID nhÃ¢n sá»±
+          staffId: effectiveLeave ? "" : assignment.staffId, // Nếu nghỉ thì để trống ID nhân sự
           slotIndex: assignment.slotIndex,
           source: "template" as const,
           status: effectiveLeave ? ("needs-review" as const) : ("published" as const),
           note: effectiveLeave
-            ? `Trá»‘ng: TrÃ¹ng lá»‹ch nghá»‰ ${LEAVE_REASON_LABELS[effectiveLeave.reason].toLowerCase()}`
+            ? `Trống: Trùng lịch nghỉ ${LEAVE_REASON_LABELS[effectiveLeave.reason].toLowerCase()}`
             : assignment.note ?? "",
         };
       })
@@ -217,7 +217,7 @@ export function getWeekBoard(
       dayOfWeek: slot.dayOfWeek,
       shift: slot.shift,
       isDayOff,
-      title: `${WEEKDAY_LABELS[slot.dayOfWeek]} Â· ${SHIFT_LABELS[slot.shift]}`,
+      title: `${WEEKDAY_LABELS[slot.dayOfWeek]} · ${SHIFT_LABELS[slot.shift]}`,
       entries: isDayOff
         ? []
         : positions
@@ -233,7 +233,7 @@ export function getWeekBoard(
           const quota = position.quota || 1;
           const slots = [];
 
-          // Chá»‰ Ä‘áº» Ä‘Ãºng sá»‘ slot Ä‘Ã£ phÃ¢n cÃ´ng. Náº¿u chÆ°a cÃ³ ai thÃ¬ hiá»ƒn thá»‹ 1 slot "ChÆ°a xáº¿p ngÆ°á»i" Ä‘á»ƒ Ä‘á»¡ trá»‘ng.
+          // Chỉ đẻ đúng số slot đã phân công. Nếu chưa có ai thì hiển thị 1 slot "Chưa xếp người" để đỡ trống.
           const iterations = posAssignments.length > 0 ? posAssignments.length : (isTemplateMode ? quota : 1);
 
           for (let i = 0; i < iterations; i++) {
@@ -253,9 +253,9 @@ export function getWeekBoard(
                 ? leaveChecker.check(person.id, date, slot.shift)
                 : null;
 
-            // Ngoáº¡i lá»‡: Äi há»c + vá»‹ trÃ­ KHNV â†’ khÃ´ng coi lÃ  xung Ä‘á»™t
+            // Ngoại lệ: Đi học + vị trí KHNV → không coi là xung đột
             const isExempt = rawLeave?.reason === "dihoc" && position.name.toUpperCase().includes("KHNV");
-            // Náº¿u cÃ³ lá»‹ch nghá»‰ phÃ©p, thá»±c hiá»‡n "Tá»± Ä‘á»™ng áº©n" nhÃ¢n sá»± khá»i báº£ng lá»‹ch
+            // Nếu có lịch nghỉ phép, thực hiện "Tự động ẩn" nhân sự khỏi bảng lịch
             const leave = isExempt ? null : rawLeave;
             const finalPerson = leave ? null : person;
 
@@ -334,7 +334,7 @@ export function calculateMonthlyLeaves(
   leaveRequests
     .filter((leave) => leave.date >= start && leave.date <= end)
     .filter((leave) => {
-      // NgÃ y nghá»‰ lá»…/CN/chiá»u T7 khÃ´ng tÃ­nh vÃ o ngÃ y nghá»‰ phÃ©p (theo yÃªu cáº§u)
+      // Ngày nghỉ lễ/CN/chiều T7 không tính vào ngày nghỉ phép (theo yêu cầu)
       if (leave.shift === "full-day") {
         return !isOffDay(leave.date, "morning", holidays) || !isOffDay(leave.date, "afternoon", holidays);
       }
@@ -412,9 +412,9 @@ export interface SuggestionResult {
 }
 
 /**
- * Gá»£i Ã½ nhÃ¢n sá»± phÃ¹ há»£p cho má»™t vá»‹ trÃ­/ngÃ y/ca cá»¥ thá»ƒ.
- * Æ¯u tiÃªn: (1) khÃ´ng trÃ¹ng nghá»‰ phÃ©p, (2) CÃ¹ng khu vá»±c / vá»‹ trÃ­ chuyÃªn mÃ´n,
- * (3) KhÃ´ng bá»‹ báº­n ca khÃ¡c, (4) Æ¯u tiÃªn workload ráº£nh.
+ * Gợi ý nhân sự phù hợp cho một vị trí/ngày/ca cụ thể.
+ * Ưu tiên: (1) không trùng nghỉ phép, (2) Cùng khu vực / vị trí chuyên môn,
+ * (3) Không bị bận ca khác, (4) Ưu tiên workload rảnh.
  */
 export function suggestStaffForSlot(
   staff: StaffMember[],
@@ -432,14 +432,14 @@ export function suggestStaffForSlot(
   const staffOrder = targetPos?.staffOrder || [];
   const leaveChecker = createLeaveConflictChecker(leaveRequests);
 
-  // Láº¥y cÃ¡c assignment trong cÃ¹ng buá»•i
+  // Lấy các assignment trong cùng buổi
   const currentShiftAssignments = weeklySchedule.filter(
     (a) => a.date === date && a.shift === shift
   );
 
   const posMap = new Map(positions.map(p => [p.id, p]));
 
-  // TrÃ­ch xuáº¥t nhá»¯ng ngÆ°á»i Ä‘Ã£ cÃ³ ca trong cÃ¹ng buá»•i
+  // Trích xuất những người đã có ca trong cùng buổi
   const busyStaffMap = new Map<string, string[]>();
   for (const a of currentShiftAssignments) {
     const list = busyStaffMap.get(a.staffId) || [];
@@ -460,53 +460,53 @@ export function suggestStaffForSlot(
     let score = 0;
     const w = workloadMap.get(member.id);
 
-    // Æ¯u tiÃªn hiá»ƒn thá»‹
+    // Ưu tiên hiển thị
     const orderIdx = staffOrder.indexOf(member.id);
     if (orderIdx !== -1) {
-      reasons.unshift(`Æ¯u tiÃªn #${orderIdx + 1}`);
+      reasons.unshift(`Ưu tiên #${orderIdx + 1}`);
       score += (1000 - orderIdx * 10);
     } else if (member.positionIds.includes(positionId)) {
-      reasons.push("CÃ¹ng khu vá»±c");
+      reasons.push("Cùng khu vực");
       score += 100;
     }
 
     const busyPositions = busyStaffMap.get(member.id);
     if (busyPositions) {
-      // ÄÃ£ bá»‹ xoÃ¡ khá»i máº£ng available náº¿u cÃ³ LeaveConflict,
-      // nÃªn á»Ÿ Ä‘Ã¢y cháº¯c cháº¯n lÃ  "kiÃªm nhiá»‡m" cÃ¡c vá»‹ trÃ­ khÃ¡c
+      // Đã bị xoá khỏi mảng available nếu có LeaveConflict,
+      // nên ở đây chắc chắn là "kiêm nhiệm" các vị trí khác
       if (busyPositions.includes(targetPos?.name || "")) {
-        // Äang bá»‹ trÃ¹ng CHÃNH cÃ¡i vá»‹ trÃ­ Ä‘ang chá»n (nghá»‹ch lÃ½ nhÆ°ng náº¿u db cÃ³ lÆ°u trÆ°á»›c Ä‘Ã³)
-        // Thá»±c táº¿ lÃ  náº¿u há» Ä‘Ã£ cÃ³ trong vá»‹ trÃ­ nÃ y (cháº³ng háº¡n slot 0), náº¿u click slot 1 há» cÅ©ng hiá»‡n ra list list.
-        reasons.push(`Äang á»Ÿ ca nÃ y`);
+        // Đang bị trùng CHÍNH cái vị trí đang chọn (nghịch lý nhưng nếu db có lưu trước đó)
+        // Thực tế là nếu họ đã có trong vị trí này (chẳng hạn slot 0), nếu click slot 1 họ cũng hiện ra list list.
+        reasons.push(`Đang ở ca này`);
       } else {
-        reasons.push(`ÄÃ£ xáº¿p: ${busyPositions.join(", ")}`);
+        reasons.push(`Đã xếp: ${busyPositions.join(", ")}`);
       }
       score -= 120;
     } else {
-      reasons.push("Ráº£nh chÆ°a cÃ³ ca");
+      reasons.push("Rảnh chưa có ca");
       score += 220;
     }
 
-    // Æ¯u tiÃªn nhÃ¢n sá»± cÃ³ pháº¡m vi vá»‹ trÃ­ háº¹p hÆ¡n (Ã­t vá»‹ trÃ­) Ä‘á»ƒ giá»¯ ngÆ°á»i Ä‘a nÄƒng cho cÃ¡c khe khÃ³
+    // Ưu tiên nhân sự có phạm vi vị trí hẹp hơn (ít vị trí) để giữ người đa năng cho các khe khó
     const positionCoverage = member.positionIds.length || 99;
     if (positionCoverage <= 2) {
-      reasons.push("Ãt vá»‹ trÃ­");
+      reasons.push("Ít vị trí");
       score += 50 - positionCoverage * 5;
     } else {
       score += Math.max(0, 20 - positionCoverage);
     }
 
-    // Náº¿u lÃ  ngÃ y tÄƒng ca
+    // Nếu là ngày tăng ca
     if (isOvertime && member.prefersOvertime) {
-      reasons.push("Sáºµn sÃ ng TC");
+      reasons.push("Sẵn sàng TC");
       score += 50;
     }
 
-    // ÄÃ¡nh giÃ¡ sá»‘ ca
+    // Đánh giá số ca
     const shiftsCount = w?.shifts ?? 0;
     if (shiftsCount <= 3) {
-      reasons.push("Ãt ca");
-      score += (20 - shiftsCount); // CÃ ng Ã­t cÃ ng Ä‘Æ°á»£c cá»§ng cá»‘
+      reasons.push("Ít ca");
+      score += (20 - shiftsCount); // Càng ít càng được củng cố
     } else {
       score -= (shiftsCount * 2);
     }
@@ -518,7 +518,7 @@ export function suggestStaffForSlot(
     if (b.score !== a.score) {
       return b.score - a.score;
     }
-    // CÃ¹ng Ä‘iá»ƒm thÃ¬ ngÆ°á»i Ã­t ca trÆ°á»›c
+    // Cùng điểm thì người ít ca trước
     const aShifts = workloadMap.get(a.staff.id)?.shifts ?? 0;
     const bShifts = workloadMap.get(b.staff.id)?.shifts ?? 0;
     return aShifts - bShifts;
@@ -528,7 +528,7 @@ export function suggestStaffForSlot(
 export function getDefaultDayAndShift(weekStart: string): { day: number; shift: "morning" | "afternoon" } {
   const now = new Date();
   const weekStartDate = parseISO(weekStart);
-  const weekEndDate = addDays(weekStartDate, 5); // Thá»© 7
+  const weekEndDate = addDays(weekStartDate, 5); // Thứ 7
 
   if (now >= weekStartDate && now <= addDays(weekEndDate, 1)) {
     const currentDay = now.getDay();
@@ -565,7 +565,7 @@ export interface MonthlyTimesheetStaffRow {
 }
 
 /**
- * BÃ¡o cÃ¡o cháº¥m cÃ´ng chi tiáº¿t theo ngÃ y trong thÃ¡ng
+ * Báo cáo chấm công chi tiết theo ngày trong tháng
  */
 export function buildMonthlyTimesheet(
   weeklySchedule: WeeklyAssignment[],
@@ -582,7 +582,7 @@ export function buildMonthlyTimesheet(
   const endDate = parseISO(end);
   const daysCount = differenceInCalendarDays(endDate, startDate) + 1;
 
-  // Khá»Ÿi táº¡o map cho má»—i nhÃ¢n sá»±
+  // Khởi tạo map cho mỗi nhân sự
   const timesheetMap = new Map<string, MonthlyTimesheetStaffRow>();
   for (const member of staff) {
     if (!member.active) continue;
@@ -598,8 +598,8 @@ export function buildMonthlyTimesheet(
     });
   }
 
-  // 1. Ghi nháº­n dá»¯ liá»‡u lÃ m thÃªm T7 (Overtime)
-  // QuÃ©t qua weeklySchedule Ä‘á»ƒ tÃ¬m nhá»¯ng staff cÃ³ lá»‹ch vÃ o SÃ¡ng Thá»© 7
+  // 1. Ghi nhận dữ liệu làm thêm T7 (Overtime)
+  // Quét qua weeklySchedule để tìm những staff có lịch vào Sáng Thứ 7
   const overtimeStaffSet = new Set<string>();
   weeklySchedule.forEach(a => {
     if (a.date >= start && a.date <= end && isOvertimeSlot(a.date, a.shift) && a.status === "published") {
@@ -623,17 +623,17 @@ export function buildMonthlyTimesheet(
       }
 
       for (const shift of ["morning", "afternoon"] as const) {
-        // Kiá»ƒm tra nghá»‰ lá»…
+        // Kiểm tra nghỉ lễ
         if (isOffDay(currentDate, shift, holidays)) {
-          continue; // Bá» tick
+          continue; // Bỏ tick
         }
 
-        // Kiá»ƒm tra chiá»u T7 hoáº·c CN
+        // Kiểm tra chiều T7 hoặc CN
         if (dayOfWeek === 0 || (dayOfWeek === 6 && shift === "afternoon")) {
-          continue; // Bá» tick
+          continue; // Bỏ tick
         }
 
-        // Kiá»ƒm tra phÃ©p
+        // Kiểm tra phép
         const leave = leaveChecker.check(member.id, currentDate, shift);
         if (leave) {
           const mark = leave.reason === "dihoc" ? "H" : leave.reason === "om" ? "O" : "P";
@@ -644,13 +644,13 @@ export function buildMonthlyTimesheet(
           continue;
         }
 
-        // Ghi nháº­n Ä‘i lÃ m
+        // Ghi nhận đi làm
         if (dayOfWeek >= 1 && dayOfWeek <= 5) {
-          // Tá»« T2 tá»›i T6: máº·c Ä‘á»‹nh tick âœ”
+          // Từ T2 tới T6: mặc định tick ✔
           row.days[currentDate][shift] = "✔";
           row.totalWork++;
         } else if (dayOfWeek === 6 && shift === "morning") {
-          // T7 sÃ¡ng: ghi T náº¿u cÃ³ dá»¯ liá»‡u Ä‘i lÃ m thÃªm
+          // T7 sáng: ghi T nếu có dữ liệu đi làm thêm
           if (overtimeStaffSet.has(`${member.id}|${currentDate}`)) {
             row.days[currentDate].morning = "T";
             row.totalOvertime++;

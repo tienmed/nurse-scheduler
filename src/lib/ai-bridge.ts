@@ -1,11 +1,11 @@
-﻿import { getCachedAppData } from "@/lib/google-sheets";
+import { getCachedAppData } from "@/lib/google-sheets";
 import { aiService } from "@/lib/ai-service";
 import { format, startOfMonth, endOfMonth } from "date-fns";
 
 export async function optimizeMonthlyScheduleWithAI(month: Date) {
   const data = await getCachedAppData();
   
-  // Chuáº©n bá»‹ dá»¯ liá»‡u cho AI
+  // Chuẩn bị dữ liệu cho AI
   const context = {
     staff: data.staff.filter(s => s.active).map(s => ({
       id: s.id,
@@ -25,11 +25,11 @@ export async function optimizeMonthlyScheduleWithAI(month: Date) {
   };
 
   const constraints = `
-    - ThÃ¡ng: ${format(month, "MM/yyyy")}
-    - Sá»‘ lÆ°á»£ng Ä‘iá»u dÆ°á»¡ng: ${context.staff.length}
-    - Äáº£m báº£o má»—i ca trá»±c cÃ³ Ä‘á»§ ngÆ°á»i theo quota cá»§a vá»‹ trÃ­.
-    - Æ¯u tiÃªn ngÆ°á»i khÃ´ng cÃ³ yÃªu cáº§u nghá»‰ phÃ©p vÃ o ngÃ y Ä‘Ã³.
-    - Cá»‘ gáº¯ng phÃ¢n bá»• Ä‘á»u sá»‘ ca trá»±c Ä‘Ãªm/sÃ¡ng cho má»i ngÆ°á»i.
+    - Tháng: ${format(month, "MM/yyyy")}
+    - Số lượng điều dưỡng: ${context.staff.length}
+    - Đảm bảo mỗi ca trực có đủ người theo quota của vị trí.
+    - Ưu tiên người không có yêu cầu nghỉ phép vào ngày đó.
+    - Cố gắng phân bổ đều số ca trực đêm/sáng cho mọi người.
   `;
 
   return await aiService.optimizeSchedule(context, constraints);
@@ -38,11 +38,11 @@ export async function optimizeMonthlyScheduleWithAI(month: Date) {
 export async function validateWeeklyScheduleWithAI(weekStart: string) {
   const data = await getCachedAppData();
   
-  // Láº¥y lá»‹ch trá»±c cá»§a tuáº§n cá»¥ thá»ƒ
+  // Lấy lịch trực của tuần cụ thể
   const weeklySchedule = data.weeklySchedule.filter(s => s.weekStart === weekStart);
   
   if (weeklySchedule.length === 0) {
-    return "KhÃ´ng tÃ¬m tháº¥y dá»¯ liá»‡u lá»‹ch trá»±c cho tuáº§n nÃ y Ä‘á»ƒ kiá»ƒm tra.";
+    return "Không tìm thấy dữ liệu lịch trực cho tuần này để kiểm tra.";
   }
 
   return await aiService.validateSchedule(weeklySchedule);
@@ -52,7 +52,7 @@ export async function getPersonalAISummary(staffId: string) {
   const data = await getCachedAppData();
   const staff = data.staff.find(s => s.id === staffId);
   
-  if (!staff) return "KhÃ´ng tÃ¬m tháº¥y thÃ´ng tin nhÃ¢n viÃªn.";
+  if (!staff) return "Không tìm thấy thông tin nhân viên.";
 
   const personalSchedule = data.weeklySchedule.filter(s => s.staffId === staffId);
   
@@ -62,7 +62,7 @@ export async function getPersonalAISummary(staffId: string) {
 export async function getMonthlyExecutiveSummaryWithAI(monthKey: string) {
   const data = await getCachedAppData();
   
-  // Tá»•ng há»£p dá»¯ liá»‡u cho bÃ¡o cÃ¡o Ä‘iá»u hÃ nh
+  // Tổng hợp dữ liệu cho báo cáo điều hành
   const reportData = {
     month: monthKey,
     stats: {
@@ -71,8 +71,8 @@ export async function getMonthlyExecutiveSummaryWithAI(monthKey: string) {
       totalLeaveRequests: data.leaveRequests.filter(l => l.date.startsWith(monthKey)).length,
       totalWeeklyAssignments: data.weeklySchedule.filter(s => s.weekStart.startsWith(monthKey)).length
     },
-    // ChÃºng ta cÃ³ thá»ƒ bá»• sung thÃªm dá»¯ liá»‡u chi tiáº¿t náº¿u cáº§n, 
-    // nhÆ°ng Ä‘á»ƒ tiáº¿t kiá»‡m token thÃ¬ gá»­i cÃ¡c con sá»‘ tá»•ng há»£p lÃ  Ä‘á»§.
+    // Chúng ta có thể bổ sung thêm dữ liệu chi tiết nếu cần, 
+    // nhưng để tiết kiệm token thì gửi các con số tổng hợp là đủ.
   };
 
   return await aiService.generateExecutiveReport(reportData);

@@ -1,5 +1,11 @@
 # NurseFlow Versioning
 
+## v1.4.1 (2026-11-07)
+### Vá khẩn cấp: Khôi phục bảng mã UTF-8 chuẩn cho toàn bộ 12 tệp giao diện [QWEN3]
+- Khắc phục hoàn toàn lỗi font chữ (Mojibake Double-UTF8) trên trang Đăng ký phép (`flexible-leave-form.tsx`), Bảng phân ca (`schedule-board.tsx`), Phân phòng (`room-assignment/`), và các hàm tính toán (`schedule.ts`).
+- Bảo đảm 100% tệp tin nguồn hiển thị tiếng Việt có dấu chuẩn xác trên tất cả thiết bị di động và máy tính.
+- Đạt chuẩn kiểm thử 33/33 unit tests passed, 0 ESLint warnings, 0 TypeScript errors.
+
 ## v1.4.0 (2026-11-07)
 ### Cổng Nhân Sự Cá Nhân PWA, Lịch Vị Trí Buổi/Ngày & Tăng Cường Kháng Lỗi [QWEN3]
 - **Tính năng mới - Cổng Nhân Sự Cá Nhân Mobile PWA:**

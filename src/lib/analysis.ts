@@ -1,4 +1,4 @@
-﻿import { differenceInCalendarDays, parseISO, isAfter, subDays, startOfToday } from "date-fns";
+import { differenceInCalendarDays, parseISO, isAfter, subDays, startOfToday } from "date-fns";
 import type { WeeklyAssignment, StaffMember, Position } from "./types";
 import { calculatePositionRotations } from "./schedule";
 
@@ -15,7 +15,7 @@ export interface RotationWarning {
 }
 
 /**
- * [QWEN3] PhÃ¢n tÃ­ch vÃ  phÃ¡t hiá»‡n nhÃ¢n sá»± á»Ÿ má»™t vá»‹ trÃ­ quÃ¡ lÃ¢u (máº·c Ä‘á»‹nh > 180 ngÃ y)
+ * [QWEN3] Phân tích và phát hiện nhân sự ở một vị trí quá lâu (mặc định > 180 ngày)
  */
 export function getRotationWarnings(
   weeklySchedule: WeeklyAssignment[],
@@ -28,7 +28,7 @@ export function getRotationWarnings(
   const posMap = new Map(positions.map(p => [p.id, p]));
   
   const today = startOfToday();
-  const activeCutoff = subDays(today, 14); // Chá»‰ tÃ­nh nhá»¯ng ngÆ°á»i cÃ²n Ä‘ang lÃ m vá»‹ trÃ­ Ä‘Ã³ trong 2 tuáº§n qua
+  const activeCutoff = subDays(today, 14); // Chỉ tính những người còn đang làm vị trí đó trong 2 tuần qua
 
   return summaries
     .map(s => {

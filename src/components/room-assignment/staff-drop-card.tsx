@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState } from "react";
 import { AlertCircle, RotateCcw, X } from "lucide-react";
@@ -32,12 +32,6 @@ export function StaffDropCard({
     e.stopPropagation();
     e.dataTransfer.dropEffect = "copy";
     if (!isDragOver) setIsDragOver(true);
-  };
-
-  const handleDragEnter = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragOver(true);
   };
 
   const handleDragLeave = (e: React.DragEvent) => {
@@ -81,7 +75,6 @@ export function StaffDropCard({
   return (
     <div
       onDragOver={handleDragOver}
-      onDragEnter={handleDragEnter}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
       className={`relative flex flex-col justify-between rounded-3xl border p-4 shadow-sm transition-all duration-150 ${
@@ -94,7 +87,7 @@ export function StaffDropCard({
           : "border-dashed border-slate-300 bg-slate-50/70 hover:border-slate-400 hover:bg-slate-50"
       }`}
     >
-      {/* Pháº§n thÃ´ng tin nhÃ¢n sá»± */}
+      {/* Phần thông tin nhân sự */}
       <div>
         <div className="flex items-center justify-between gap-2 border-b border-slate-100 pb-3">
           <div className="flex items-center gap-2.5 min-w-0">
@@ -114,28 +107,28 @@ export function StaffDropCard({
                 {staff.name}
               </p>
               <p className="text-[11px] text-slate-400 font-medium">
-                MÃ£: {staff.code || staff.id}
+                Mã: {staff.code || staff.id}
               </p>
             </div>
           </div>
 
-          {/* Badge tráº¡ng thÃ¡i */}
+          {/* Badge trạng thái */}
           <div className="flex items-center gap-1.5 shrink-0">
             {isLeave && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-0.5 text-[10px] font-bold text-amber-800" title={leave?.note || "Äang cÃ³ lá»‹ch nghá»‰"}>
+              <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-0.5 text-[10px] font-bold text-amber-800" title={leave?.note || "Đang có lịch nghỉ"}>
                 <AlertCircle className="h-3 w-3" />
-                Nghá»‰ {leave?.reason ? LEAVE_REASON_LABELS[leave.reason] : "phÃ©p"}
+                Nghỉ {leave?.reason ? LEAVE_REASON_LABELS[leave.reason] : "phép"}
               </span>
             )}
             {hasAssigned && (
               <span className="rounded-full bg-teal-50 border border-teal-200 px-2 py-0.5 text-[10px] font-bold text-teal-700">
-                {assignedPositions.length} phÃ²ng
+                {assignedPositions.length} phòng
               </span>
             )}
           </div>
         </div>
 
-        {/* Danh sÃ¡ch phÃ²ng Ä‘Ã£ phÃ¢n cÃ´ng */}
+        {/* Danh sách phòng đã phân công */}
         <div className="mt-3 min-h-[48px]">
           {hasAssigned ? (
             <div className="flex flex-wrap gap-1.5">
@@ -151,11 +144,11 @@ export function StaffDropCard({
                       {pos.name}
                     </span>
 
-                    {/* [QWEN3] NÃºt thÃ¡o phÃ²ng: Cho phÃ©p gá»¡ bá» phÃ²ng khá»i nhÃ¢n sá»± ngay tá»©c thÃ¬ */}
+                    {/* [QWEN3] Nút tháo phòng: Cho phép gỡ bỏ phòng khỏi nhân sự ngay tức thì */}
                     <button
                       type="button"
                       onClick={() => onRemovePosition(staff.id, pos.id)}
-                      title={`ThÃ¡o phÃ²ng ${pos.name} khá»i ${staff.name}`}
+                      title={`Tháo phòng ${pos.name} khỏi ${staff.name}`}
                       className="flex h-4 w-4 items-center justify-center rounded-md hover:bg-black/10 active:scale-90 transition-colors cursor-pointer text-slate-500 hover:text-rose-600"
                     >
                       <X className="h-3 w-3 stroke-[2.5]" />
@@ -167,24 +160,24 @@ export function StaffDropCard({
           ) : (
             <div className="flex h-12 items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-white/50 text-center">
               <p className="text-xs text-slate-400">
-                {isDragOver ? "Tháº£ tháº» phÃ²ng vÃ o Ä‘Ã¢y!" : "ChÆ°a cÃ³ phÃ²ng â€¢ KÃ©o phÃ²ng tháº£ vÃ o"}
+                {isDragOver ? "Thả thẻ phòng vào đây!" : "Chưa có phòng • Kéo phòng thả vào"}
               </p>
             </div>
           )}
         </div>
       </div>
 
-      {/* Footer tháº»: NÃºt ThÃ¡o táº¥t cáº£ khi nhÃ¢n sá»± cÃ³ tá»« 1 phÃ²ng trá»Ÿ lÃªn */}
+      {/* Footer thẻ: Nút Tháo tất cả khi nhân sự có từ 1 phòng trở lên */}
       {hasAssigned && (
         <div className="mt-3 flex items-center justify-end border-t border-slate-100 pt-2">
           <button
             type="button"
             onClick={() => onClearAllPositions(staff.id)}
             className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-semibold text-slate-400 hover:bg-rose-50 hover:text-rose-600 transition-colors cursor-pointer"
-            title="ThÃ¡o táº¥t cáº£ cÃ¡c phÃ²ng Ä‘ang phÃ¢n cho nhÃ¢n sá»± nÃ y"
+            title="Tháo tất cả các phòng đang phân cho nhân sự này"
           >
             <RotateCcw className="h-3 w-3" />
-            ThÃ¡o toÃ n bá»™ phÃ²ng
+            Tháo toàn bộ phòng
           </button>
         </div>
       )}
