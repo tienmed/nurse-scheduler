@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { LogOut, CalendarCheck, ShieldAlert, HeartPulse, CalendarDays, BarChart3, Compass } from "lucide-react";
-import { signOut } from "@/auth";
+import { signIn, signOut } from "@/auth";
 import { getAppData, calculateYearlyApprovedLeaveStats } from "@/lib/repository";
 import { getUserContext } from "@/lib/session";
 import { getWeekStartFromInput } from "@/lib/date";
@@ -21,9 +21,18 @@ interface PageProps {
 export const dynamic = "force-dynamic";
 
 export default async function LeavePortalPage({ searchParams }: PageProps) {
-  const { tab = "my-schedule", week, message, error } = await searchParams;
+  const resolvedSearchParams = await searchParams;
+  const { tab = "my-schedule", week, message, error } = resolvedSearchParams;
   const activeTab = tab || "my-schedule";
   const weekStart = getWeekStartFromInput(week);
+
+  // [QWEN3] Xây dựng URL đích bảo toàn toàn bộ query parameters để trả lại đúng vị trí sau khi đăng nhập
+  const queryParams = new URLSearchParams();
+  if (tab) queryParams.set("tab", tab);
+  if (week) queryParams.set("week", week);
+  const queryString = queryParams.toString();
+  const currentPathWithQuery = `/dang-ky-phep${queryString ? `?${queryString}` : ""}`;
+
   const { authEnabled, user } = await getUserContext({ required: false });
 
   // 1. KIỂM TRA ĐĂNG NHẬP
@@ -40,12 +49,27 @@ export default async function LeavePortalPage({ searchParams }: PageProps) {
               Vui lòng đăng nhập bằng tài khoản Google cơ quan của bạn để theo dõi lịch phân vị trí và đăng ký nghỉ phép.
             </p>
           </div>
-          <Link
-            href="/sign-in?callbackUrl=/dang-ky-phep"
-            className="w-full inline-flex items-center justify-center rounded-xl sm:rounded-2xl bg-teal-600 px-5 sm:px-6 py-3 sm:py-3.5 text-xs sm:text-sm font-bold text-white shadow-lg shadow-teal-600/20 hover:bg-teal-700 transition"
+          <form
+            action={async () => {
+              "use server";
+              await signIn("google", { redirectTo: currentPathWithQuery });
+            }}
           >
-            Đăng nhập với Google
-          </Link>
+            <button
+              type="submit"
+              className="w-full inline-flex items-center justify-center rounded-xl sm:rounded-2xl bg-teal-600 px-5 sm:px-6 py-3 sm:py-3.5 text-xs sm:text-sm font-bold text-white shadow-lg shadow-teal-600/20 hover:bg-teal-700 transition"
+            >
+              Đăng nhập với Google
+            </button>
+          </form>
+          <div className="pt-1">
+            <Link
+              href={`/sign-in?returnTo=${encodeURIComponent(currentPathWithQuery)}&callbackUrl=${encodeURIComponent(currentPathWithQuery)}`}
+              className="text-[11px] sm:text-xs text-slate-400 hover:text-slate-600 underline"
+            >
+              Hoặc mở trang đăng nhập hệ thống
+            </Link>
+          </div>
         </div>
       </div>
     );

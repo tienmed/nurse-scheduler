@@ -1,4 +1,4 @@
-﻿import Link from "next/link";
+import Link from "next/link";
 import { ArrowRight, ShieldCheck } from "lucide-react";
 import { signIn } from "@/auth";
 import { Pill } from "@/components/pill";
@@ -8,13 +8,15 @@ import { isAuthConfigured, isSheetsConfigured } from "@/lib/env";
 interface SignInPageProps {
   searchParams: Promise<{
     returnTo?: string;
+    callbackUrl?: string;
     error?: string;
   }>;
 }
 
 export default async function SignInPage({ searchParams }: SignInPageProps) {
-  const { returnTo, error } = await searchParams;
-  const redirectTo = returnTo || "/";
+  const { returnTo, callbackUrl, error } = await searchParams;
+  // [QWEN3] Hỗ trợ cả callbackUrl (chuẩn NextAuth) và returnTo (nội bộ), ưu tiên URL chuyển hướng đích
+  const redirectTo = callbackUrl || returnTo || "/";
   const oauthReady = isAuthConfigured();
   const sheetsReady = isSheetsConfigured();
 
