@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import {
   ChevronLeft,
@@ -12,6 +12,8 @@ import {
   Sunset,
   AlertCircle,
   CalendarCheck,
+  History,
+  CheckCircle2,
 } from "lucide-react";
 import { format, parseISO, addDays, subDays } from "date-fns";
 import { getWeekDates, isOffDay, formatDate } from "@/lib/date";
@@ -36,6 +38,9 @@ export function MyPersonalScheduleView({
   weekStart,
   holidays,
 }: MyPersonalScheduleViewProps) {
+  // Trạng thái mở rộng xem lại các ngày đã qua trong tuần
+  const [showPastDays, setShowPastDays] = useState(false);
+
   // Lấy ngày hiện tại theo múi giờ Việt Nam
   const todayStr = useMemo(() => {
     const vnDate = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Ho_Chi_Minh" }));
@@ -63,6 +68,24 @@ export function MyPersonalScheduleView({
   const weekDates = useMemo(() => {
     return getWeekDates(weekStart);
   }, [weekStart]);
+
+  // Kiểm tra tuần hiện tại, tuần quá khứ, tuần tương lai
+  const isCurrentWeek = useMemo(() => {
+    return weekDates.some((d) => d.date === todayStr);
+  }, [weekDates, todayStr]);
+
+  const isPastWeek = useMemo(() => {
+    return weekDates.every((d) => d.date < todayStr);
+  }, [weekDates, todayStr]);
+
+  // Phân loại các ngày trong tuần
+  const futureDays = useMemo(() => {
+    return weekDates.filter((d) => d.date > todayStr);
+  }, [weekDates, todayStr]);
+
+  const pastAndTodayDays = useMemo(() => {
+    return weekDates.filter((d) => d.date <= todayStr);
+  }, [weekDates, todayStr]);
 
   // Tính ngày tuần trước và tuần sau
   const prevWeek = useMemo(() => {
@@ -105,6 +128,186 @@ export function MyPersonalScheduleView({
       },
     };
   }, [weeklySchedule, currentStaff.id, todayStr, leaveChecker, holidays, positionMap]);
+
+  // Hàm render thẻ phân công của một ngày cụ thể
+  const renderDayCard = (day: (typeof weekDates)[0], isArchived = false) => {
+    const isToday = day.date === todayStr;
+    const isPast = day.date < todayStr;
+
+    // Tìm phân công ca sáng & ca chiều
+    const morningAssign = myWeekAssignments.find(
+      (a) => a.date === day.date && a.shift === "morning",
+    );
+    const afternoonAssign = myWeekAssignments.find(
+      (a) => a.date === day.date && a.shift === "afternoon",
+    );
+
+    // Kiểm tra nghỉ phép
+    const morningLeave = leaveChecker.check(currentStaff.id, day.date, "morning");
+    const afternoonLeave = leaveChecker.check(currentStaff.id, day.date, "afternoon");
+
+    // Kiểm tra ngày nghỉ mặc định / lễ
+    const morningOff = isOffDay(day.date, "morning", holidays);
+    const afternoonOff = isOffDay(day.date, "afternoon", holidays);
+
+    const isSaturdayMorningOT = isOvertimeSlot(day.date, "morning");
+
+    return (
+      <div
+        key={day.date}
+        className={`overflow-hidden rounded-2xl border transition-all ${
+          isToday
+            ? "border-teal-500 bg-white ring-2 ring-teal-500/20 shadow-md"
+            : isPast && isArchived
+            ? "border-slate-200/60 bg-slate-50/50 opacity-80 hover:opacity-100 shadow-2xs"
+            : "border-slate-200/80 bg-white hover:border-slate-300 shadow-sm"
+        }`}
+      >
+        {/* Header ngày */}
+        <div
+          className={`flex items-center justify-between border-b px-4 py-2.5 ${
+            isToday
+              ? "border-teal-100 bg-teal-50/70"
+              : isPast && isArchived
+              ? "border-slate-100 bg-slate-100/70"
+              : "border-slate-100 bg-slate-50/60"
+          }`}
+        >
+          <div className="flex items-center gap-2">
+            <span className={`text-xs font-bold ${isPast && isArchived ? "text-slate-600" : "text-slate-900"}`}>
+              {WEEKDAY_LABELS[day.weekday]} · {day.label}
+            </span>
+            {isToday ? (
+              <span className="rounded-full bg-teal-600 px-2 py-0.5 text-[10px] font-bold text-white shadow-xs">
+                Hôm nay
+              </span>
+            ) : isPast && isArchived ? (
+              <span className="rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-semibold text-slate-600">
+                Đã qua
+              </span>
+            ) : null}
+          </div>
+          <span className="text-[11px] font-medium text-slate-400">
+            {formatDate(day.date, "yyyy")}
+          </span>
+        </div>
+
+        {/* Danh sách 2 buổi trong ngày */}
+        <div className="grid grid-cols-1 divide-y divide-slate-100 sm:grid-cols-2 sm:divide-x sm:divide-y-0">
+          {/* BUỔI SÁNG */}
+          <div className="p-3.5 space-y-2">
+            <div className="flex items-center justify-between text-xs">
+              <span className="flex items-center gap-1.5 font-semibold text-slate-700">
+                <Sun className="h-3.5 w-3.5 text-amber-500" />
+                Sáng (07:00 - 11:30)
+              </span>
+              {isSaturdayMorningOT && (
+                <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold text-amber-800">
+                  Tăng ca T7
+                </span>
+              )}
+            </div>
+
+            {morningLeave ? (
+              <div className="rounded-xl bg-rose-50 p-2.5 border border-rose-200/80 text-xs text-rose-800 flex items-center justify-between">
+                <span className="font-semibold">
+                  Nghỉ phép ({LEAVE_REASON_LABELS[morningLeave.reason]})
+                </span>
+                <span className="rounded-full bg-rose-200 px-2 py-0.5 text-[10px] font-bold text-rose-900">
+                  {morningLeave.status === "approved" ? "Đã duyệt" : "Chờ duyệt"}
+                </span>
+              </div>
+            ) : morningAssign ? (
+              <div className="rounded-xl bg-teal-50/60 p-2.5 border border-teal-200/70 space-y-1">
+                <p className="text-xs font-bold text-teal-950">
+                  {positionMap.get(morningAssign.positionId)?.name || "Vị trí trực"}
+                </p>
+                <p className="flex items-center gap-1 text-[11px] text-teal-700">
+                  <MapPin className="h-3 w-3 shrink-0" />
+                  {positionMap.get(morningAssign.positionId)?.area || "Khu vực"}
+                </p>
+                {morningAssign.note && (
+                  <p className="text-[10px] text-slate-500 italic mt-0.5">
+                    Ghi chú: {morningAssign.note}
+                  </p>
+                )}
+              </div>
+            ) : morningOff ? (
+              <div className="rounded-xl bg-slate-50 p-2.5 text-xs text-slate-400 italic">
+                Nghỉ quy định / Lễ
+              </div>
+            ) : (
+              <div className="flex items-center justify-between rounded-xl bg-slate-50/70 p-2.5 text-xs text-slate-400">
+                <span>Chưa xếp vị trí</span>
+                {!isPast && (
+                  <Link
+                    href={`/dang-ky-phep?tab=register&date=${day.date}&shift=morning`}
+                    className="inline-flex items-center gap-1 text-[11px] font-semibold text-teal-600 hover:text-teal-800 hover:underline"
+                  >
+                    <CalendarCheck className="h-3 w-3" />
+                    Xin nghỉ
+                  </Link>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* BUỔI CHIỀU */}
+          <div className="p-3.5 space-y-2">
+            <div className="flex items-center justify-between text-xs">
+              <span className="flex items-center gap-1.5 font-semibold text-slate-700">
+                <Sunset className="h-3.5 w-3.5 text-orange-500" />
+                Chiều (13:00 - 16:30)
+              </span>
+            </div>
+
+            {afternoonLeave ? (
+              <div className="rounded-xl bg-rose-50 p-2.5 border border-rose-200/80 text-xs text-rose-800 flex items-center justify-between">
+                <span className="font-semibold">
+                  Nghỉ phép ({LEAVE_REASON_LABELS[afternoonLeave.reason]})
+                </span>
+                <span className="rounded-full bg-rose-200 px-2 py-0.5 text-[10px] font-bold text-rose-900">
+                  {afternoonLeave.status === "approved" ? "Đã duyệt" : "Chờ duyệt"}
+                </span>
+              </div>
+            ) : afternoonAssign ? (
+              <div className="rounded-xl bg-teal-50/60 p-2.5 border border-teal-200/70 space-y-1">
+                <p className="text-xs font-bold text-teal-950">
+                  {positionMap.get(afternoonAssign.positionId)?.name || "Vị trí trực"}
+                </p>
+                <p className="flex items-center gap-1 text-[11px] text-teal-700">
+                  <MapPin className="h-3 w-3 shrink-0" />
+                  {positionMap.get(afternoonAssign.positionId)?.area || "Khu vực"}
+                </p>
+                {afternoonAssign.note && (
+                  <p className="text-[10px] text-slate-500 italic mt-0.5">
+                    Ghi chú: {afternoonAssign.note}
+                  </p>
+                )}
+              </div>
+            ) : afternoonOff ? (
+              <div className="rounded-xl bg-slate-50 p-2.5 text-xs text-slate-400 italic">
+                {day.weekday === 6 ? "Chiều Thứ 7 nghỉ theo quy định" : "Nghỉ quy định / Lễ"}
+              </div>
+            ) : (
+              <div className="flex items-center justify-between rounded-xl bg-slate-50/70 p-2.5 text-xs text-slate-400">
+                <span>Chưa xếp vị trí</span>
+                {!isPast && (
+                  <Link
+                    href={`/dang-ky-phep?tab=register&date=${day.date}&shift=afternoon`}
+                    className="inline-flex items-center gap-1 text-[11px] font-semibold text-teal-600 hover:text-teal-800 hover:underline"
+                  >
+                    <CalendarCheck className="h-3 w-3" />
+                    Xin nghỉ
+                  </Link>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className="space-y-5 sm:space-y-6">
@@ -236,183 +439,91 @@ export function MyPersonalScheduleView({
         </div>
       </div>
 
-      {/* 3. DÒNG THỜI GIAN CẢ TUẦN THEO TỪNG BUỔI (WEEKLY TIMELINE) */}
-      <div className="space-y-3">
-        <div className="flex items-center justify-between px-1">
-          <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500">
-            Lịch phân công theo ngày (Thứ 2 - Thứ 7)
-          </h3>
-          <span className="text-xs text-slate-400">
-            Tổng cộng: {myWeekAssignments.length} ca làm việc
-          </span>
+      {/* 3. DÒNG THỜI GIAN THEO TỪNG BUỔI (WEEKLY TIMELINE) */}
+      <div className="space-y-3.5">
+        {/* Header danh sách & Nút chuyển đổi xem lại ngày đã qua */}
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between px-1">
+          <div>
+            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-600 sm:text-sm">
+              {isCurrentWeek ? "Lịch phân công các ngày sắp tới" : "Lịch phân công theo ngày (Thứ 2 - Thứ 7)"}
+            </h3>
+            <p className="text-[11px] text-slate-400 mt-0.5">
+              {isCurrentWeek ? (
+                <>
+                  Hiển thị {futureDays.length} ngày tới trong tuần · Ca hôm nay đã nổi bật ở thẻ phía trên
+                </>
+              ) : isPastWeek ? (
+                "Lịch phân công đã qua của tuần trước"
+              ) : (
+                `Lịch tuần từ ${formatDate(weekStart)} đến ${formatDate(format(addDays(parseISO(weekStart), 5), "yyyy-MM-dd"))}`
+              )}
+            </p>
+          </div>
+
+          {/* Nút Xem lại ngày đã qua (chỉ hiện khi đang xem tuần hiện tại) */}
+          {isCurrentWeek && pastAndTodayDays.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setShowPastDays(!showPastDays)}
+              className="self-start sm:self-auto inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 shadow-2xs hover:bg-slate-50 transition active:scale-95"
+            >
+              <History className="h-3.5 w-3.5 text-slate-500" />
+              <span>
+                {showPastDays ? "Ẩn các ngày trước đó" : `Xem lại ngày trước đó (${pastAndTodayDays.length})`}
+              </span>
+            </button>
+          )}
         </div>
 
+        {/* DANH SÁCH CÁC NGÀY ĐƯỢC HIỂN THỊ */}
         <div className="space-y-3">
-          {weekDates.map((day) => {
-            const isToday = day.date === todayStr;
+          {isCurrentWeek ? (
+            <>
+              {/* Nếu có ngày tương lai: Render danh sách ngày tương lai */}
+              {futureDays.length > 0 ? (
+                futureDays.map((day) => renderDayCard(day, false))
+              ) : (
+                /* Nếu đã hết ngày tương lai trong tuần (ví dụ thứ 7) */
+                <div className="rounded-2xl border border-dashed border-teal-200 bg-teal-50/50 p-6 text-center space-y-2">
+                  <CheckCircle2 className="mx-auto h-8 w-8 text-teal-600" />
+                  <p className="text-sm font-bold text-teal-950">
+                    Bạn đã hoàn thành các ca làm việc của tuần này!
+                  </p>
+                  <p className="text-xs text-teal-700/80 max-w-md mx-auto">
+                    Hôm nay là {formatDate(todayStr, "EEEE")}, chi tiết ca trực đã hiển thị đầy đủ ở thẻ nổi bật phía trên.
+                  </p>
+                  {!showPastDays && (
+                    <button
+                      type="button"
+                      onClick={() => setShowPastDays(true)}
+                      className="inline-flex items-center gap-1.5 rounded-xl border border-teal-300 bg-white px-3 py-1.5 text-xs font-semibold text-teal-800 shadow-xs hover:bg-teal-50 transition mt-2"
+                    >
+                      <History className="h-3.5 w-3.5 text-teal-600" />
+                      Xem lại toàn bộ lịch tuần này
+                    </button>
+                  )}
+                </div>
+              )}
 
-            // Tìm phân công ca sáng & ca chiều
-            const morningAssign = myWeekAssignments.find(
-              (a) => a.date === day.date && a.shift === "morning",
-            );
-            const afternoonAssign = myWeekAssignments.find(
-              (a) => a.date === day.date && a.shift === "afternoon",
-            );
-
-            // Kiểm tra nghỉ phép
-            const morningLeave = leaveChecker.check(currentStaff.id, day.date, "morning");
-            const afternoonLeave = leaveChecker.check(currentStaff.id, day.date, "afternoon");
-
-            // Kiểm tra ngày nghỉ mặc định / lễ
-            const morningOff = isOffDay(day.date, "morning", holidays);
-            const afternoonOff = isOffDay(day.date, "afternoon", holidays);
-
-            const isSaturdayMorningOT = isOvertimeSlot(day.date, "morning");
-
-            return (
-              <div
-                key={day.date}
-                className={`overflow-hidden rounded-2xl border transition-all ${
-                  isToday
-                    ? "border-teal-500 bg-white ring-2 ring-teal-500/20 shadow-md"
-                    : "border-slate-200/80 bg-white hover:border-slate-300 shadow-sm"
-                }`}
-              >
-                {/* Header ngày */}
-                <div
-                  className={`flex items-center justify-between border-b px-4 py-2.5 ${
-                    isToday
-                      ? "border-teal-100 bg-teal-50/70"
-                      : "border-slate-100 bg-slate-50/60"
-                  }`}
-                >
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold text-slate-900">
-                      {WEEKDAY_LABELS[day.weekday]} · {day.label}
+              {/* KHỐI CÁC NGÀY ĐÃ QUA & HÔM NAY (KHI ĐƯỢC MỞ RỘNG) */}
+              {showPastDays && pastAndTodayDays.length > 0 && (
+                <div className="space-y-3 pt-3 border-t border-dashed border-slate-200">
+                  <div className="flex items-center gap-2 px-1">
+                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                      Lịch các ngày trước đó trong tuần
                     </span>
-                    {isToday && (
-                      <span className="rounded-full bg-teal-600 px-2 py-0.5 text-[10px] font-bold text-white">
-                        Hôm nay
-                      </span>
-                    )}
+                    <span className="text-[10px] rounded-full bg-slate-200 px-2 py-0.5 font-bold text-slate-600">
+                      {pastAndTodayDays.length} ngày
+                    </span>
                   </div>
-                  <span className="text-[11px] font-medium text-slate-500">
-                    {formatDate(day.date, "yyyy")}
-                  </span>
+                  {pastAndTodayDays.map((day) => renderDayCard(day, true))}
                 </div>
-
-                {/* Danh sách 2 buổi trong ngày */}
-                <div className="grid grid-cols-1 divide-y divide-slate-100 sm:grid-cols-2 sm:divide-x sm:divide-y-0">
-                  {/* BUỔI SÁNG */}
-                  <div className="p-3.5 space-y-2">
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="flex items-center gap-1.5 font-semibold text-slate-700">
-                        <Sun className="h-3.5 w-3.5 text-amber-500" />
-                        Sáng (07:00 - 11:30)
-                      </span>
-                      {isSaturdayMorningOT && (
-                        <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold text-amber-800">
-                          Tăng ca T7
-                        </span>
-                      )}
-                    </div>
-
-                    {morningLeave ? (
-                      <div className="rounded-xl bg-rose-50 p-2.5 border border-rose-200/80 text-xs text-rose-800 flex items-center justify-between">
-                        <span className="font-semibold">
-                          Nghỉ phép ({LEAVE_REASON_LABELS[morningLeave.reason]})
-                        </span>
-                        <span className="rounded-full bg-rose-200 px-2 py-0.5 text-[10px] font-bold text-rose-900">
-                          {morningLeave.status === "approved" ? "Đã duyệt" : "Chờ duyệt"}
-                        </span>
-                      </div>
-                    ) : morningAssign ? (
-                      <div className="rounded-xl bg-teal-50/60 p-2.5 border border-teal-200/70 space-y-1">
-                        <p className="text-xs font-bold text-teal-950">
-                          {positionMap.get(morningAssign.positionId)?.name || "Vị trí trực"}
-                        </p>
-                        <p className="flex items-center gap-1 text-[11px] text-teal-700">
-                          <MapPin className="h-3 w-3 shrink-0" />
-                          {positionMap.get(morningAssign.positionId)?.area || "Khu vực"}
-                        </p>
-                        {morningAssign.note && (
-                          <p className="text-[10px] text-slate-500 italic mt-0.5">
-                            Ghi chú: {morningAssign.note}
-                          </p>
-                        )}
-                      </div>
-                    ) : morningOff ? (
-                      <div className="rounded-xl bg-slate-50 p-2.5 text-xs text-slate-400 italic">
-                        Nghỉ quy định / Lễ
-                      </div>
-                    ) : (
-                      <div className="flex items-center justify-between rounded-xl bg-slate-50/70 p-2.5 text-xs text-slate-400">
-                        <span>Chưa xếp vị trí</span>
-                        <Link
-                          href={`/dang-ky-phep?tab=register&date=${day.date}&shift=morning`}
-                          className="inline-flex items-center gap-1 text-[11px] font-semibold text-teal-600 hover:text-teal-800 hover:underline"
-                        >
-                          <CalendarCheck className="h-3 w-3" />
-                          Xin nghỉ
-                        </Link>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* BUỔI CHIỀU */}
-                  <div className="p-3.5 space-y-2">
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="flex items-center gap-1.5 font-semibold text-slate-700">
-                        <Sunset className="h-3.5 w-3.5 text-orange-500" />
-                        Chiều (13:00 - 16:30)
-                      </span>
-                    </div>
-
-                    {afternoonLeave ? (
-                      <div className="rounded-xl bg-rose-50 p-2.5 border border-rose-200/80 text-xs text-rose-800 flex items-center justify-between">
-                        <span className="font-semibold">
-                          Nghỉ phép ({LEAVE_REASON_LABELS[afternoonLeave.reason]})
-                        </span>
-                        <span className="rounded-full bg-rose-200 px-2 py-0.5 text-[10px] font-bold text-rose-900">
-                          {afternoonLeave.status === "approved" ? "Đã duyệt" : "Chờ duyệt"}
-                        </span>
-                      </div>
-                    ) : afternoonAssign ? (
-                      <div className="rounded-xl bg-teal-50/60 p-2.5 border border-teal-200/70 space-y-1">
-                        <p className="text-xs font-bold text-teal-950">
-                          {positionMap.get(afternoonAssign.positionId)?.name || "Vị trí trực"}
-                        </p>
-                        <p className="flex items-center gap-1 text-[11px] text-teal-700">
-                          <MapPin className="h-3 w-3 shrink-0" />
-                          {positionMap.get(afternoonAssign.positionId)?.area || "Khu vực"}
-                        </p>
-                        {afternoonAssign.note && (
-                          <p className="text-[10px] text-slate-500 italic mt-0.5">
-                            Ghi chú: {afternoonAssign.note}
-                          </p>
-                        )}
-                      </div>
-                    ) : afternoonOff ? (
-                      <div className="rounded-xl bg-slate-50 p-2.5 text-xs text-slate-400 italic">
-                        {day.weekday === 6 ? "Chiều Thứ 7 nghỉ theo quy định" : "Nghỉ quy định / Lễ"}
-                      </div>
-                    ) : (
-                      <div className="flex items-center justify-between rounded-xl bg-slate-50/70 p-2.5 text-xs text-slate-400">
-                        <span>Chưa xếp vị trí</span>
-                        <Link
-                          href={`/dang-ky-phep?tab=register&date=${day.date}&shift=afternoon`}
-                          className="inline-flex items-center gap-1 text-[11px] font-semibold text-teal-600 hover:text-teal-800 hover:underline"
-                        >
-                          <CalendarCheck className="h-3 w-3" />
-                          Xin nghỉ
-                        </Link>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            );
-          })}
+              )}
+            </>
+          ) : (
+            /* Khi xem tuần khác (Tuần trước hoặc Tuần sau): Hiển thị đầy đủ cả tuần */
+            weekDates.map((day) => renderDayCard(day, isPastWeek))
+          )}
         </div>
       </div>
     </div>
