@@ -158,3 +158,21 @@ export interface RotationSummary {
   lastDate: string;
   shifts: number;
 }
+
+/**
+ * [QWEN3] Thống kê tích lũy kinh nghiệm, chuyên môn theo vị trí (1 ca = 4 giờ làm)
+ */
+export interface StaffPositionExperience {
+  shifts: number;
+  hours: number; // shifts * 4
+}
+
+export interface StaffExperienceSummary {
+  staffId: string;
+  staffName: string;
+  staffCode: string;
+  totalShifts: number;
+  totalHours: number;
+  positions: Record<string, StaffPositionExperience>;
+  topPosition?: { id: string; name: string; hours: number };
+}

@@ -1,4 +1,4 @@
-import { BarChart3, CalendarSearch, Download, RefreshCcwDot } from "lucide-react";
+import { Award, BarChart3, Briefcase, CalendarSearch, Clock, Download, FileSpreadsheet, RefreshCcwDot, Sparkles } from "lucide-react";
 import { AIAssistant } from "@/components/ai-assistant";
 import { AppShell } from "@/components/app-shell";
 import { AuthRequiredState } from "@/components/auth-required-state";
@@ -12,6 +12,7 @@ import {
   calculateMonthlyLeaves,
   calculateMonthlyWorkload,
   calculatePositionRotations,
+  calculatePositionExperienceStats,
   buildMonthlyTimesheet,
 } from "@/lib/schedule";
 import { getUserContext } from "@/lib/session";
@@ -19,14 +20,16 @@ import { getUserContext } from "@/lib/session";
 interface ReportsPageProps {
   searchParams: Promise<{
     month?: string;
+    scope?: string;
     message?: string;
     error?: string;
   }>;
 }
 
 export default async function ReportsPage({ searchParams }: ReportsPageProps) {
-  const { month, message, error } = await searchParams;
+  const { month, scope = "all", message, error } = await searchParams;
   const monthKey = getMonthKey(month);
+  const isAllTime = scope !== "month";
   const { authEnabled, user } = await getUserContext({ required: false });
   if (authEnabled && !user) {
     return (
@@ -61,6 +64,14 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
     data.positionRules,
     monthKey,
     data.holidays
+  );
+
+  // [QWEN3] Thống kê tích lũy kinh nghiệm, chuyên môn theo vị trí (1 ca = 4 giờ làm)
+  const experienceStats = calculatePositionExperienceStats(
+    data.weeklySchedule,
+    data.staff,
+    data.positions,
+    isAllTime ? undefined : monthKey,
   );
 
   const { start, end } = getMonthBounds(monthKey);
@@ -221,6 +232,156 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
             title="Chưa có dữ liệu chấm công"
             description="Lịch làm việc hoặc đăng ký nghỉ phép của tháng này hiện đang trống."
             tone="slate"
+          />
+        )}
+      </SurfaceSection>
+
+      {/* [QWEN3] Bảng Tổng Hợp Tích Lũy Kinh Nghiệm & Chuyên Môn Vị Trí Việc Làm */}
+      <SurfaceSection
+        eyebrow="Năng lực & Chuyên môn"
+        title="Bảng tổng hợp tích lũy kinh nghiệm theo vị trí việc làm"
+        description="Theo dõi số lượt ca và số giờ làm việc thực tế tại từng vị trí dựa trên lịch sử phân công. Quy chuẩn: 1 ca trực = 4 giờ; nếu kiêm nhiệm n vị trí trong 1 ca thì số giờ chia đều (mỗi vị trí nhận 4/n giờ)."
+      >
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          {/* Tab chuyển đổi phạm vi */}
+          <div className="inline-flex rounded-2xl border border-slate-200 bg-slate-100/80 p-1 text-sm font-medium">
+            <a
+              href={`/reports?month=${monthKey}&scope=all`}
+              className={`rounded-xl px-4 py-2 transition ${
+                isAllTime
+                  ? "bg-white text-teal-700 shadow-sm font-semibold"
+                  : "text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              Toàn bộ lịch sử
+            </a>
+            <a
+              href={`/reports?month=${monthKey}&scope=month`}
+              className={`rounded-xl px-4 py-2 transition ${
+                !isAllTime
+                  ? "bg-white text-teal-700 shadow-sm font-semibold"
+                  : "text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              Tháng {monthKey}
+            </a>
+          </div>
+
+          {/* Nút Xuất Excel Chuyên môn */}
+          <a
+            href={`/api/export/experience?month=${monthKey}&scope=${isAllTime ? "all" : "month"}`}
+            className="inline-flex items-center gap-2 rounded-2xl border border-teal-200 bg-teal-50/80 px-4 py-2 text-sm font-semibold text-teal-800 transition hover:bg-teal-100"
+            title="Tải bảng ma trận tích lũy chuyên môn theo vị trí về máy định dạng Excel"
+          >
+            <FileSpreadsheet className="h-4 w-4 text-teal-600" />
+            Xuất Excel Chuyên môn
+          </a>
+        </div>
+
+        {experienceStats.length > 0 && experienceStats.some((s) => s.totalShifts > 0) ? (
+          <div className="overflow-x-auto rounded-[24px] border border-slate-200/80 shadow-sm scrollbar-thin scrollbar-thumb-slate-200">
+            <table className="min-w-max divide-y divide-slate-200 text-left text-sm text-slate-800">
+              <thead className="bg-slate-50 sticky top-0 z-10 text-slate-600">
+                <tr>
+                  <th className="px-4 py-3.5 font-semibold border-r border-slate-200 sticky left-0 bg-slate-50 min-w-[200px] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
+                    Điều dưỡng
+                  </th>
+                  {data.positions.map((pos) => (
+                    <th key={pos.id} className="px-3 py-3.5 text-center font-medium border-r border-slate-200 min-w-[130px]">
+                      <div className="font-semibold text-slate-800">{pos.name}</div>
+                      <div className="text-[11px] font-normal text-slate-400">{pos.area || "Chung"}</div>
+                    </th>
+                  ))}
+                  <th className="px-4 py-3.5 font-semibold text-center border-l-2 border-slate-300 min-w-[100px] bg-slate-100/80">
+                    Σ Số ca
+                  </th>
+                  <th className="px-4 py-3.5 font-semibold text-center border-l border-slate-200 min-w-[110px] bg-teal-50/80 text-teal-900">
+                    Σ Số giờ (h)
+                  </th>
+                  <th className="px-4 py-3.5 font-semibold text-center border-l border-slate-200 min-w-[160px] bg-slate-50">
+                    Vị trí nòng cốt
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-200 bg-white">
+                {experienceStats.map((staff) => (
+                  <tr key={staff.staffId} className="hover:bg-slate-50/80 transition-colors">
+                    {/* Cột tên nhân sự sticky */}
+                    <td className="px-4 py-3 font-medium text-slate-900 border-r border-slate-200 sticky left-0 bg-white group-hover:bg-slate-50 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold">{staff.staffName}</span>
+                        {staff.staffCode && (
+                          <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[11px] font-mono text-slate-500">
+                            {staff.staffCode}
+                          </span>
+                        )}
+                      </div>
+                    </td>
+
+                    {/* Từng cột vị trí */}
+                    {data.positions.map((pos) => {
+                      const exp = staff.positions[pos.id];
+                      const shifts = exp?.shifts || 0;
+                      const hours = exp?.hours || 0;
+
+                      if (shifts === 0) {
+                        return (
+                          <td key={pos.id} className="px-3 py-3 text-center border-r border-slate-200 text-slate-300">
+                            -
+                          </td>
+                        );
+                      }
+
+                      // Tô màu heatmap theo số giờ tích lũy
+                      let cellStyle = "bg-slate-50/60 text-slate-700";
+                      if (hours >= 80) {
+                        cellStyle = "bg-teal-500/15 text-teal-900 font-bold border border-teal-500/30";
+                      } else if (hours >= 20) {
+                        cellStyle = "bg-teal-50 text-teal-800 font-semibold";
+                      }
+
+                      return (
+                        <td key={pos.id} className="p-1.5 text-center border-r border-slate-200">
+                          <div className={`mx-auto rounded-xl py-1 px-2 text-xs transition ${cellStyle}`}>
+                            <div>{shifts} ca</div>
+                            <div className="text-[11px] opacity-80">{hours % 1 === 0 ? hours : hours.toFixed(1)} giờ</div>
+                          </div>
+                        </td>
+                      );
+                    })}
+
+                    {/* Tổng số ca */}
+                    <td className="px-4 py-3 text-center font-bold text-slate-700 bg-slate-50/50 border-l-2 border-slate-300">
+                      {staff.totalShifts} ca
+                    </td>
+
+                    {/* Tổng số giờ làm */}
+                    <td className="px-4 py-3 text-center font-bold text-teal-700 bg-teal-50/30 border-l border-slate-200 font-mono">
+                      {staff.totalHours % 1 === 0 ? staff.totalHours : staff.totalHours.toFixed(1)}h
+                    </td>
+
+                    {/* Vị trí nòng cốt */}
+                    <td className="px-4 py-3 text-center text-xs border-l border-slate-200">
+                      {staff.topPosition ? (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-teal-50 px-2.5 py-1 font-medium text-teal-800 border border-teal-200/60">
+                          <Sparkles className="h-3 w-3 text-teal-600" />
+                          {staff.topPosition.name} ({staff.topPosition.hours % 1 === 0 ? staff.topPosition.hours : staff.topPosition.hours.toFixed(1)}h)
+                        </span>
+                      ) : (
+                        <span className="text-slate-400">Chưa ghi nhận</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <EmptyState
+            icon={Briefcase}
+            title="Chưa có dữ liệu tích lũy vị trí"
+            description="Khi các ca làm việc được lưu trong tuần, hệ thống sẽ tự động tính toán tổng số ca và số giờ làm tích lũy cho từng điều dưỡng."
+            tone="teal"
           />
         )}
       </SurfaceSection>

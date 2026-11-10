@@ -7,6 +7,7 @@ import { Calendar, Plus, Trash2, AlertTriangle, CheckCircle2, Clock, Send, Spark
 import { LEAVE_SHIFT_LABELS } from "@/lib/constants";
 import type { LeaveReason, LeaveRecord, LeaveShift, StaffMember } from "@/lib/types";
 import { submitLeavePortalAction } from "@/app/dang-ky-phep/actions";
+import { isStudyStaff as checkIsStudyStaff } from "@/lib/study-staff";
 
 interface SlotItem {
   id: string;
@@ -26,6 +27,7 @@ interface FlexibleLeaveFormProps {
     year: number;
   };
   isAdmin?: boolean;
+  isStudyStaff?: boolean;
 }
 
 // [QWEN3] Helper tính toán quỹ phép năm của nhân sự bất kỳ
@@ -63,11 +65,13 @@ export function FlexibleLeaveForm({
   existingLeaves,
   yearlyStats,
   isAdmin = false,
+  isStudyStaff = false,
 }: FlexibleLeaveFormProps) {
   // [QWEN3] Quản trị viên có thể chọn đăng ký hộ cho nhân sự khác
   const [selectedStaffId, setSelectedStaffId] = useState<string>(currentStaff.id);
   const activeTargetStaff = allStaff.find((s) => s.id === selectedStaffId) || currentStaff;
   const isRegisteringForOther = isAdmin && activeTargetStaff.id !== currentStaff.id;
+  const effectiveIsStudyStaff = isStudyStaff || checkIsStudyStaff(activeTargetStaff);
 
   const activeYearlyStats = isRegisteringForOther
     ? calculateStaffYearlyStats(activeTargetStaff.id, existingLeaves, yearlyStats.year)
@@ -79,7 +83,7 @@ export function FlexibleLeaveForm({
       id: "slot-initial-1",
       date: "", // Không mặc nhiên chọn ngày mai, hiện lên chưa chọn ngày
       shift: "full-day",
-      reason: "phep",
+      reason: effectiveIsStudyStaff ? "dihoc" : "phep",
       note: "",
     },
   ]);
@@ -88,7 +92,7 @@ export function FlexibleLeaveForm({
   const [rangeFromDate, setRangeFromDate] = useState("");
   const [rangeToDate, setRangeToDate] = useState("");
   const [rangeShift, setRangeShift] = useState<LeaveShift>("full-day");
-  const [rangeReason, setRangeReason] = useState<LeaveReason>("phep");
+  const [rangeReason, setRangeReason] = useState<LeaveReason>(effectiveIsStudyStaff ? "dihoc" : "phep");
 
   // Urgent fields
   const [isUrgent, setIsUrgent] = useState(false);
@@ -98,12 +102,18 @@ export function FlexibleLeaveForm({
   const [clientError, setClientError] = useState<string | null>(null);
 
   // Helper tính số lượng người đã nghỉ cho 1 ca cụ thể (loại trừ chính nhân sự mục tiêu)
-  function checkSlotQuota(date: string, shift: LeaveShift) {
-    if (!date) return { count: 0, exceeded: false };
+  function checkSlotQuota(date: string, shift: LeaveShift, reason: LeaveReason = "phep") {
+    const isStudy = reason === "dihoc";
+    const maxQuota = isStudy ? 3 : 2;
 
-    const sameDayLeaves = existingLeaves.filter(
-      (l) => l.date === date && l.reason !== "dihoc" && l.staffId !== activeTargetStaff.id && l.status !== "rejected",
-    );
+    if (!date) return { count: 0, exceeded: false, maxQuota, isStudy };
+
+    const sameDayLeaves = existingLeaves.filter((l) => {
+      if (l.date !== date || l.staffId === activeTargetStaff.id || l.status === "rejected") return false;
+      // Với nghỉ phép thông thường: không tính ca đi học vào định mức 2 người
+      if (!isStudy && l.reason === "dihoc") return false;
+      return true;
+    });
 
     let morningCount = 0;
     let afternoonCount = 0;
@@ -129,13 +139,15 @@ export function FlexibleLeaveForm({
     }
 
     const isExceeded =
-      (shift === "full-day" && (morningCount >= 2 || afternoonCount >= 2)) ||
-      (shift === "morning" && morningCount >= 2) ||
-      (shift === "afternoon" && afternoonCount >= 2);
+      (shift === "full-day" && (morningCount >= maxQuota || afternoonCount >= maxQuota)) ||
+      (shift === "morning" && morningCount >= maxQuota) ||
+      (shift === "afternoon" && afternoonCount >= maxQuota);
 
     return {
       count: relevantCount,
       exceeded: isExceeded,
+      maxQuota,
+      isStudy,
     };
   }
 
@@ -215,10 +227,11 @@ export function FlexibleLeaveForm({
   // Kiểm tra xem danh sách có ca nào vượt định mức không
   const slotsWithQuota = slots.map((s) => ({
     ...s,
-    quota: checkSlotQuota(s.date, s.shift),
+    quota: checkSlotQuota(s.date, s.shift, s.reason),
   }));
 
   const hasExceededQuota = slotsWithQuota.some((s) => s.quota.exceeded);
+  const hasLeaveQuotaExceeded = slotsWithQuota.some((s) => s.reason !== "dihoc" && s.quota.exceeded);
 
   // Tính tổng số buổi và ngày phép đăng ký trong phiếu này
   let pendingSessions = 0;
@@ -259,9 +272,9 @@ export function FlexibleLeaveForm({
       return;
     }
 
-    // Nếu không phải đăng ký hộ hoặc vượt định mức quá cao
-    if (hasExceededQuota && (!isUrgent || !urgentNote.trim()) && !isRegisteringForOther) {
-      setClientError("Phiếu có ca vượt định mức (≥ 2 người). Vui lòng đánh dấu 'Nghỉ cấp thiết' và nhập nội dung giải trình để gửi quản lý duyệt.");
+    // Nếu ca nghỉ phép thường vượt định mức (≥ 2 người)
+    if (hasLeaveQuotaExceeded && (!isUrgent || !urgentNote.trim()) && !isRegisteringForOther) {
+      setClientError("Phiếu có ca nghỉ phép vượt định mức (≥ 2 người). Vui lòng đánh dấu 'Nghỉ cấp thiết' và nhập nội dung giải trình để gửi quản lý duyệt.");
       return;
     }
 
@@ -461,8 +474,10 @@ export function FlexibleLeaveForm({
                   className="w-full min-h-[42px] rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-indigo-500 font-medium"
                 >
                   <option value="phep">Nghỉ phép</option>
+                  {(isAdmin || effectiveIsStudyStaff) && (
+                    <option value="dihoc">{isAdmin && !effectiveIsStudyStaff ? "Đi học (Admin)" : "Đi học"}</option>
+                  )}
                   {isAdmin && <option value="om">Nghỉ ốm (Admin)</option>}
-                  {isAdmin && <option value="dihoc">Đi học (Admin)</option>}
                 </select>
               </label>
             </div>
@@ -575,8 +590,10 @@ export function FlexibleLeaveForm({
                         className="w-full min-h-[42px] rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-teal-500 font-medium"
                       >
                         <option value="phep">Nghỉ phép</option>
+                        {(isAdmin || effectiveIsStudyStaff) && (
+                          <option value="dihoc">{isAdmin && !effectiveIsStudyStaff ? "Đi học (Admin)" : "Đi học"}</option>
+                        )}
                         {isAdmin && <option value="om">Nghỉ ốm (Admin)</option>}
-                        {isAdmin && <option value="dihoc">Đi học (Admin)</option>}
                       </select>
                     </div>
 
@@ -602,6 +619,18 @@ export function FlexibleLeaveForm({
                         <AlertTriangle className="h-3.5 w-3.5 text-rose-600" />
                         Thứ 7 / CN không áp dụng nghỉ phép
                       </span>
+                    ) : slot.reason === "dihoc" ? (
+                      slot.quota.exceeded ? (
+                        <span className="inline-flex items-center gap-1.5 rounded-lg bg-amber-100 px-2.5 py-1 text-xs font-bold text-amber-800">
+                          <AlertTriangle className="h-3.5 w-3.5 text-amber-600" />
+                          Đã có {slot.quota.count}/3 người nghỉ buổi này (Chuyển sang Quản lý duyệt)
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
+                          <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+                          Định mức đi học: {slot.quota.count}/3 người đã nghỉ (Tự động duyệt ngay)
+                        </span>
+                      )
                     ) : slot.quota.exceeded ? (
                       <span className="inline-flex items-center gap-1.5 rounded-lg bg-rose-100 px-2.5 py-1 text-xs font-bold text-rose-800">
                         <AlertTriangle className="h-3.5 w-3.5 text-rose-600" />

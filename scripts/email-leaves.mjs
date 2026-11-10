@@ -1,4 +1,4 @@
-﻿import { google } from "googleapis";
+import { google } from "googleapis";
 import nodemailer from "nodemailer";
 
 const requiredEnv = [
@@ -9,18 +9,18 @@ const requiredEnv = [
 
 for (const key of requiredEnv) {
   if (!process.env[key]) {
-    throw new Error(`Thiáº¿u biáº¿n mÃ´i trÆ°á»ng báº¯t buá»™c: ${key}. Vui lÃ²ng cháº¡y lá»‡nh vá»›i node --env-file=.env.local`);
+    throw new Error(`Thiếu biến môi trường bắt buộc: ${key}. Vui lòng chạy lệnh với node --env-file=.env.local`);
   }
 }
 
-// Chá»n tÃ i khoáº£n gá»­i (email Nghiá»‡p vá»¥)
+// Chọn tài khoản gửi (email Nghiệp vụ)
 const smtpUser = process.env.SMTP_USER_NV;
 const smtpPass = process.env.SMTP_PASS_NV;
 const smtpHost = process.env.SMTP_HOST || "smtp.gmail.com";
 const smtpPort = process.env.SMTP_PORT || 465;
 
 if (!smtpUser || !smtpPass) {
-  console.error("Lá»—i: Thiáº¿u cáº¥u hÃ¬nh SMTP_USER_NV hoáº·c SMTP_PASS_NV trong file .env.local.");
+  console.error("Lỗi: Thiếu cấu hình SMTP_USER_NV hoặc SMTP_PASS_NV trong file .env.local.");
   process.exit(1);
 }
 
@@ -36,31 +36,63 @@ const auth = new google.auth.JWT({
 
 const sheets = google.sheets({ version: "v4", auth });
 
+function formatReason(rawReason) {
+  const r = (rawReason || "").toLowerCase().trim();
+  if (r === "personal" || r === "viec-rieng" || r === "rieng") {
+    return { text: "Việc riêng", bg: "#f1f5f9", color: "#334155" };
+  }
+  if (r === "sick" || r === "om" || r === "nghi-om") {
+    return { text: "Nghỉ ốm", bg: "#fef2f2", color: "#991b1b" };
+  }
+  if (r === "vacation" || r === "phep" || r === "annual" || r === "phep-nam") {
+    return { text: "Phép năm", bg: "#f0fdf4", color: "#166534" };
+  }
+  if (r === "dihoc" || r === "hoc" || r === "study") {
+    return { text: "Đi học", bg: "#eff6ff", color: "#1d4ed8" };
+  }
+  return { text: rawReason || "Khác", bg: "#f8fafc", color: "#475569" };
+}
+
+function formatShift(rawShift) {
+  const s = (rawShift || "").toLowerCase().trim();
+  if (s === "morning" || s === "sang") {
+    return { text: "Ca Sáng", bg: "#ecfdf5", color: "#065f46", border: "#a7f3d0" };
+  }
+  if (s === "afternoon" || s === "chieu") {
+    return { text: "Ca Chiều", bg: "#f0f9ff", color: "#075985", border: "#bae6fd" };
+  }
+  return { text: "Cả Ngày", bg: "#fef3c7", color: "#92400e", border: "#fde68a" };
+}
+
 async function main() {
   const currentDay = new Date().getDay();
   if (currentDay === 5 || currentDay === 6) {
-    console.log("Há»‡ thá»‘ng Ä‘Æ°á»£c cáº¥u hÃ¬nh khÃ´ng gá»­i email vÃ o tá»‘i Thá»© 6 vÃ  Thá»© 7. Äang thoÃ¡t...");
+    console.log("Hệ thống được cấu hình không gửi email vào tối Thứ 6 và Thứ 7. Đang thoát...");
     return;
   }
 
-  console.log("Äang kiá»ƒm tra dá»¯ liá»‡u ngÃ y mai...");
+  console.log("Đang kiểm tra dữ liệu ngày mai...");
 
-  // Gá»i API tá»± Ä‘á»™ng chá»‘t lá»‹ch náº¿u tuáº§n má»›i chÆ°a cÃ³ dá»¯ liá»‡u
+  // Gọi API tự động chốt lịch nếu tuần mới chưa có dữ liệu
   try {
-    console.log("Äang gá»i API tá»± Ä‘á»™ng sinh lá»‹ch...");
+    console.log("Đang gọi API tự động sinh lịch...");
     await fetch("http://localhost:3000/api/schedule/generate");
-  } catch(e) {
-    console.error("Lá»—i gá»i API sinh lá»‹ch:", e);
+  } catch (e) {
+    console.error("Lỗi gọi API sinh lịch:", e);
   }
 
-  // Láº¥y ngÃ y MAI
+  // Lấy ngày MAI
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);
   const year = tomorrow.getFullYear();
-  const month = String(tomorrow.getMonth() + 1).padStart(2, '0');
-  const day = String(tomorrow.getDate()).padStart(2, '0');
+  const month = String(tomorrow.getMonth() + 1).padStart(2, "0");
+  const day = String(tomorrow.getDate()).padStart(2, "0");
   const tomorrowStr = `${year}-${month}-${day}`;
   const displayDate = `${day}/${month}/${year}`;
+
+  const dayNames = ["Chủ Nhật", "Thứ Hai", "Thứ Ba", "Thứ Tư", "Thứ Năm", "Thứ Sáu", "Thứ Bảy"];
+  const dayOfWeekStr = dayNames[tomorrow.getDay()];
+  const fullDateLabel = `${dayOfWeekStr}, ngày ${displayDate}`;
 
   const res = await sheets.spreadsheets.values.batchGet({
     spreadsheetId,
@@ -72,17 +104,19 @@ async function main() {
   const positionValues = res.data.valueRanges?.[3]?.values || [];
 
   if (staffValues.length === 0) {
-    console.log("KhÃ´ng tÃ¬m tháº¥y dá»¯ liá»‡u nhÃ¢n sá»±.");
+    console.log("Không tìm thấy dữ liệu nhân sự.");
     return;
   }
 
-  // --- MAP Dá»® LIá»†U ---
+  // --- MAP DỮ LIỆU ---
   const staffHeaders = staffValues[0].map(String);
   const staffMap = new Map();
   const sIdIdx = staffHeaders.indexOf("id");
   const sNameIdx = staffHeaders.indexOf("name");
   for (let i = 1; i < staffValues.length; i++) {
-    if (staffValues[i][sIdIdx]) staffMap.set(staffValues[i][sIdIdx], staffValues[i][sNameIdx] || "KhÃ´ng rÃµ");
+    if (staffValues[i][sIdIdx]) {
+      staffMap.set(staffValues[i][sIdIdx], staffValues[i][sNameIdx] || "Không rõ");
+    }
   }
 
   const posHeaders = positionValues[0]?.map(String) || [];
@@ -90,7 +124,9 @@ async function main() {
   const pIdIdx = posHeaders.indexOf("id");
   const pNameIdx = posHeaders.indexOf("name");
   for (let i = 1; i < positionValues.length; i++) {
-    if (positionValues[i][pIdIdx]) posMap.set(positionValues[i][pIdIdx], positionValues[i][pNameIdx] || "KhÃ´ng rÃµ");
+    if (positionValues[i][pIdIdx]) {
+      posMap.set(positionValues[i][pIdIdx], positionValues[i][pNameIdx] || "Không rõ");
+    }
   }
 
   const leaveHeaders = leaveValues[0]?.map(String) || [];
@@ -100,8 +136,7 @@ async function main() {
   const leaveReasonIdx = leaveHeaders.indexOf("reason");
   const leaveNoteIdx = leaveHeaders.indexOf("note");
 
-
-  // --- LOGIC 1: Lá»ŒC NGHá»ˆ PHÃ‰P NGÃ€Y MAI ---
+  // --- LOGIC 1: LỌC NGHỈ PHÉP NGÀY MAI ---
   const tomorrowLeavesList = [];
 
   for (let i = 1; i < leaveValues.length; i++) {
@@ -109,69 +144,139 @@ async function main() {
     if (row[leaveDateIdx] === tomorrowStr) {
       const staffId = row[leaveStaffIdIdx];
       const shift = row[leaveShiftIdx] || "full-day";
-      const reason = row[leaveReasonIdx] || "KhÃ´ng rÃµ";
+      const rawReason = row[leaveReasonIdx] || "Không rõ";
       const note = row[leaveNoteIdx] || "";
-      const name = staffMap.get(staffId) || "NhÃ¢n sá»± khÃ´ng xÃ¡c Ä‘á»‹nh";
+      const name = staffMap.get(staffId) || "Nhân sự không xác định";
 
-      let shiftLabel = "Cáº£ ngÃ y";
-      if (shift === "morning") shiftLabel = "SÃ¡ng";
-      if (shift === "afternoon") shiftLabel = "Chiá»u";
+      const shiftInfo = formatShift(shift);
+      const reasonInfo = formatReason(rawReason);
 
-      let reasonLabel = reason;
-      if (reason === "personal") reasonLabel = "Viá»‡c riÃªng";
-      if (reason === "sick") reasonLabel = "Nghá»‰ á»‘m";
-      if (reason === "vacation" || reason === "phep") reasonLabel = "PhÃ©p nÄƒm";
-      if (reason === "dihoc") reasonLabel = "Äi há»c";
-
-      const noteStr = note ? ` - Ghi chÃº: ${note}` : "";
-      tomorrowLeavesList.push({ name, shiftLabel, reasonLabel, noteStr });
+      tomorrowLeavesList.push({
+        name,
+        shift: shiftInfo,
+        reason: reasonInfo,
+        note: note.trim(),
+      });
     }
   }
 
-  // --- QUYáº¾T Äá»ŠNH Gá»¬I EMAIL ---
+  // --- QUYẾT ĐỊNH GỬI EMAIL ---
   const shouldSend = tomorrowLeavesList.length > 0;
 
   if (!shouldSend) {
-    console.log(`NgÃ y mai (${displayDate}) khÃ´ng cÃ³ nhÃ¢n sá»± nÃ o nghá»‰ phÃ©p.`);
-    console.log("Theo cáº¥u hÃ¬nh, há»‡ thá»‘ng sáº½ KHÃ”NG gá»­i email.");
+    console.log(`Ngày mai (${displayDate}) không có nhân sự nào nghỉ phép.`);
+    console.log("Theo cấu hình, hệ thống sẽ KHÔNG gửi email.");
     return;
   }
 
-  console.log(`PhÃ¡t hiá»‡n Ä‘iá»u kiá»‡n cáº§n thÃ´ng bÃ¡o cho ngÃ y mai (${displayDate}). Äang gá»­i email...`);
+  console.log(`Phát hiện điều kiện cần thông báo cho ngày mai (${displayDate}). Đang gửi email...`);
 
-  // --- Táº O Ná»˜I DUNG EMAIL ---
-  let htmlSections = [];
-
-  // Danh sÃ¡ch nghá»‰ phÃ©p (Bao gá»“m táº¥t cáº£ lÃ½ do ká»ƒ cáº£ Äi há»c)
-  const leaveRows = tomorrowLeavesList
-    .map(l => `<tr><td style="padding:6px 12px;border:1px solid #e5e7eb;">${l.name}</td><td style="padding:6px 12px;border:1px solid #e5e7eb;">${l.shiftLabel}</td><td style="padding:6px 12px;border:1px solid #e5e7eb;">${l.reasonLabel}</td><td style="padding:6px 12px;border:1px solid #e5e7eb;">${l.noteStr}</td></tr>`)
+  // --- TẠO NỘI DUNG EMAIL GỌN GÀNG, TỐI ƯU MOBILE ---
+  const leaveCardsHtml = tomorrowLeavesList
+    .map(
+      (item) => `
+        <div style="background:#ffffff;border:1px solid #e2e8f0;border-left:4px solid #0d9488;border-radius:8px;padding:12px 14px;margin-bottom:10px;">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:none;border-collapse:collapse;">
+            <tr>
+              <td style="font-size:15px;font-weight:600;color:#0f172a;vertical-align:middle;">
+                ${item.name}
+              </td>
+              <td style="text-align:right;vertical-align:middle;">
+                <span style="display:inline-block;padding:3px 10px;font-size:12px;font-weight:600;border-radius:12px;background:${item.shift.bg};color:${item.shift.color};border:1px solid ${item.shift.border};white-space:nowrap;">
+                  ${item.shift.text}
+                </span>
+              </td>
+            </tr>
+            <tr>
+              <td colspan="2" style="padding-top:6px;font-size:13px;color:#475569;">
+                <span style="display:inline-block;padding:2px 8px;font-size:11px;font-weight:600;border-radius:4px;background:${item.reason.bg};color:${item.reason.color};">
+                  ${item.reason.text}
+                </span>
+                ${
+                  item.note
+                    ? `<span style="margin-left:8px;color:#64748b;font-size:12px;font-style:italic;">💬 ${item.note}</span>`
+                    : ""
+                }
+              </td>
+            </tr>
+          </table>
+        </div>
+      `
+    )
     .join("");
 
-  htmlSections.push(`
-    <h3 style="color:#0f766e;">ðŸ“‹ Danh sÃ¡ch nghá»‰ phÃ©p (${tomorrowLeavesList.length} lÆ°á»£t)</h3>
-    <table style="border-collapse:collapse;width:100%;font-size:14px;">
-      <thead><tr style="background:#f0fdf4;">
-        <th style="padding:8px 12px;border:1px solid #e5e7eb;text-align:left;">NhÃ¢n sá»±</th>
-        <th style="padding:8px 12px;border:1px solid #e5e7eb;text-align:left;">Ca</th>
-        <th style="padding:8px 12px;border:1px solid #e5e7eb;text-align:left;">LÃ½ do</th>
-        <th style="padding:8px 12px;border:1px solid #e5e7eb;text-align:left;">Ghi chÃº</th>
-      </tr></thead>
-      <tbody>${leaveRows}</tbody>
-    </table>
-  `);
+  const htmlContent = `<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <title>Thông báo nghỉ phép ngày mai (${displayDate})</title>
+  <style>
+    body, table, td, p, a, li, blockquote {
+      -webkit-text-size-adjust: 100%;
+      -ms-text-size-adjust: 100%;
+    }
+    table, td {
+      mso-table-lspace: 0pt;
+      mso-table-rspace: 0pt;
+    }
+  </style>
+</head>
+<body style="margin:0;padding:0;background-color:#f8fafc;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f8fafc;padding:20px 10px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #e2e8f0;box-shadow:0 2px 8px rgba(0,0,0,0.04);">
+          <!-- Header Banner -->
+          <tr>
+            <td style="background:linear-gradient(135deg, #0d9488 0%, #0f766e 100%);padding:22px 18px;text-align:center;">
+              <div style="font-size:11px;font-weight:700;color:rgba(255,255,255,0.85);letter-spacing:1px;text-transform:uppercase;margin-bottom:6px;">
+                HỆ THỐNG ĐIỀU PHỐI ĐIỀU DƯỠNG NUSRES
+              </div>
+              <h1 style="margin:0 0 10px 0;font-size:19px;font-weight:700;color:#ffffff;line-height:1.3;">
+                Thông Báo Nghỉ Phép Ngày Mai
+              </h1>
+              <div style="display:inline-block;background:rgba(255,255,255,0.2);padding:4px 14px;border-radius:20px;font-size:13px;font-weight:500;color:#ffffff;">
+                📅 ${fullDateLabel}
+              </div>
+            </td>
+          </tr>
 
-  const htmlContent = `
-    <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px;">
-      <h2 style="color: #0f766e; border-bottom: 2px solid #0f766e; padding-bottom: 8px;">
-        ThÃ´ng bÃ¡o nghá»‰ phÃ©p ngÃ y mai (${displayDate})
-      </h2>
-      ${htmlSections.join("<hr style='border:none;border-top:1px solid #e5e7eb;margin:20px 0;'/>")}
-      <br/>
-      <p style="color:#6b7280;font-size:12px;"><i>LÆ°u Ã½: ÄÃ¢y lÃ  email tá»± Ä‘á»™ng tá»« há»‡ thá»‘ng Nusres, vui lÃ²ng khÃ´ng pháº£n há»“i.</i></p>
-    </div>
-  `;
+          <!-- Content List -->
+          <tr>
+            <td style="padding:18px 16px 10px 16px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:12px;border-bottom:1px solid #f1f5f9;">
+                <tr>
+                  <td style="padding-bottom:10px;font-size:14px;font-weight:700;color:#0f766e;">
+                    📋 Danh sách nghỉ phép (${tomorrowLeavesList.length} lượt)
+                  </td>
+                </tr>
+              </table>
 
-  // --- Gá»¬I EMAIL ---
+              ${leaveCardsHtml}
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="background-color:#f8fafc;padding:16px 18px 20px 18px;border-top:1px solid #f1f5f9;text-align:center;">
+              <p style="margin:0 0 4px 0;font-size:12px;color:#64748b;font-weight:500;">
+                Nusres System &bull; Lịch trực & Điều phối y tế
+              </p>
+              <p style="margin:0;font-size:11px;color:#94a3b8;font-style:italic;">
+                Lưu ý: Đây là email tự động từ hệ thống, vui lòng không phản hồi.
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+
+  // --- GỬI EMAIL ---
   const transporter = nodemailer.createTransport({
     host: smtpHost,
     port: Number(smtpPort),
@@ -182,26 +287,25 @@ async function main() {
   const mailOptions = {
     from: `"Nusres System" <${smtpUser}>`,
     bcc: "tienmed@gmail.com, nghiadn.pk@pnt.edu.vn, thientrang250392pnt@gmail.com",
-    subject: `[Nusres] Danh sÃ¡ch nghá»‰ phÃ©p ngÃ y mai (${displayDate})`,
+    subject: `[Nusres] Danh sách nghỉ phép ngày mai - ${dayOfWeekStr} (${displayDate})`,
     html: htmlContent,
   };
 
-
-
   try {
     const info = await transporter.sendMail(mailOptions);
-    console.log("âœ… Gá»­i email thÃ nh cÃ´ng! Message ID:", info.messageId);
+    console.log("✅ Gửi email thành công! Message ID:", info.messageId);
     try {
       const { exec } = await import("child_process");
-      const psCmd = `[Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime] > $null; $template = [Windows.UI.Notifications.ToastNotificationManager]::GetTemplateContent([Windows.UI.Notifications.ToastTemplateType]::ToastText02); $textNodes = $template.GetElementsByTagName('text'); $textNodes.Item(0).AppendChild($template.CreateTextNode('Nusres - Lá»‹ch Váº­n HÃ nh')) > $null; $textNodes.Item(1).AppendChild($template.CreateTextNode('ÄÃ£ gá»­i email lá»‹ch váº­n hÃ nh ngÃ y ${displayDate} thÃ nh cÃ´ng!')) > $null; $toast = [Windows.UI.Notifications.ToastNotification]::new($template); [Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier('Nusres System').Show($toast);`;
-      exec(`powershell -NoProfile -Command "${psCmd}"`);
+      const psScript = `[Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime] > $null; $template = [Windows.UI.Notifications.ToastNotificationManager]::GetTemplateContent([Windows.UI.Notifications.ToastTemplateType]::ToastText02); $textNodes = $template.GetElementsByTagName('text'); $textNodes.Item(0).AppendChild($template.CreateTextNode('Nusres - Lịch Vận Hành')) > $null; $textNodes.Item(1).AppendChild($template.CreateTextNode('Đã gửi email lịch vận hành ngày ${displayDate} thành công!')) > $null; $toast = [Windows.UI.Notifications.ToastNotification]::new($template); [Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier('Nusres System').Show($toast);`;
+      const encodedCommand = Buffer.from(psScript, "utf16le").toString("base64");
+      exec(`powershell -NoProfile -EncodedCommand ${encodedCommand}`);
     } catch {}
   } catch (err) {
-    console.error("âŒ Lá»—i khi gá»­i email:", err);
+    console.error("❌ Lỗi khi gửi email:", err);
   }
 }
 
 main().catch((error) => {
-  console.error("Lá»—i khi cháº¡y ká»‹ch báº£n gá»­i email:", error instanceof Error ? error.message : error);
+  console.error("Lỗi khi chạy kịch bản gửi email:", error instanceof Error ? error.message : error);
   process.exit(1);
 });

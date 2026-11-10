@@ -9,7 +9,7 @@ import {
   getWeeklyAssignments,
 } from "@/lib/schedule";
 import { WEEKDAY_LABELS } from "@/lib/constants";
-import type { Position, ShiftType, StaffMember } from "@/lib/types";
+import type { Position, ShiftType, StaffMember, WeeklyAssignment } from "@/lib/types";
 
 // [QWEN3] Rút gọn tên nhân sự thành tên gọi thân mật / tên chính như trong bảng phân công thực tế
 function getStaffShortName(fullName: string): string {
@@ -69,7 +69,6 @@ function getPositionGroupColor(pos: Position): { bg: string; order: number } {
   const area = (pos.area || "").toLowerCase();
   const name = pos.name.toLowerCase();
 
-  // 1. Phân loại theo Khu vực (Area) nếu có
   if (area.includes("tầng 1")) {
     return { bg: GROUP_COLORS.yellow, order: 1 };
   }
@@ -86,7 +85,6 @@ function getPositionGroupColor(pos: Position): { bg: string; order: number } {
     return { bg: GROUP_COLORS.green, order: 5 };
   }
 
-  // 2. Phân loại theo tên phòng (fallback)
   if (
     name.includes("da liễu") ||
     name.includes("chăm sóc da") ||
@@ -116,27 +114,13 @@ function getPositionGroupColor(pos: Position): { bg: string; order: number } {
   return { bg: GROUP_COLORS.blue, order: 2 };
 }
 
-export async function GET(request: NextRequest) {
-  const week = request.nextUrl.searchParams.get("week");
-  const orderParam = request.nextUrl.searchParams.get("order");
-  const requestedOrder = orderParam ? decodeURIComponent(orderParam).split(",").filter(Boolean) : [];
-  const weekStart = getWeekStartFromInput(week);
+// [QWEN3] Hàm dùng chung sinh buffer file Excel ma trận phân phòng
+async function generateExcelBuffer(
+  weekStart: string,
+  displayedAssignments: WeeklyAssignment[],
+  requestedOrder: string[],
+) {
   const data = await getAppData();
-
-  const actualAssignments = getWeeklyAssignments(data.weeklySchedule, weekStart);
-  const displayedAssignments =
-    actualAssignments.length > 0
-      ? actualAssignments
-      : buildAssignmentsFromTemplate(
-          data.templateSchedule,
-          data.positions,
-          weekStart,
-          data.leaveRequests,
-          data.scheduleRules,
-          data.positionRules,
-          data.holidays,
-        );
-
   const activeRules = getActiveScheduleRules(data.scheduleRules);
   const startDate = parseISO(weekStart);
 
@@ -166,7 +150,7 @@ export async function GET(request: NextRequest) {
     if (s.shift === "morning") dayObj.morningSlot = s;
     if (s.shift === "afternoon") dayObj.afternoonSlot = s;
   }
-  const days = Array.from(daysMap.values()).slice(0, 6); // Thứ 2 đến Thứ 6 (hoặc Thứ 7 nếu có)
+  const days = Array.from(daysMap.values()).slice(0, 6);
 
   // Map nhân sự
   const staffMap = new Map<string, StaffMember>(data.staff.map((s) => [s.id, s]));
@@ -184,7 +168,7 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  // Sắp xếp các phòng theo thứ tự tùy chỉnh hoặc theo thứ tự nhóm màu sắc và độ ưu tiên
+  // Sắp xếp các phòng theo thứ tự tùy chỉnh hoặc theo thứ tự nhóm màu sắc
   const sortedPositions = [...data.positions].sort((a, b) => {
     if (requestedOrder.length > 0) {
       const idxA = requestedOrder.indexOf(a.id);
@@ -206,7 +190,6 @@ export async function GET(request: NextRequest) {
   workbook.creator = "NurseFlow";
   const ws = workbook.addWorksheet("Lịch tuần ma trận");
 
-  // Thiết lập đường viền mỏng tiêu chuẩn Excel
   const borderThin: Partial<ExcelJS.Borders> = {
     top: { style: "thin", color: { argb: "FF000000" } },
     bottom: { style: "thin", color: { argb: "FF000000" } },
@@ -215,7 +198,6 @@ export async function GET(request: NextRequest) {
   };
 
   // --- HÀNG 1 & HÀNG 2: TIÊU ĐỀ BẢNG ---
-  // Ô A1:A2: "Lịch tuần"
   ws.mergeCells(1, 1, 2, 1);
   const cellA1 = ws.getCell(1, 1);
   cellA1.value = "Lịch tuần";
@@ -224,7 +206,6 @@ export async function GET(request: NextRequest) {
   cellA1.border = borderThin;
   cellA1.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF2F2F2" } };
 
-  // Các cột ngày (B1.. theo từng ngày, merge Sáng/Chiều trên Row 1)
   let colIdx = 2;
   const dayColIndices: { date: string; morningCol: number; afternoonCol: number }[] = [];
 
@@ -236,7 +217,6 @@ export async function GET(request: NextRequest) {
     const aCol = colIdx + 1;
     dayColIndices.push({ date: day.date, morningCol: mCol, afternoonCol: aCol });
 
-    // Merge hàng 1 cho 2 buổi của ngày đó
     ws.mergeCells(1, mCol, 1, aCol);
     const dayHeaderCell = ws.getCell(1, mCol);
     dayHeaderCell.value = dayLabel;
@@ -245,7 +225,6 @@ export async function GET(request: NextRequest) {
     dayHeaderCell.border = borderThin;
     dayHeaderCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF8F9FA" } };
 
-    // Hàng 2: Sáng | Chiều
     const mCell = ws.getCell(2, mCol);
     mCell.value = "Sáng";
     mCell.font = { name: "Arial", size: 9, bold: false };
@@ -273,7 +252,6 @@ export async function GET(request: NextRequest) {
     const row = ws.getRow(currentRow);
     const groupColor = getPositionGroupColor(pos);
 
-    // Cột 1: Tên phòng
     const posCell = row.getCell(1);
     posCell.value = pos.name;
     posCell.font = { name: "Arial", size: 9, bold: false };
@@ -281,7 +259,6 @@ export async function GET(request: NextRequest) {
     posCell.border = borderThin;
     posCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: groupColor.bg } };
 
-    // Điền tên nhân sự vào từng ngày (Sáng / Chiều)
     for (const d of dayColIndices) {
       const mKey = `${pos.id}_${d.date}_morning`;
       const aKey = `${pos.id}_${d.date}_afternoon`;
@@ -300,7 +277,6 @@ export async function GET(request: NextRequest) {
       mCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: groupColor.bg } };
       aCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: groupColor.bg } };
 
-      // [QWEN3] Tự động gộp ô (Merge) nếu cùng 1 người trực cả ngày Sáng & Chiều giống hệt ảnh mẫu
       if (mText && aText && mText === aText) {
         ws.mergeCells(currentRow, d.morningCol, currentRow, d.afternoonCol);
         mCell.value = mText;
@@ -321,7 +297,7 @@ export async function GET(request: NextRequest) {
     currentRow++;
   }
 
-  // --- DÒNG CUỐI CÙNG: DÒNG PHÉP (NGHỈ PHÉP) ---
+  // --- DÒNG CUỐI CÙNG: DÒNG PHÉP ---
   const leaveRow = ws.getRow(currentRow);
   const leaveTitleCell = leaveRow.getCell(1);
   leaveTitleCell.value = "Phép";
@@ -331,7 +307,6 @@ export async function GET(request: NextRequest) {
   leaveTitleCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: GROUP_COLORS.leave } };
 
   for (const d of dayColIndices) {
-    // Tìm các nhân sự nghỉ phép trong ngày này, kèm ghi chú tắt lý do nghỉ
     const leavesOnDay = data.leaveRequests.filter((l) => l.date === d.date);
     const leaveNames = Array.from(
       new Set(
@@ -349,7 +324,6 @@ export async function GET(request: NextRequest) {
 
     const leaveText = leaveNames.join(", ");
 
-    // Gộp ô cả ngày cho dòng phép
     ws.mergeCells(currentRow, d.morningCol, currentRow, d.afternoonCol);
     const cell = leaveRow.getCell(d.morningCol);
     cell.value = leaveText || "";
@@ -361,20 +335,64 @@ export async function GET(request: NextRequest) {
 
   leaveRow.height = 24;
 
-  // Căn chỉnh chiều rộng cột
   ws.getColumn(1).width = 18;
   for (let c = 2; c < colIdx; c++) {
     ws.getColumn(c).width = 12.5;
   }
 
-  // Xuất file Excel buffer
-  const buffer = await workbook.xlsx.writeBuffer();
+  return await workbook.xlsx.writeBuffer();
+}
+
+// [GET] Xuất Excel theo lịch lưu trong hệ thống
+export async function GET(request: NextRequest) {
+  const week = request.nextUrl.searchParams.get("week");
+  const orderParam = request.nextUrl.searchParams.get("order");
+  const requestedOrder = orderParam ? decodeURIComponent(orderParam).split(",").filter(Boolean) : [];
+  const weekStart = getWeekStartFromInput(week);
+  const data = await getAppData();
+
+  const actualAssignments = getWeeklyAssignments(data.weeklySchedule, weekStart);
+  const displayedAssignments =
+    actualAssignments.length > 0
+      ? actualAssignments
+      : buildAssignmentsFromTemplate(
+          data.templateSchedule,
+          data.positions,
+          weekStart,
+          data.leaveRequests,
+          data.scheduleRules,
+          data.positionRules,
+          data.holidays,
+        );
+
+  const buffer = await generateExcelBuffer(weekStart, displayedAssignments, requestedOrder);
 
   return new Response(buffer, {
     headers: {
-      "Content-Type":
-        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       "Content-Disposition": `attachment; filename="ma-tran-phan-phong-${weekStart}.xlsx"`,
     },
   });
+}
+
+// [POST] Xuất Excel theo dữ liệu phân công tùy chỉnh vừa điều chỉnh xong (chưa cần lưu DB)
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const weekStart = getWeekStartFromInput(body.weekStart);
+    const requestedOrder: string[] = Array.isArray(body.order) ? body.order : [];
+    const assignments: WeeklyAssignment[] = Array.isArray(body.assignments) ? body.assignments : [];
+
+    const buffer = await generateExcelBuffer(weekStart, assignments, requestedOrder);
+
+    return new Response(buffer, {
+      headers: {
+        "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "Content-Disposition": `attachment; filename="ma-tran-phan-phong-${weekStart}-dieuchinh.xlsx"`,
+      },
+    });
+  } catch (error: any) {
+    console.error("Lỗi POST export room matrix:", error);
+    return new Response(JSON.stringify({ error: error.message }), { status: 500 });
+  }
 }

@@ -1,4 +1,4 @@
-﻿import { google } from "googleapis";
+import { google } from "googleapis";
 import notifier from "node-notifier";
 
 const requiredEnv = [
@@ -9,7 +9,7 @@ const requiredEnv = [
 
 for (const key of requiredEnv) {
   if (!process.env[key]) {
-    throw new Error(`Thiáº¿u biáº¿n mÃ´i trÆ°á»ng báº¯t buá»™c: ${key}. Vui lÃ²ng cháº¡y lá»‡nh vá»›i node --env-file=.env.local`);
+    throw new Error(`Thiếu biến môi trường bắt buộc: ${key}. Vui lòng chạy lệnh với node --env-file=.env.local`);
   }
 }
 
@@ -26,7 +26,7 @@ const auth = new google.auth.JWT({
 const sheets = google.sheets({ version: "v4", auth });
 
 async function main() {
-  console.log("--- Äang khá»Ÿi Ä‘á»™ng há»‡ thá»‘ng kiá»ƒm tra thÃ´ng bÃ¡o há»£p nháº¥t (Kiá»ƒm tra tá»‘i thiá»ƒu 1 nhÃ¢n sá»±) ---");
+  console.log("--- Đang khởi động hệ thống kiểm tra thông báo hợp nhất (Kiểm tra tối thiểu 1 nhân sự) ---");
 
   const now = new Date();
   const formatDate = (date) => {
@@ -38,12 +38,12 @@ async function main() {
 
   const todayStr = formatDate(now);
 
-  // Gá»i API tá»± Ä‘á»™ng chá»‘t lá»‹ch náº¿u tuáº§n má»›i chÆ°a cÃ³ dá»¯ liá»‡u
+  // Gọi API tự động chốt lịch nếu tuần mới chưa có dữ liệu
   try {
-    console.log("Äang gá»i API tá»± Ä‘á»™ng sinh lá»‹ch...");
+    console.log("Đang gọi API tự động sinh lịch...");
     await fetch("http://localhost:3000/api/schedule/generate");
-  } catch(e) {
-    console.error("Lá»—i gá»i API sinh lá»‹ch:", e);
+  } catch (e) {
+    console.error("Lỗi gọi API sinh lịch:", e);
   }
 
   const res = await sheets.spreadsheets.values.batchGet({
@@ -64,7 +64,9 @@ async function main() {
   const sIdIdx = staffHeaders.indexOf("id");
   const sNameIdx = staffHeaders.indexOf("name");
   for (let i = 1; i < staffValues.length; i++) {
-    if (staffValues[i][sIdIdx]) staffMap.set(staffValues[i][sIdIdx], staffValues[i][sNameIdx] || "KhÃ´ng rÃµ");
+    if (staffValues[i][sIdIdx]) {
+      staffMap.set(staffValues[i][sIdIdx], staffValues[i][sNameIdx] || "Không rõ");
+    }
   }
 
   // Map Positions
@@ -73,7 +75,9 @@ async function main() {
   const pIdIdx = posHeaders.indexOf("id");
   const pNameIdx = posHeaders.indexOf("name");
   for (let i = 1; i < positionValues.length; i++) {
-    if (positionValues[i][pIdIdx]) posMap.set(positionValues[i][pIdIdx], positionValues[i][pNameIdx] || "KhÃ´ng rÃµ");
+    if (positionValues[i][pIdIdx]) {
+      posMap.set(positionValues[i][pIdIdx], positionValues[i][pNameIdx] || "Không rõ");
+    }
   }
 
   const leaveHeaders = leaveValues[0]?.map(String) || [];
@@ -87,22 +91,22 @@ async function main() {
   const scShiftIdx = schedHeaders.indexOf("shift");
   const scPositionIdIdx = schedHeaders.indexOf("positionId");
 
-  // --- LOGIC 1: NHÃ‚N Sá»° NGHá»ˆ HÃ”M NAY ---
+  // --- LOGIC 1: NHÂN SỰ NGHỈ HÔM NAY ---
   const todayLeaves = [];
-  const leaveSet = new Set(); 
+  const leaveSet = new Set();
   for (let i = 1; i < leaveValues.length; i++) {
     const row = leaveValues[i];
     if (row[lDateIdx] === todayStr) {
       const staffId = row[lStaffIdIdx];
       const shift = row[lShiftIdx] || "full-day";
-      const name = staffMap.get(staffId) || "KhÃ´ng rÃµ";
-      let shiftLabel = shift === "morning" ? "SÃ¡ng" : (shift === "afternoon" ? "Chiá»u" : "Cáº£ ngÃ y");
+      const name = staffMap.get(staffId) || "Không rõ";
+      let shiftLabel = shift === "morning" ? "Sáng" : (shift === "afternoon" ? "Chiều" : "Cả ngày");
       todayLeaves.push(`${name} (${shiftLabel})`);
       leaveSet.add(`${staffId}_${shift}`);
     }
   }
 
-  // --- LOGIC 2: XUNG Äá»˜T Lá»ŠCH TRá»°C & KIá»‚M TRA PHÃ’NG TRá»NG ---
+  // --- LOGIC 2: XUNG ĐỘT LỊCH TRỰC & KIỂM TRA PHÒNG TRỐNG ---
   const conflicts = [];
   const positionStatus = new Map(); // Key: positionId_shift -> { assigned: [], emptyCount: 0 }
   let hasScheduleToday = false;
@@ -114,21 +118,21 @@ async function main() {
       const staffId = row[scStaffIdIdx];
       const shift = row[scShiftIdx];
       const positionId = row[scPositionIdIdx];
-      
+
       const key = `${positionId}_${shift}`;
       if (!positionStatus.has(key)) {
         positionStatus.set(key, { assigned: [], emptyCount: 0 });
       }
-      
+
       const status = positionStatus.get(key);
       if (staffId && staffId.trim() !== "") {
-        const name = staffMap.get(staffId) || "KhÃ´ng rÃµ";
+        const name = staffMap.get(staffId) || "Không rõ";
         status.assigned.push(name);
-        
+
         // Check Conflict
         if (leaveSet.has(`${staffId}_${shift}`) || leaveSet.has(`${staffId}_full-day`)) {
-          const posName = posMap.get(positionId) || "Vá»‹ trÃ­ khÃ´ng xÃ¡c Ä‘á»‹nh";
-          let shiftLabel = shift === "morning" ? "SÃ¡ng" : (shift === "afternoon" ? "Chiá»u" : "Cáº£ ngÃ y");
+          const posName = posMap.get(positionId) || "Vị trí không xác định";
+          let shiftLabel = shift === "morning" ? "Sáng" : (shift === "afternoon" ? "Chiều" : "Cả ngày");
           conflicts.push(`${name} - ${posName} (Ca ${shiftLabel})`);
         }
       } else {
@@ -137,40 +141,36 @@ async function main() {
     }
   }
 
-  const criticalEmpty = []; // Vá»‹ trÃ­ cÃ³ 0 ngÆ°á»i trá»±c
-  const partialEmpty = [];  // Vá»‹ trÃ­ cÃ³ ngÆ°á»i trá»±c nhÆ°ng váº«n cÃ²n slot trá»‘ng
+  const criticalEmpty = []; // Vị trí có 0 người trực
+  const partialEmpty = [];  // Vị trí có người trực nhưng vẫn còn slot trống
 
   for (const [key, status] of positionStatus.entries()) {
     const [positionId, shift] = key.split("_");
-    const posName = posMap.get(positionId) || "Vá»‹ trÃ­ khÃ´ng xÃ¡c Ä‘á»‹nh";
-    let shiftLabel = shift === "morning" ? "SÃ¡ng" : (shift === "afternoon" ? "Chiá»u" : "Cáº£ ngÃ y");
+    const posName = posMap.get(positionId) || "Vị trí không xác định";
+    let shiftLabel = shift === "morning" ? "Sáng" : (shift === "afternoon" ? "Chiều" : "Cả ngày");
 
     if (status.assigned.length === 0) {
       criticalEmpty.push(`${posName} (${shiftLabel})`);
     } else if (status.emptyCount > 0) {
-      partialEmpty.push(`${posName} (${shiftLabel}): Thiáº¿u ${status.emptyCount} ngÆ°á»i`);
+      partialEmpty.push(`${posName} (${shiftLabel}): Thiếu ${status.emptyCount} người`);
     }
   }
 
-  // --- LOGIC 3: NHÃ‚N Sá»° CHÆ¯A PHÃ‚N Vá»Š TRÃ (KHÃ”NG CÃ“ PHÃ‰P) ---
-  // Láº¥y danh sÃ¡ch nhÃ¢n sá»± active
+  // --- LOGIC 3: NHÂN SỰ CHƯA PHÂN VỊ TRÍ (KHÔNG CÓ PHÉP) ---
   const sActiveIdx = staffHeaders.indexOf("active");
   const activeStaffIds = [];
   for (let i = 1; i < staffValues.length; i++) {
     const row = staffValues[i];
     const id = row[sIdIdx];
     const active = row[sActiveIdx];
-    // active cÃ³ thá»ƒ lÃ  "true", "TRUE", "1", hoáº·c thiáº¿u cá»™t (máº·c Ä‘á»‹nh active)
     if (id && (active === undefined || active === "true" || active === "TRUE" || active === "1")) {
       activeStaffIds.push(id);
     }
   }
 
-  // TÃ¬m nhÃ¢n sá»± khÃ´ng cÃ³ assignment vÃ  khÃ´ng cÃ³ leave cho tá»«ng ca hÃ´m nay
   const shifts = ["morning", "afternoon"];
   const unassignedStaff = []; // { name, shift }
 
-  // XÃ¢y dá»±ng set nhÃ¢n sá»± Ä‘Ã£ Ä‘Æ°á»£c phÃ¢n cÃ´ng hÃ´m nay (theo ca)
   const assignedByShift = new Map(); // shift -> Set<staffId>
   for (const s of shifts) {
     assignedByShift.set(s, new Set());
@@ -186,32 +186,29 @@ async function main() {
     }
   }
 
-  // Chá»§ nháº­t (0) hoáº·c Thá»© 7 chiá»u â†’ bá» qua ca Ä‘Ã³
   const dayOfWeek = now.getDay();
   const shiftsToCheck = dayOfWeek === 0
-    ? [] // Chá»§ nháº­t: khÃ´ng kiá»ƒm tra
+    ? [] // Chủ nhật: không kiểm tra
     : dayOfWeek === 6
-      ? ["morning"] // Thá»© 7: chá»‰ ca sÃ¡ng
+      ? ["morning"] // Thứ 7: chỉ ca sáng
       : ["morning", "afternoon"];
 
   for (const shift of shiftsToCheck) {
     const assignedSet = assignedByShift.get(shift) || new Set();
     for (const staffId of activeStaffIds) {
-      // ÄÃ£ cÃ³ assignment? â†’ skip
       if (assignedSet.has(staffId)) continue;
-      // Äang nghá»‰ phÃ©p? â†’ skip
       if (leaveSet.has(`${staffId}_${shift}`) || leaveSet.has(`${staffId}_full-day`)) continue;
-      
-      const name = staffMap.get(staffId) || "KhÃ´ng rÃµ";
-      const shiftLabel = shift === "morning" ? "SÃ¡ng" : "Chiá»u";
+
+      const name = staffMap.get(staffId) || "Không rõ";
+      const shiftLabel = shift === "morning" ? "Sáng" : "Chiều";
       unassignedStaff.push({ name, shiftLabel });
     }
   }
 
-  // --- Tá»”NG Há»¢P THÃ”NG BÃO ---
+  // --- TỔNG HỢP THÔNG BÁO ---
   let messageParts = [];
 
-  // 1. NhÃ¢n sá»± chÆ°a phÃ¢n vá»‹ trÃ­ (Má»šI - hiá»ƒn thá»‹ Ä‘áº§u tiÃªn vÃ¬ quan trá»ng)
+  // 1. Nhân sự chưa phân vị trí (hiển thị đầu tiên vì quan trọng)
   if (unassignedStaff.length > 0) {
     const grouped = {};
     for (const u of unassignedStaff) {
@@ -221,35 +218,35 @@ async function main() {
     const lines = Object.entries(grouped)
       .map(([shift, names]) => `Ca ${shift}: ${names.join(", ")}`)
       .join("\n");
-    messageParts.push(`ðŸŸ¡ ChÆ°a phÃ¢n vá»‹ trÃ­ (${unassignedStaff.length}):\n${lines}`);
+    messageParts.push(`🟡 Chưa phân vị trí (${unassignedStaff.length}):\n${lines}`);
   }
 
-  // 2. Nghá»‰ phÃ©p
+  // 2. Nghỉ phép
   if (todayLeaves.length > 0) {
-    messageParts.push(`ðŸ“‹ NhÃ¢n sá»± nghá»‰ (${todayLeaves.length}):\n${todayLeaves.join(", ")}`);
+    messageParts.push(`📋 Nhân sự nghỉ (${todayLeaves.length}):\n${todayLeaves.join(", ")}`);
   }
 
-  // 3. Xung Ä‘á»™t
+  // 3. Xung đột
   if (conflicts.length > 0) {
-    messageParts.push(`âš ï¸ XUNG Äá»˜T (Trá»±c vs Nghá»‰):\n${conflicts.join("\n")}`);
+    messageParts.push(`⚠️ XUNG ĐỘT (Trực vs Nghỉ):\n${conflicts.join("\n")}`);
   }
 
-  // 4. Vá»‹ trÃ­ trá»‘ng (KhÃ´ng cÃ³ ai trá»±c)
+  // 4. Vị trí trống
   if (!hasScheduleToday) {
-    messageParts.push("ðŸ”´ Cáº¢NH BÃO: HÃ´m nay chÆ°a cÃ³ dá»¯ liá»‡u lá»‹ch trá»±c!");
+    messageParts.push("🔴 CẢNH BÁO: Hôm nay chưa có dữ liệu lịch trực!");
   } else if (criticalEmpty.length > 0) {
-    messageParts.push(`ðŸ”´ PHÃ’NG TRá»NG (0 nhÃ¢n sá»±):\n${criticalEmpty.join("\n")}`);
+    messageParts.push(`🔴 PHÒNG TRỐNG (0 nhân sự):\n${criticalEmpty.join("\n")}`);
   } else if (partialEmpty.length > 0) {
-    messageParts.push(`âœ… ÄÃ£ cÃ³ tá»‘i thiá»ƒu 1 nhÃ¢n sá»± á»Ÿ má»i phÃ²ng.\n(LÆ°u Ã½: CÃ³ ${partialEmpty.length} vá»‹ trÃ­ chÆ°a gÃ¡n Ä‘á»§ sá»‘ lÆ°á»£ng)`);
+    messageParts.push(`✅ Đã có tối thiểu 1 nhân sự ở mọi phòng.\n(Lưu ý: Có ${partialEmpty.length} vị trí chưa gán đủ số lượng)`);
   } else {
-    messageParts.push("âœ… Má»i vá»‹ trÃ­ Ä‘á»u Ä‘Ã£ gÃ¡n Ä‘á»§ nhÃ¢n sá»±.");
+    messageParts.push("✅ Mọi vị trí đều đã gán đủ nhân sự.");
   }
 
   const finalMessage = messageParts.join("\n\n");
   console.log(finalMessage);
 
   notifier.notify({
-    title: "Nusres: Cáº£nh bÃ¡o váº­n hÃ nh",
+    title: "Nusres: Cảnh báo vận hành",
     message: finalMessage,
     sound: true,
     wait: false,

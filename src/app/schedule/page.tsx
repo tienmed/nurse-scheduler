@@ -15,6 +15,7 @@ import { Pill } from "@/components/pill";
 import { ScheduleBoard } from "@/components/schedule-board";
 import { SaturdayOvertimeBoard } from "@/components/saturday-overtime-board";
 import { AutoGenerateWeek } from "@/components/auto-generate-week";
+import { SmartAdjustTriggerButton } from "@/components/leave-portal/smart-adjust-trigger-button";
 import { SubmitButton } from "@/components/submit-button";
 import { SurfaceSection } from "@/components/surface-section";
 import {
@@ -164,6 +165,11 @@ export default async function SchedulePage({ searchParams }: SchedulePageProps) 
         action={
           <div className="flex flex-wrap gap-2">
             <AIAssistant weekStart={weekStart} mode="schedule" />
+            <SmartAdjustTriggerButton
+              userEmail={currentUser.email}
+              userRole={currentUser.role}
+              currentAssignments={displayedAssignments}
+            />
             <Link
               href={`/api/export/weekly?week=${weekStart}`}
               className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 px-4 py-3 text-sm font-medium text-slate-700 transition hover:border-slate-300 hover:bg-slate-100"

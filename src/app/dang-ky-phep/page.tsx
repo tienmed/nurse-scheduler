@@ -8,6 +8,8 @@ import { FlexibleLeaveForm } from "@/components/leave-portal/flexible-leave-form
 import { PortalLeaveCalendar } from "@/components/leave-portal/portal-leave-calendar";
 import { MyLeaveStatsView } from "@/components/leave-portal/my-leave-stats-view";
 import { MyPersonalScheduleView } from "@/components/leave-portal/my-personal-schedule-view";
+import { SmartAdjustTriggerButton } from "@/components/leave-portal/smart-adjust-trigger-button";
+import { isStudyStaff } from "@/lib/study-staff";
 
 interface PageProps {
   searchParams: Promise<{
@@ -157,6 +159,12 @@ export default async function LeavePortalPage({ searchParams }: PageProps) {
 
             {/* Thông tin nhân sự & Nút đăng xuất */}
             <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+              {/* [QWEN3] Nút điều chỉnh lịch thông minh theo phân quyền cho tienmed và Nghĩa */}
+              <SmartAdjustTriggerButton
+                userEmail={user?.email}
+                userRole={user?.role}
+              />
+
               <div className="text-right">
                 <span className="block text-xs sm:text-sm font-bold text-slate-900 truncate max-w-[120px] sm:max-w-none">
                   {currentStaff.name}
@@ -280,6 +288,7 @@ export default async function LeavePortalPage({ searchParams }: PageProps) {
             existingLeaves={data.leaveRequests}
             yearlyStats={yearlyStats}
             isAdmin={user?.role === "admin" || user?.role === "coordinator" || user?.email?.toLowerCase() === "admin@nurseflow.local"}
+            isStudyStaff={isStudyStaff(currentStaff)}
           />
         ) : (
           <MyPersonalScheduleView

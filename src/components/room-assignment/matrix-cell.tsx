@@ -123,6 +123,17 @@ export function MatrixCell({
           </div>
         )}
 
+        {/* [QWEN3] Cảnh báo quá tải khi gánh >= 4 vị trí trong ca */}
+        {assignedPositions.length >= 4 && (
+          <div
+            className="flex items-center gap-1 rounded-md bg-rose-100/90 border border-rose-300 px-1.5 py-0.5 text-[9px] font-bold text-rose-800 animate-pulse pointer-events-none"
+            title="Nhân sự đang phụ trách ≥ 4 vị trí trong ca này (nguy cơ quá tải). Cần điều hỗ trợ từ Đo sinh hiệu / KHNV."
+          >
+            <AlertCircle className="h-2.5 w-2.5 shrink-0 text-rose-600" />
+            <span className="truncate">Quá tải ({assignedPositions.length} phòng)</span>
+          </div>
+        )}
+
         {/* Danh sách phòng đã phân công trong ô này */}
         {hasAssigned ? (
           <div className="flex flex-wrap gap-1">

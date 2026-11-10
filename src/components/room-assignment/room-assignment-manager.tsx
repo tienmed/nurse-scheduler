@@ -14,7 +14,7 @@ import {
   MapPin,
   RotateCcw,
   Search,
-  
+  Sparkles,
   Table,
 } from "lucide-react";
 import { format, parseISO, addDays } from "date-fns";
@@ -27,10 +27,12 @@ import type {
   StaffMember,
   TemplateAssignment,
   WeeklyAssignment,
+  ShiftType,
 } from "@/lib/types";
 import { StaffPalette } from "./staff-palette";
 import { RoomMatrixCell } from "./room-matrix-cell";
 import { LeaveWarningModal } from "./leave-warning-modal";
+import { SmartExportAdjustModal } from "./smart-export-adjust-modal";
 import { RoomSummaryMatrix, type SlotInfo } from "./room-summary-matrix";
 import { saveWeekRoomAssignmentsAction } from "@/app/actions";
 import { WEEKDAY_LABELS } from "@/lib/constants";
@@ -54,6 +56,7 @@ interface RoomAssignmentManagerProps {
   positionRules?: PositionRule[];
   initialAssignments: WeeklyAssignment[];
   editable?: boolean;
+  canSmartAdjust?: boolean;
 }
 
 interface PendingWarningState {
@@ -77,9 +80,13 @@ export function RoomAssignmentManager({
   templateSchedule = [],
   initialAssignments,
   editable = true,
+  canSmartAdjust = false,
 }: RoomAssignmentManagerProps) {
   // [QWEN3] Chế độ xem: "room-matrix" (Ma trận Phân Phòng Theo Ca - Chuẩn mẫu ảnh) hoặc "staff-matrix" (Theo nhân sự)
   const [viewMode, setViewMode] = useState<"room-matrix" | "staff-matrix">("room-matrix");
+
+  // State mở popup Điều chỉnh lịch & Xuất Excel AI thông minh
+  const [isSmartAdjustOpen, setIsSmartAdjustOpen] = useState(false);
 
   // Tìm kiếm phòng trong ma trận phòng
   const [roomSearch, setRoomSearch] = useState("");
@@ -714,6 +721,19 @@ export function RoomAssignmentManager({
               Xuất Excel Ma Trận
             </a>
 
+            {/* [QWEN3] Nút Góp ý & Xuất Excel Thông Minh (AI) dành riêng cho TienMed & Nghĩa */}
+            {canSmartAdjust && (
+              <button
+                type="button"
+                onClick={() => setIsSmartAdjustOpen(true)}
+                className="inline-flex items-center gap-1.5 rounded-2xl border border-amber-300 bg-gradient-to-r from-amber-50 to-amber-100/80 px-3.5 py-2 text-xs font-extrabold text-amber-950 hover:from-amber-100 hover:to-amber-200 shadow-xs active:scale-95 transition-all cursor-pointer ring-1 ring-amber-200/50"
+                title="Bổ sung ý kiến điều chỉnh phòng/nhân sự trước khi xuất file Excel (Hỗ trợ tuần này & tuần sau)"
+              >
+                <Sparkles className="h-4 w-4 text-amber-600 animate-pulse" />
+                <span>Góp ý & Xuất Excel (AI)</span>
+              </button>
+            )}
+
             {/* Nút Xóa trắng */}
             {editable && (
               <button
@@ -1112,6 +1132,47 @@ export function RoomAssignmentManager({
           setWarningState(null);
         }}
       />
+
+      {/* [QWEN3] Hộp thoại Điều chỉnh lịch thông minh trước khi xuất Excel */}
+      {canSmartAdjust && (
+        <SmartExportAdjustModal
+          isOpen={isSmartAdjustOpen}
+          onClose={() => setIsSmartAdjustOpen(false)}
+          currentAssignments={Object.entries(assignmentsBySlot).flatMap(([slotKey, list]) => {
+            const [date, shift] = slotKey.split("_") as [string, ShiftType];
+            return list.map((item) => ({
+              id: `assign-${date}-${shift}-${item.positionId}-${item.staffId}`,
+              weekStart,
+              date,
+              shift,
+              positionId: item.positionId,
+              staffId: item.staffId,
+              source: "manual" as const,
+              status: "published" as const,
+            }));
+          })}
+          orderedPositionIds={orderedPositionIds}
+          onApplyToBoard={(updatedList) => {
+            const newMap: Record<string, { positionId: string; staffId: string }[]> = {};
+            const newModified = new Set<string>();
+            for (const item of updatedList) {
+              const key = `${item.date}_${item.shift}`;
+              if (!newMap[key]) newMap[key] = [];
+              newMap[key].push({
+                positionId: item.positionId,
+                staffId: item.staffId,
+              });
+              newModified.add(key);
+            }
+            setAssignmentsBySlot(newMap);
+            setModifiedSlots(newModified);
+            setFeedback({
+              type: "success",
+              message: "Đã áp dụng các điều chỉnh tối ưu mới lên bảng phân phòng thành công!",
+            });
+          }}
+        />
+      )}
     </div>
   );
 }

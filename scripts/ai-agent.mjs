@@ -1,4 +1,3 @@
-﻿
 /**
  * Multi-Agent CLI for Nurse Scheduler Project
  * Supports: AI Agent, Gemma 3, Qwen 3
@@ -8,7 +7,7 @@
 const args = process.argv.slice(2);
 if (args.length === 0 || args.includes('--help') || args.includes('-h')) {
   console.log(`
-ðŸš€ AI Agent CLI - Nurse Scheduler
+🚀 AI Agent CLI - Nurse Scheduler
 
 Usage:
   node --env-file=.env.local scripts/ai-agent.mjs [options] "Your message"
@@ -22,7 +21,7 @@ Options:
   --help, -h           Show this help
 
 Example:
-  node --env-file=.env.local scripts/ai-agent.mjs --qwen "Tá»‘i Æ°u hÃ m tÃ­nh lÆ°Æ¡ng nhÃ¢n viÃªn" --stream
+  node --env-file=.env.local scripts/ai-agent.mjs --qwen "Tối ưu hàm tính lương nhân viên" --stream
   `);
   process.exit(0);
 }
@@ -30,13 +29,13 @@ Example:
 // Configuration
 const API_TOKEN = process.env.AI_API_TOKEN;
 if (!API_TOKEN) {
-  console.error("âŒ Error: AI_API_TOKEN not found in environment. Please check .env.local");
+  console.error("❌ Error: AI_API_TOKEN not found in environment. Please check .env.local");
   process.exit(1);
 }
 
 // Parse arguments
 let mode = 'unified';
-let systemPrompt = "Báº¡n lÃ  trá»£ lÃ½ AI y táº¿ thÃ´ng minh, há»— trá»£ dá»± Ã¡n NurseFlow.";
+let systemPrompt = "Bạn là trợ lý AI y tế thông minh, hỗ trợ dự án NurseFlow.";
 let isStream = false;
 let userPrompt = "";
 
@@ -54,7 +53,7 @@ for (let i = 0; i < args.length; i++) {
 }
 
 if (!userPrompt) {
-  console.error("âŒ Error: Missing user message.");
+  console.error("❌ Error: Missing user message.");
   process.exit(1);
 }
 
@@ -79,7 +78,7 @@ const currentConfig = CONFIGS[mode];
 async function processStream(response) {
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
-  process.stdout.write("\nâœ… Response (Streaming): ");
+  process.stdout.write("\n✅ Response (Streaming): ");
   
   let buffer = "";
   while (true) {
@@ -98,7 +97,7 @@ async function processStream(response) {
 }
 
 async function processStreamFromText(text) {
-  process.stdout.write("\nâœ… Response (Auto-detected Stream): ");
+  process.stdout.write("\n✅ Response (Auto-detected Stream): ");
   const lines = text.split('\n');
   for (const line of lines) {
     handleStreamLine(line);
@@ -120,7 +119,7 @@ function handleStreamLine(line) {
 }
 
 async function runWithRetry(maxRetries = 3) {
-  console.log(`\x1b[36mðŸ¤– Calling ${mode.toUpperCase()} Agent (Base: ${currentConfig.baseUrl})...\x1b[0m`);
+  console.log(`\x1b[36m🤖 Calling ${mode.toUpperCase()} Agent (Base: ${currentConfig.baseUrl})...\x1b[0m`);
   
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
@@ -145,7 +144,7 @@ async function runWithRetry(maxRetries = 3) {
       // Handle Rate Limiting
       if (response.status === 429) {
         const retryAfter = response.headers.get('Retry-After') || 5;
-        console.warn(`\x1b[33mâš ï¸ Rate limited. Waiting ${retryAfter}s before retry ${attempt}/${maxRetries}...\x1b[0m`);
+        console.warn(`\x1b[33m⚠️ Rate limited. Waiting ${retryAfter}s before retry ${attempt}/${maxRetries}...\x1b[0m`);
         await new Promise(resolve => setTimeout(resolve, retryAfter * 1000));
         continue;
       }
@@ -163,7 +162,7 @@ async function runWithRetry(maxRetries = 3) {
         const text = await response.text();
         try {
           const data = JSON.parse(text);
-          console.log("\nâœ… Response:");
+          console.log("\n✅ Response:");
           console.log("--------------------------------------------------");
           console.log(data.choices[0].message.content);
           console.log("--------------------------------------------------");
@@ -179,13 +178,13 @@ async function runWithRetry(maxRetries = 3) {
       return; 
 
     } catch (error) {
-      console.error(`\x1b[31mâŒ Attempt ${attempt} failed: ${error.message}\x1b[0m`);
+      console.error(`\x1b[31m❌ Attempt ${attempt} failed: ${error.message}\x1b[0m`);
       if (attempt === maxRetries) {
-        console.error("ðŸ’€ Max retries reached. Giving up.");
+        console.error("💀 Max retries reached. Giving up.");
         process.exit(1);
       }
       const waitTime = Math.pow(2, attempt); // Exponential backoff
-      console.log(`ðŸ”„ Retrying in ${waitTime}s...`);
+      console.log(`🔄 Retrying in ${waitTime}s...`);
       await new Promise(resolve => setTimeout(resolve, waitTime * 1000));
     }
   }

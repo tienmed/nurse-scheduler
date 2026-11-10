@@ -54,6 +54,57 @@
 
 ---
 
+### [P0-OPS-02] Mã Hóa UTF-8 & Giao Diện Email Tương Thích Mobile
+- **Ngày ghi nhận:** 2026-11-09
+- **Bối cảnh & Lỗi:** Email gửi thông báo nghỉ phép tự động bị lỗi font chữ tiếng Việt (Mojibake: `Ã¡`, `á»‰`, `ðŸ“‹`), bảng dữ liệu 4 cột bị co rúm trên giao diện điện thoại.
+- **Nguyên nhân gốc rễ:** 
+  1. Tệp script `scripts/email-leaves.mjs` bị lưu dưới dạng mã hóa nhầm (Windows-1252 / ANSI) khiến các chuỗi tiếng Việt tĩnh bị biến thành ký tự rác.
+  2. Bảng `<table>` truyền thống bị tràn ngang hoặc co ép các cột trên màn hình điện thoại dưới 400px.
+- **Quy tắc phòng ngừa:**
+  - Luôn đảm bảo tất cả tệp kịch bản `.mjs` được lưu dưới bảng mã `UTF-8 without BOM`.
+  - Mẫu email bắt buộc có `<meta charset="UTF-8">`, `<meta name="viewport" content="width=device-width, initial-scale=1.0">`.
+  - Thiết kế danh sách nghỉ phép theo dạng thẻ hàng (Card Item) bo góc, responsive 100% thay vì bảng nhiều cột để đảm bảo trải nghiệm đọc trên mobile mượt mà, không bị co kéo chữ.
+- **Phạm vi:** [Windows Tasks | UI Design | Email Notification]
+
+---
+
+### [P0-RULES-01] Quy Chuẩn Điều Phối Vị Trí & Nhân Sự Cố Định
+- **Ngày ghi nhận:** 2026-11-10
+- **Bối cảnh & Nghiệp vụ:** Điều phối các vị trí then chốt (Tiếp nhận, Hồ sơ thời vụ, Hành chính KHNV).
+- **Quy tắc bắt buộc:**
+  1. **Tiếp nhận (Sảnh):**
+     - **Vị trí Tiếp nhận chỉ cần đúng 2 nhân sự** trong một ca làm việc (không cần phân bổ dư thừa 3 người).
+     - **Phúc Anh (DD20)** và **Lyna (Lưu Đào Marry Lyna - DD21)** là 2 nhân sự CHÍNH ở vị trí Tiếp nhận.
+     - Luôn phải có ít nhất 1 trong 2 người trực tại vị trí Tiếp nhận trong mọi ca làm việc.
+     - Khi **cả 2 cùng nghỉ** trong cùng một ngày/ca, hệ thống BẮT BUỘC phải phát cảnh báo nghiêm trọng.
+     - **Thủy (Trần Thanh Thủy - DD11)** là nhân sự HỖ TRỢ tiếp nhận tạm thời trong tháng này khi có người vắng.
+  2. **Làm hồ sơ thời vụ (Nhập liệu KSK):**
+     - **Thịnh (Nguyễn Phú Thịnh - DD10)** chỉ làm công việc hồ sơ theo thời vụ; các tuần tiếp theo vẫn tiếp tục duy trì làm hồ sơ (không điều chuyển sang phòng khám lâm sàng).
+  3. **Hành chính KHNV:**
+     - **Tú Trang (Đặng Lê Tú Trang - DD01)** CHỈ làm những công việc hành chính tại phòng KHNV (không điều động sang làm hồ sơ KSK hay tiếp nhận).
+- **Phạm vi:** [Schedule Rules | Room Assignment | AI Integration]
+
+---
+
+### [P0-RULES-02] Quy Chuẩn Điều Phối Dự Phòng KHNV & Tích Lũy Kinh Nghiệm Chuyên Môn
+- **Ngày ghi nhận:** 2026-11-10
+- **Bối cảnh & Nghiệp vụ:**
+  1. **Quy chuẩn nhân sự phòng KHNV:**
+     - **Thiên Trang** và **ĐD Nghĩa (nghiadn.pk@pnt.edu.vn)** làm việc toàn thời gian tại phòng KHNV.
+     - Khi một nhân sự trong ca lâm sàng bị **quá tải (phụ trách $\ge 4$ vị trí trong 1 ca)**: Hệ thống kích hoạt chuỗi điều phối hỗ trợ.
+  2. **Chuỗi điều phối hoán chuyển & giải phóng Đo sinh hiệu:**
+     - Vị trí **Đo sinh hiệu** theo chuẩn luôn có **2 nhân sự/ca**.
+     - **Điều động chi viện từ KHNV:** Ưu tiên **ĐD Nghĩa** (nếu không trùng lịch nghỉ phép hoặc cờ đi học `[DI_HOC]`), trường hợp Nghĩa bận học/phép thì điều động **Thiên Trang**. Nhân sự này sang hỗ trợ trám chỗ tại vị trí Đo sinh hiệu.
+     - **Giải phóng nhân sự Đo sinh hiệu:** Trong 2 người đo sinh hiệu, rút người có thâm niên / số giờ làm quen thuộc nhất với vị trí đang quá tải sang phụ trách vị trí quá tải đó.
+     - Đảm bảo vị trí Đo sinh hiệu luôn duy trì đủ 2 người và vị trí quá tải được chi viện kịp thời.
+  3. **Quy chuẩn tích lũy kinh nghiệm & chuyên môn:**
+     - Mỗi ca trực hoàn thành quy đổi thành **4 giờ làm việc chuyên môn**.
+     - **Nguyên tắc chia đều khi kiêm nhiệm nhiều vị trí:** Nếu một điều dưỡng phụ trách $n$ vị trí trong cùng 1 ca trực, thì 4 giờ làm việc được chia đều cho $n$ vị trí đó (mỗi vị trí tích lũy $\frac{4}{n}$ giờ kinh nghiệm). Tổng thời gian làm việc thực tế của ca trực luôn bảo toàn đúng 4 giờ.
+     - Bảng ma trận tích lũy kinh nghiệm theo lịch sử phân công vị trí (`weeklySchedule`) là cơ sở định lượng để xác định nhân sự "quen thuộc nhất" với từng vị trí công việc khi điều phối chi viện.
+- **Phạm vi:** [Schedule Rules | Room Assignment | Workload Reports | AI Integration]
+
+---
+
 ## 📝 Mẫu Ghi Nhận Bài Học Mới (Template)
 
 ```markdown

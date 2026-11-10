@@ -1,5 +1,55 @@
 # NurseFlow Versioning
 
+## v1.4.4 (2026-11-10)
+### Thống Kê Tích Lũy Kinh Nghiệm Chuyên Môn & Điều Phối Dự Phòng KHNV - Đo Sinh Hiệu [QWEN3]
+- **Thống kê tích lũy kinh nghiệm, chuyên môn theo vị trí việc làm (`src/lib/schedule.ts`, `/reports`):**
+  - Định lượng hóa năng lực chuyên môn: Mỗi ca trực hoàn thành quy đổi thành 4 giờ làm việc chuyên môn.
+  - **Nguyên tắc chia đều khi kiêm nhiệm n vị trí:** Nếu 1 điều dưỡng làm $n$ vị trí trong cùng 1 ca thì 4 giờ được chia đều (mỗi vị trí nhận $\frac{4}{n}$ giờ kinh nghiệm), bảo toàn tổng thời lượng thực tế của ca trực.
+  - Xây dựng hàm `calculatePositionExperienceStats` gom nhóm theo từng ca (`date + shift`) để phân bổ chính xác số giờ kinh nghiệm theo công thức $\frac{4}{n}$ và xác định vị trí nòng cốt/sở trường.
+  - Thiết kế bảng ma trận trực quan phong cách Teal Glassmorphism tại trang Báo cáo (`/reports`) với 2 chế độ xem: Toàn bộ lịch sử hoặc Theo tháng đang chọn.
+  - Phủ màu nhiệt (heatmap) nhận diện cấp bậc kinh nghiệm: `< 20h` (làm quen), `20h - 80h` (thuần thục), `> 80h` (nòng cốt / chuyên gia vị trí).
+- **Xuất Excel ma trận tích lũy chuyên môn độc lập (`/api/export/experience`):**
+  - Tích hợp endpoint xuất file `.xlsx` đầy đủ tiêu chuẩn và định dạng chuyên nghiệp với các cột chi tiết từng vị trí, tổng số ca, tổng số giờ quy đổi và vị trí sở trường.
+- **Nghiệp vụ điều phối dự phòng KHNV & Giải phóng Đo sinh hiệu khi quá tải (`/api/schedule/adjust`):**
+  - Quy định nhân sự phòng KHNV: Thiên Trang và ĐD Nghĩa (`nghiadn.pk@pnt.edu.vn`) làm việc toàn thời gian tại KHNV.
+  - Phát hiện quá tải: Khi 1 nhân sự phụ trách $\ge 4$ vị trí trong 1 ca trực.
+  - Cơ chế hoán chuyển:
+    - Rút 1 nhân sự từ vị trí Đo sinh hiệu (chuẩn 2 người/ca) có số giờ làm / chuyên môn quen thuộc nhất với vị trí bị quá tải để chi viện cho vị trí đó.
+    - Điều động nhân sự từ KHNV vào trám chỗ tại Đo sinh hiệu: Ưu tiên ĐD Nghĩa (nếu không có lịch nghỉ phép hoặc đi học `[DI_HOC]`), trường hợp Nghĩa bận học/phép thì điều động Thiên Trang.
+    - Đảm bảo vị trí Đo sinh hiệu luôn duy trì đủ 2 người và vị trí quá tải được san sẻ tức thì.
+- **Cảnh báo quá tải trực quan trên ma trận phân phòng (`matrix-cell.tsx`):**
+  - Tự động hiển thị nhãn cảnh báo đỏ "Quá tải (X phòng)" khi 1 điều dưỡng được gán $\ge 4$ vị trí trong cùng 1 ca.
+- **Chất lượng mã nguồn:**
+  - 100% Next.js 16 production build pass, 19/19 routes compiled successfully.
+
+## v1.4.3 (2026-11-10)
+### Điều chỉnh lịch thông minh (AI) & Xuất Excel Ma trận theo khu vực theo phân quyền [QWEN3]
+- **Tích hợp nút điều chỉnh đa cổng theo phân quyền (`SmartAdjustTriggerButton`):**
+  - Tích hợp tại Cổng Nhân Sự Cá Nhân (`/dang-ky-phep`), Cổng Lịch Tuần (`/schedule`) và Cổng Phân Phòng (`/room-assignment`).
+  - Kiểm soát phân quyền: Chỉ hiển thị cho `tienmed@gmail.com`, `nghiadn.pk@pnt.edu.vn`, `bstien@pnt.edu.vn` và các vai trò `admin`/`coordinator`. Nhân sự thông thường tự động ẩn nút.
+- **Hệ thống phản hồi ngôn ngữ tự nhiên & Tính toán tối ưu (`/api/schedule/adjust`):**
+  - Cho phép người dùng nhập góp ý bằng văn bản tự nhiên kèm 2 tùy chọn phạm vi: Tuần hiện tại (chỉ điều chỉnh ca/ngày chưa diễn ra trong tương lai theo múi giờ Việt Nam UTC+7) hoặc Tuần tiếp theo.
+  - Tự động áp dụng các ràng buộc nghiệp vụ: Vị trí Tiếp nhận đúng 2 nhân sự/ca, cảnh báo đỏ khi cả Phúc Anh và Lyna cùng vắng mặt, Thủy hỗ trợ tiếp nhận tạm, Thịnh làm hồ sơ KSK thời vụ, Tú Trang cố định hành chính KHNV.
+  - Trả về bảng Diff so sánh các điểm thay đổi trực quan và danh sách khuyến nghị điều phối.
+- **Xuất Excel ma trận theo khu vực & dòng nghỉ phép (`/api/export/room-matrix`):**
+  - Hỗ trợ xuất file Excel `.xlsx` trực tiếp theo Phương án A để người dùng tải về máy tính rà soát ngoại tuyến trước khi lưu vào hệ thống.
+  - Tự động gom nhóm theo Khu vực màu sắc (Tiếp nhận, Khám chuyên khoa, Thủ thuật,...) và tổng hợp danh sách nghỉ phép theo ca.
+- **Chất lượng mã nguồn:**
+  - 100% TypeScript compile pass (`tsc --noEmit`), 18/18 Next.js routes optimized production build.
+
+## v1.4.2 (2026-11-10)
+### Tự động phê duyệt lịch nghỉ đi học & Quản lý nhân sự diện đào tạo [QWEN3]
+- **Nhận diện nhân sự diện đi học (`src/lib/study-staff.ts`):**
+  - Tự động nhận diện nhân sự thuộc diện đào tạo/đi học thông qua cờ `[DI_HOC]` trong ghi chú nhân sự (`notes`) hoặc cấu hình mặc định (bao gồm ĐD Nghĩa `nghiadn.pk@pnt.edu.vn`).
+- **Giao diện Cổng Portal (`/dang-ky-phep`):**
+  - Mở quyền đăng ký lý do "Đi học" (`dihoc`) trên Form đăng ký linh hoạt cho nhân sự thuộc diện đào tạo.
+  - Cập nhật hiển thị định mức theo buổi: hiển thị rõ trạng thái tự động duyệt (định mức $\le 3$ người/buổi) hoặc cảnh báo chuyển Quản lý duyệt nếu buổi đó đã có $\ge 3$ người nghỉ trước đó.
+- **Cơ chế Tự động duyệt & Phân luồng gửi email:**
+  - Logic đếm số người nghỉ theo từng buổi (Sáng / Chiều): Nếu đăng ký đi học vào buổi có $\le 3$ người nghỉ $\rightarrow$ Tự động duyệt ngay (`status: approved`), chỉ gửi email xác nhận thành công riêng cho cá nhân người đăng ký (không gửi Quản lý, không gửi BCC).
+  - Nếu đăng ký đi học vào buổi có $> 3$ người nghỉ (từ người thứ 4 trở lên) $\rightarrow$ Chuyển trạng thái chờ duyệt (`status: pending`) và gửi email duyệt 1 chạm tới Quản lý (`tienmed@gmail.com`).
+- **Chất lượng mã nguồn:**
+  - Đạt 100% TypeScript type check (`tsc --noEmit`).
+
 ## v1.4.1 (2026-11-07)
 ### Vá khẩn cấp: Khôi phục bảng mã UTF-8 chuẩn cho toàn bộ 12 tệp giao diện [QWEN3]
 - Khắc phục hoàn toàn lỗi font chữ (Mojibake Double-UTF8) trên trang Đăng ký phép (`flexible-leave-form.tsx`), Bảng phân ca (`schedule-board.tsx`), Phân phòng (`room-assignment/`), và các hàm tính toán (`schedule.ts`).

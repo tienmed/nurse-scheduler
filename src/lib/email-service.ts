@@ -454,6 +454,8 @@ export interface SendApprovedNotificationEmailParams {
   leaveItems: LeaveItemSummary[];
   approvedAt?: string;
   upcoming7DaysLeaves?: UpcomingLeavePreviewItem[];
+  skipBcc?: boolean;
+  isAutoApprovedStudy?: boolean;
 }
 
 /**
@@ -473,12 +475,14 @@ export async function sendLeaveApprovedNotificationEmail(
     return { success: false, error: errorMsg };
   }
 
-  const { staff, leaveItems, approvedAt, upcoming7DaysLeaves } = params;
+  const { staff, leaveItems, approvedAt, upcoming7DaysLeaves, skipBcc = false, isAutoApprovedStudy = false } = params;
   const approvedTimeStr = approvedAt || format(new Date(), "HH:mm dd/MM/yyyy");
   const baseUrl = getBaseUrl();
   const calendarUrl = `${baseUrl}/dang-ky-phep?tab=calendar`;
 
-  const subject = `[XÁC THỰC ĐỒNG Ý] Đơn xin nghỉ phép của ĐD ${staff.name} đã được phê duyệt`;
+  const subject = isAutoApprovedStudy
+    ? `[XÁC THỰC THÀNH CÔNG] Lịch nghỉ đi học của ĐD ${staff.name} đã được xác nhận`
+    : `[XÁC THỰC ĐỒNG Ý] Đơn xin nghỉ phép của ĐD ${staff.name} đã được phê duyệt`;
 
   // Render từng ca đã duyệt thành các thẻ khối (Cards) 100% width trên Mobile
   const leaveCardsHtml = leaveItems
@@ -549,7 +553,7 @@ export async function sendLeaveApprovedNotificationEmail(
         <tr>
           <td style="background:linear-gradient(135deg,#059669 0%,#10b981 100%);padding:18px 16px;color:#ffffff;text-align:left;">
             <p style="margin:0 0 4px 0;font-size:11px;font-weight:bold;text-transform:uppercase;letter-spacing:1px;opacity:0.85;">NurseFlow · Xác thực phê duyệt</p>
-            <h1 style="margin:0;font-size:18px;font-weight:bold;line-height:1.3;">Đơn xin nghỉ phép đã được PHÊ DUYỆT</h1>
+            <h1 style="margin:0;font-size:18px;font-weight:bold;line-height:1.3;">${isAutoApprovedStudy ? "Lịch nghỉ đi học đã được XÁC NHẬN" : "Đơn xin nghỉ phép đã được PHÊ DUYỆT"}</h1>
           </td>
         </tr>
 
@@ -560,7 +564,9 @@ export async function sendLeaveApprovedNotificationEmail(
               Kính gửi Điều dưỡng <strong>${staff.name}</strong> (${staff.code}),
             </p>
             <p style="margin:0 0 16px 0;font-size:13px;line-height:1.6;color:#334155;">
-              Phiếu xin nghỉ phép của bạn đã được quản lý (<strong>tienmed@gmail.com</strong>) kiểm tra và <strong>chính thức phê duyệt</strong> vào lúc <strong>${approvedTimeStr}</strong>. Dữ liệu đã được cập nhật chính thức vào hệ thống.
+              ${isAutoApprovedStudy
+                ? `Lịch xin nghỉ đi học của bạn đã được hệ thống kiểm tra định mức (không quá 3 người nghỉ/buổi) và <strong>tự động xác nhận thành công</strong> vào lúc <strong>${approvedTimeStr}</strong>. Dữ liệu đã được cập nhật chính thức vào hệ thống.`
+                : `Phiếu xin nghỉ phép của bạn đã được quản lý (<strong>tienmed@gmail.com</strong>) kiểm tra và <strong>chính thức phê duyệt</strong> vào lúc <strong>${approvedTimeStr}</strong>. Dữ liệu đã được cập nhật chính thức vào hệ thống.`}
             </p>
 
             <!-- Tiêu đề danh sách ca -->
@@ -597,7 +603,9 @@ export async function sendLeaveApprovedNotificationEmail(
 
             <hr style="border:none;border-top:1px solid #e2e8f0;margin:20px 0 12px 0;" />
             <p style="margin:0;font-size:11px;color:#94a3b8;line-height:1.5;">
-              Email này được gửi tự động từ hệ thống NurseFlow tới người gửi phiếu và được đồng gửi (BCC) tới ĐD Nghĩa (${NOTIFY_BCC_EMAIL}) để theo dõi và đối soát.
+              ${skipBcc
+                ? "Email này được gửi tự động từ hệ thống NurseFlow riêng tới cá nhân người đăng ký để xác nhận lịch nghỉ thành công."
+                : `Email này được gửi tự động từ hệ thống NurseFlow tới người gửi phiếu và được đồng gửi (BCC) tới ĐD Nghĩa (${NOTIFY_BCC_EMAIL}) để theo dõi và đối soát.`}
             </p>
           </td>
         </tr>
@@ -607,13 +615,18 @@ export async function sendLeaveApprovedNotificationEmail(
   `;
 
   try {
-    const info = await transporter.sendMail({
+    const mailOptions: nodemailer.SendMailOptions = {
       from: `"NurseFlow Hệ Thống" <${smtpUser}>`,
       to: staff.email,
-      bcc: NOTIFY_BCC_EMAIL,
       subject,
       html: htmlContent,
-    });
+    };
+
+    if (!skipBcc) {
+      mailOptions.bcc = NOTIFY_BCC_EMAIL;
+    }
+
+    const info = await transporter.sendMail(mailOptions);
 
     console.log("✅ [EmailService] Gửi email xác nhận duyệt thành công:", info.messageId);
     return { success: true, messageId: info.messageId };

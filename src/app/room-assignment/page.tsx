@@ -44,6 +44,21 @@ export default async function RoomAssignmentPage({
   const data = await getAppData();
   const editable = canEdit(user.role) || user.email.toLowerCase() === "admin@nurseflow.local";
 
+  // [QWEN3] Phân quyền đặc quyền chức năng điều chỉnh lịch nâng cao trước khi xuất Excel
+  const PRIVILEGED_ADJUST_EMAILS = [
+    "tienmed@gmail.com",
+    "nghiadn.pk@pnt.edu.vn",
+    "bstien@pnt.edu.vn",
+    "admin@nurseflow.local",
+  ];
+  const canSmartAdjust = Boolean(
+    user && (
+      PRIVILEGED_ADJUST_EMAILS.includes(user.email.toLowerCase()) ||
+      user.role === "admin" ||
+      user.role === "coordinator"
+    )
+  );
+
   // Lấy phân công tuần (ưu tiên lịch đã lưu, nếu chưa có sẽ tự động lấy từ lịch nền)
   const actualAssignments = getWeeklyAssignments(data.weeklySchedule, weekStart);
   const displayedAssignments =
@@ -89,6 +104,7 @@ export default async function RoomAssignmentPage({
           positionRules={data.positionRules}
           initialAssignments={displayedAssignments}
           editable={editable}
+          canSmartAdjust={canSmartAdjust}
         />
       </main>
     </div>

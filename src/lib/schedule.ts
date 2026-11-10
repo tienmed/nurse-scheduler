@@ -19,6 +19,8 @@ import type {
   WeeklyAssignment,
   WorkloadSummary,
   Holiday,
+  StaffExperienceSummary,
+  StaffPositionExperience,
 } from "@/lib/types";
 
 /**
@@ -390,6 +392,90 @@ export function calculatePositionRotations(
     }
     return right.shifts - left.shifts;
   });
+}
+
+/**
+ * [QWEN3] Tính toán tích lũy kinh nghiệm và chuyên môn theo vị trí làm việc.
+ * Quy chuẩn: 1 ca trực hoàn thành = 4 giờ làm việc chuyên môn.
+ */
+export function calculatePositionExperienceStats(
+  weeklySchedule: WeeklyAssignment[],
+  staffList: StaffMember[],
+  positions: Position[],
+  filterMonth?: string,
+): StaffExperienceSummary[] {
+  // Lọc theo tháng nếu có (ví dụ "2026-11"), nếu không thì tính toàn bộ lịch sử
+  const filteredAssignments = filterMonth
+    ? weeklySchedule.filter((a) => a.date.startsWith(filterMonth) && a.staffId)
+    : weeklySchedule.filter((a) => a.staffId);
+
+  // Map vị trí để tra cứu tên
+  const posMap = new Map<string, Position>(positions.map((p) => [p.id, p]));
+
+  // Thống kê theo từng nhân sự
+  return staffList
+    .filter((s) => s.active)
+    .map((member) => {
+      const myAssignments = filteredAssignments.filter((a) => a.staffId === member.id);
+      const posCounts: Record<string, StaffPositionExperience> = {};
+
+      // [QWEN3] Gom nhóm theo ca trực (date + shift) để tính n vị trí kiêm nhiệm trong ca
+      // Quy chuẩn: 1 ca = 4 giờ; nếu làm n vị trí thì mỗi vị trí nhận 4/n giờ tích lũy
+      const slotGroups = new Map<string, WeeklyAssignment[]>();
+      for (const a of myAssignments) {
+        const slotKey = `${a.date}_${a.shift}`;
+        const list = slotGroups.get(slotKey) || [];
+        list.push(a);
+        slotGroups.set(slotKey, list);
+      }
+
+      for (const [, assignmentsInSlot] of slotGroups.entries()) {
+        const n = assignmentsInSlot.length;
+        const hoursPerPosition = n > 0 ? 4 / n : 0;
+
+        for (const a of assignmentsInSlot) {
+          if (!posCounts[a.positionId]) {
+            posCounts[a.positionId] = { shifts: 0, hours: 0 };
+          }
+          posCounts[a.positionId].shifts += 1;
+          posCounts[a.positionId].hours += hoursPerPosition;
+        }
+      }
+
+      // Làm tròn 1 chữ số thập phân cho từng vị trí để số liệu hiển thị chuẩn xác
+      for (const pid of Object.keys(posCounts)) {
+        posCounts[pid].hours = Math.round(posCounts[pid].hours * 10) / 10;
+      }
+
+      const totalShifts = myAssignments.length;
+      // Tổng số giờ làm việc thực tế bảo toàn: số ca duy nhất * 4h
+      const totalHours = Math.round(slotGroups.size * 4 * 10) / 10;
+
+      // Xác định vị trí tích lũy nhiều nhất (top position)
+      let topPos: { id: string; name: string; hours: number } | undefined;
+      let maxHours = 0;
+      for (const [pid, data] of Object.entries(posCounts)) {
+        if (data.hours > maxHours) {
+          maxHours = data.hours;
+          topPos = {
+            id: pid,
+            name: posMap.get(pid)?.name || pid,
+            hours: data.hours,
+          };
+        }
+      }
+
+      return {
+        staffId: member.id,
+        staffName: member.name,
+        staffCode: member.code || "",
+        totalShifts,
+        totalHours,
+        positions: posCounts,
+        topPosition: topPos,
+      };
+    })
+    .sort((a, b) => b.totalHours - a.totalHours);
 }
 
 export function getStatusTone(status: WeeklyAssignment["status"]) {
