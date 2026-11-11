@@ -1,5 +1,31 @@
 # NurseFlow Versioning
 
+## v1.4.5 (2026-11-11)
+### Phân Bổ Lịch Tuần Tự Động Theo Kinh Nghiệm & Thói Quen + Email Sáng Chủ Nhật
+- **Thuật toán sinh lịch thông minh (`src/lib/schedule.ts`, `src/lib/repository.ts`):**
+  - Tự động chấm điểm và phân bố nhân sự tuần mới dựa trên **kinh nghiệm tích lũy** ($4/n$ giờ từ `calculatePositionExperienceStats`) kết hợp **thói quen phân công 1–2 tuần gần đây** (`buildRecentHabitStats`, trọng số tuần $t-1$ cao hơn $t-2$) và lịch nền.
+  - Giữ nguyên các quy tắc vàng: Tiếp nhận đúng 2 người/ca **xoay đều giữa Lyna, Phúc Anh, Thủy**, Thịnh cố định KSK, Tú Trang cố định KHNV, tự động giải phóng quá tải ($\ge 4$ vị trí/ca) qua Đo sinh hiệu và KHNV (ưu tiên Nghĩa nếu không bận phép/học, sau đó Thiên Trang).
+  - Bổ sung bảng quy tắc điều dưỡng thường trực cố định theo phòng (`FIXED_ROOM_STAFF_RULES`):
+    - `Phòng Chăm sóc da (P2.4)` & `Phòng khám Da liễu (P2.6)`: mặc nhiên Mỹ Nhiên, luôn đi đồng bộ cùng 1 điều dưỡng kể cả khi thay thế Nhiên.
+    - `Phòng Siêu âm (P1.6)`: thường trực Bích Thảo (hỗ trợ Lyna khi cần).
+    - `Phòng khám Chuyên gia`: thường trực Kim Hoa.
+    - `Thanh Trùng` & `Phòng khám YHCT (P2.5)`: mặc nhiên ĐD Nhân (`Lê Thị Nhân` - `DD16`), khi nghỉ/thay đổi có Điệp (`DD07`) hỗ trợ.
+    - `Phòng cấp cứu (P1.7)` & `Phòng đo ECG (P1.8)`: mặc nhiên Ngọc Hạnh (`DD02`).
+    - `Phòng khám CTCH (P1.9)` & `Phòng khám Nội 1 (P.13)`: mặc nhiên Nga (`DD04`).
+    - `Phòng khám Phụ - Sản (P1.12)`, `Phòng khám Ngoại (P1.11)` & `Phòng khám Nội 2 (P1.10)`: mặc nhiên Vĩnh (`DD05`).
+    - Thứ tự ưu tiên mặc nhiên & khi cần người thay thế: **Tâm thần kinh - Tâm lý** (Điệp → Thủy → Ái Liên → Chuyền); **Mắt (P2.3)** (Chuyền → Thủy → Ái Liên); **Da liễu / CSD** (Nhiên → Ái Liên → Thủy); **TMH (P2.7)** (Điệp → Ái Liên → Thủy → Chuyền).
+    - **Nhóm phòng ít bệnh** (`Ngoại P1.11`, `Chuyên gia`, `Dị ứng - Miễn dịch`, `Nội thần kinh P2.2`, `Phụ khoa / Phụ - Sản P1.12`): tính 0.5 đơn vị tải khi kiêm nhiệm để ưu tiên ghép chung nhẹ nhàng thay vì dồn sang phòng đông bệnh.
+    - `Siêu âm (P1.6)`, `Phòng cấp cứu (P1.7)`, `Phòng đo ECG (P1.8)` luôn mở ở mọi ngày/buổi phòng khám làm việc; **bỏ `Phòng khám RHM (KTC)`** khỏi lịch phân phòng và email.
+  - Cập nhật `suggestStaffForSlot` và `/api/schedule/adjust` dùng cùng số liệu kinh nghiệm tích lũy và thói quen 14 ngày gần nhất.
+- **Đối chiếu phòng khám hoạt động từ `nhansu/schedule-embed` (`src/lib/clinic-schedule-api.ts`):**
+  - Tự động đọc lịch bác sĩ tuần mới từ `schedule-embed?week_start=YYYY-MM-DD` cho 17 vị trí phòng khám (gồm `Phòng Chăm sóc da (P2.4)` đi theo `Da Liễu`, `Phòng khám CTCH (P1.9)` theo `Cơ xương khớp - Y học thể dục thể thao`, và không gộp `BHYT Nội`/`BHYT Ngoại`, không tính `Phòng khám RHM (KTC)`, giữ `Siêu âm`/`Cấp cứu`/`ECG` thường trực).
+  - Không thay đổi/ghi đè lịch tuần hiện tại đã chốt; khi dự tính tuần sau mà `schedule-embed` tuần sau chưa có lịch bác sĩ, tự động áp lịch mở phòng của tuần hiện tại (`weekStart - 7 ngày`) trước khi fallback về lịch nền.
+- **Email dự thảo lịch tuần sau sáng Chủ nhật (`scripts/email-weekly-schedule.mjs`, `src/lib/weekly-email-html.ts`):**
+  - Dựng HTML 2 bảng nửa tuần (`Thứ 2 – Thứ 4` và `Thứ 5 – Thứ 7`) giữ màu theo khu vực và dòng `Phép`, tối ưu hiển thị Gmail di động & máy tính.
+  - Gửi trực tiếp tới Nghĩa và Tiến vào `08:00` sáng Chủ nhật qua script độc lập Google Sheets (không phụ thuộc `localhost:3000`) và **không ghi tên/email người nhận trong nội dung email**.
+  - Tích hợp nút **Xác nhận chốt lịch chính thức** (`/api/schedule/confirm` xác thực HMAC-SHA256 chuyển `status: "published"`) và link **Góp ý / Điều chỉnh** (`/room-assignment?week=...&openAdjust=1`).
+  - **Giới hạn phạm vi Góp ý / Điều chỉnh:** Nội dung góp ý từ link email này chỉ mang tính tham khảo để AI đề xuất hoán đổi ca cho riêng tuần đó, tuyệt đối không đưa vào dữ liệu kinh nghiệm tích lũy lâu dài hay quy tắc chung.
+
 ## v1.4.4 (2026-11-10)
 ### Thống Kê Tích Lũy Kinh Nghiệm Chuyên Môn & Điều Phối Dự Phòng KHNV - Đo Sinh Hiệu [QWEN3]
 - **Thống kê tích lũy kinh nghiệm, chuyên môn theo vị trí việc làm (`src/lib/schedule.ts`, `/reports`):**

@@ -3,9 +3,10 @@ import { PortalHeader } from "@/components/room-assignment/portal-header";
 import { AccessDeniedView } from "@/components/room-assignment/access-denied-view";
 import { RoomAssignmentManager } from "@/components/room-assignment/room-assignment-manager";
 import { getWeekStartFromInput } from "@/lib/date";
-import { getAppData } from "@/lib/repository";
+import { fetchEffectivePositionRulesForWeek } from "@/lib/clinic-schedule-api";
+import { getAppData, getEffectiveLeaveRequests } from "@/lib/repository";
 import {
-  buildAssignmentsFromTemplate,
+  buildSmartWeeklyAssignments,
   getWeeklyAssignments,
 } from "@/lib/schedule";
 import { canEdit, getUserContext } from "@/lib/session";
@@ -13,6 +14,7 @@ import { canEdit, getUserContext } from "@/lib/session";
 interface RoomAssignmentPageProps {
   searchParams: Promise<{
     week?: string;
+    openAdjust?: string;
     message?: string;
     error?: string;
   }>;
@@ -22,12 +24,21 @@ interface RoomAssignmentPageProps {
 export default async function RoomAssignmentPage({
   searchParams,
 }: RoomAssignmentPageProps) {
-  const { week } = await searchParams;
+  const { week, openAdjust } = await searchParams;
   const weekStart = getWeekStartFromInput(week);
   const currentWeekStart = getWeekStartFromInput();
 
-  // 1. Bắt buộc đăng nhập: Nếu chưa đăng nhập, tự động chuyển hướng sang /sign-in
-  const { user } = await getUserContext({ required: true });
+  // 1. Bắt buộc đăng nhập: Nếu chưa đăng nhập, tự động chuyển hướng sang /sign-in kèm callbackUrl bảo toàn tham số
+  const cbParams = new URLSearchParams();
+  if (week) cbParams.set("week", week);
+  if (openAdjust) cbParams.set("openAdjust", openAdjust);
+  const cbQs = cbParams.toString();
+  const currentPathWithParams = cbQs ? `/room-assignment?${cbQs}` : "/room-assignment";
+
+  const { user } = await getUserContext({
+    required: true,
+    callbackUrl: currentPathWithParams,
+  });
 
   // 2. Kiểm tra phân quyền: Chỉ tài khoản Admin hoặc Coordinator mới được truy cập
   const isAuthorized =
@@ -59,20 +70,35 @@ export default async function RoomAssignmentPage({
     )
   );
 
-  // Lấy phân công tuần (ưu tiên lịch đã lưu, nếu chưa có sẽ tự động lấy từ lịch nền)
+  // Lấy phân công tuần (ưu tiên lịch đã lưu, nếu chưa có sẽ tự động xếp theo lịch phòng khám hoạt động + kinh nghiệm + thói quen 1-2 tuần)
   const actualAssignments = getWeeklyAssignments(data.weeklySchedule, weekStart);
+  const effectiveLeaves = getEffectiveLeaveRequests(data);
+  const clinicSync =
+    actualAssignments.length === 0
+      ? await fetchEffectivePositionRulesForWeek(
+          weekStart,
+          data.positions,
+          data.positionRules,
+          { weeklySchedule: data.weeklySchedule },
+        )
+      : null;
+
   const displayedAssignments =
     actualAssignments.length > 0
       ? actualAssignments
-      : buildAssignmentsFromTemplate(
-          data.templateSchedule,
-          data.positions,
+      : buildSmartWeeklyAssignments({
+          templateSchedule: data.templateSchedule,
+          positions: data.positions,
+          staff: data.staff,
+          weeklySchedule: data.weeklySchedule,
           weekStart,
-          data.leaveRequests,
-          data.scheduleRules,
-          data.positionRules,
-          data.holidays,
-        );
+          leaveRequests: effectiveLeaves,
+          scheduleRules: data.scheduleRules,
+          positionRules: clinicSync?.effectivePositionRules ?? data.positionRules,
+          holidays: data.holidays,
+          initialStatus: "draft",
+          forceOpenPositionSlots: clinicSync?.forceOpenPositionSlots,
+        });
 
   const prevWeek = format(subDays(parseISO(weekStart), 7), "yyyy-MM-dd");
   const nextWeek = format(addDays(parseISO(weekStart), 7), "yyyy-MM-dd");
@@ -101,10 +127,11 @@ export default async function RoomAssignmentPage({
           scheduleRules={data.scheduleRules}
           holidays={data.holidays}
           templateSchedule={data.templateSchedule}
-          positionRules={data.positionRules}
+          positionRules={clinicSync?.effectivePositionRules ?? data.positionRules}
           initialAssignments={displayedAssignments}
           editable={editable}
           canSmartAdjust={canSmartAdjust}
+          initialOpenAdjust={openAdjust === "1" && canSmartAdjust}
         />
       </main>
     </div>

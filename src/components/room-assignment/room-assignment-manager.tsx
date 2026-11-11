@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import {
   ArrowDown,
   ArrowUp,
@@ -57,6 +57,7 @@ interface RoomAssignmentManagerProps {
   initialAssignments: WeeklyAssignment[];
   editable?: boolean;
   canSmartAdjust?: boolean;
+  initialOpenAdjust?: boolean;
 }
 
 interface PendingWarningState {
@@ -81,12 +82,19 @@ export function RoomAssignmentManager({
   initialAssignments,
   editable = true,
   canSmartAdjust = false,
+  initialOpenAdjust = false,
 }: RoomAssignmentManagerProps) {
   // [QWEN3] Chế độ xem: "room-matrix" (Ma trận Phân Phòng Theo Ca - Chuẩn mẫu ảnh) hoặc "staff-matrix" (Theo nhân sự)
   const [viewMode, setViewMode] = useState<"room-matrix" | "staff-matrix">("room-matrix");
 
   // State mở popup Điều chỉnh lịch & Xuất Excel AI thông minh
-  const [isSmartAdjustOpen, setIsSmartAdjustOpen] = useState(false);
+  const [isSmartAdjustOpen, setIsSmartAdjustOpen] = useState(Boolean(initialOpenAdjust && canSmartAdjust));
+
+  useEffect(() => {
+    if (initialOpenAdjust && canSmartAdjust) {
+      setIsSmartAdjustOpen(true);
+    }
+  }, [initialOpenAdjust, canSmartAdjust]);
 
   // Tìm kiếm phòng trong ma trận phòng
   const [roomSearch, setRoomSearch] = useState("");

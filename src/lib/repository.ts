@@ -7,7 +7,8 @@ import {
   writeAppDataKeysToSheets,
 } from "@/lib/google-sheets";
 import { MOCK_DATA } from "@/lib/mock-data";
-import { buildAssignmentsFromTemplate } from "@/lib/schedule";
+import { fetchEffectivePositionRulesForWeek } from "@/lib/clinic-schedule-api";
+import { buildSmartWeeklyAssignments } from "@/lib/schedule";
 import { isPastShift } from "@/lib/date";
 import type {
   AccessControlEntry,
@@ -460,6 +461,36 @@ export async function applyPrioritizedStaffToTemplate() {
   return data.templateSchedule;
 }
 
+async function createSmartWeekRows(
+  data: AppData,
+  weekStart: string,
+  initialStatus: WeeklyAssignment["status"] = "draft",
+): Promise<WeeklyAssignment[]> {
+  const effectiveLeaves = getEffectiveLeaveRequests(data);
+  const clinicSync = await fetchEffectivePositionRulesForWeek(
+    weekStart,
+    data.positions,
+    data.positionRules,
+    { weeklySchedule: data.weeklySchedule },
+  );
+  return buildSmartWeeklyAssignments({
+    templateSchedule: data.templateSchedule,
+    positions: data.positions,
+    staff: data.staff,
+    weeklySchedule: data.weeklySchedule,
+    weekStart,
+    leaveRequests: effectiveLeaves,
+    scheduleRules: data.scheduleRules,
+    positionRules: clinicSync.effectivePositionRules,
+    holidays: data.holidays,
+    initialStatus,
+    forceOpenPositionSlots: clinicSync.forceOpenPositionSlots,
+  }).map((item) => ({
+    ...item,
+    id: generateId("weekly"),
+  }));
+}
+
 export async function upsertWeeklyAssignment(
   input: Omit<WeeklyAssignment, "id" | "source"> & {
     id?: string;
@@ -474,20 +505,7 @@ export async function upsertWeeklyAssignment(
 
   const weekAssignments = data.weeklySchedule.filter((item) => item.weekStart === input.weekStart);
   if (weekAssignments.length === 0) {
-    const effectiveLeaves = getEffectiveLeaveRequests(data);
-    const generated = buildAssignmentsFromTemplate(
-      data.templateSchedule,
-      data.positions,
-      input.weekStart,
-      effectiveLeaves,
-      data.scheduleRules,
-      data.positionRules,
-      data.holidays,
-    ).map((item) => ({
-      ...item,
-      id: generateId("weekly")
-    }));
-    data.weeklySchedule.push(...generated);
+    data.weeklySchedule.push(...(await createSmartWeekRows(data, input.weekStart, "draft")));
   }
 
   const existing = data.weeklySchedule.find(
@@ -651,21 +669,12 @@ export async function upsertManyPositionRules(rules: (Omit<PositionRule, "id"> &
   return rules;
 }
 
-export async function generateWeekFromTemplate(weekStart: string) {
+export async function generateWeekFromTemplate(
+  weekStart: string,
+  initialStatus: WeeklyAssignment["status"] = "draft",
+) {
   const data = await getAppData();
-  const effectiveLeaves = getEffectiveLeaveRequests(data);
-  const generated = buildAssignmentsFromTemplate(
-    data.templateSchedule,
-    data.positions,
-    weekStart,
-    effectiveLeaves,
-    data.scheduleRules,
-    data.positionRules,
-    data.holidays,
-  ).map((item) => ({
-    ...item,
-    id: generateId("weekly")
-  }));
+  const generated = await createSmartWeekRows(data, weekStart, initialStatus);
 
   const remaining = data.weeklySchedule.filter((item) => item.weekStart !== weekStart);
   data.weeklySchedule = [...remaining, ...generated];
@@ -784,20 +793,7 @@ export async function copyWeeklyPositionAssignments({
   // 1. Nếu tuần đích trống, sinh lịch tuần đó trước
   const weekAssignments = data.weeklySchedule.filter((item) => item.weekStart === weekStart);
   if (weekAssignments.length === 0) {
-    const effectiveLeaves = getEffectiveLeaveRequests(data);
-    const generated = buildAssignmentsFromTemplate(
-      data.templateSchedule,
-      data.positions,
-      weekStart,
-      effectiveLeaves,
-      data.scheduleRules,
-      data.positionRules,
-      data.holidays,
-    ).map((item) => ({
-      ...item,
-      id: generateId("weekly")
-    }));
-    data.weeklySchedule.push(...generated);
+    data.weeklySchedule.push(...(await createSmartWeekRows(data, weekStart, "draft")));
   }
 
   // 2. Tìm danh sách phân công NGUỒN
@@ -869,20 +865,7 @@ export async function syncWeeklyAssignments({
   // Đảm bảo tuần đã được sinh nếu là lần đầu tiên
   const weekAssignments = data.weeklySchedule.filter((item) => item.weekStart === weekStart);
   if (weekAssignments.length === 0) {
-    const effectiveLeaves = getEffectiveLeaveRequests(data);
-    const generated = buildAssignmentsFromTemplate(
-      data.templateSchedule,
-      data.positions,
-      weekStart,
-      effectiveLeaves,
-      data.scheduleRules,
-      data.positionRules,
-      data.holidays,
-    ).map((item) => ({
-      ...item,
-      id: generateId("weekly")
-    }));
-    data.weeklySchedule.push(...generated);
+    data.weeklySchedule.push(...(await createSmartWeekRows(data, weekStart, "draft")));
   }
 
   // Lọc xóa các assignment cũ của position/shift/date này
@@ -958,20 +941,7 @@ export async function syncSlotWeeklyAssignments({
   // Đảm bảo tuần đã được sinh nếu là lần đầu tiên
   const weekAssignments = data.weeklySchedule.filter((item) => item.weekStart === weekStart);
   if (weekAssignments.length === 0) {
-    const effectiveLeaves = getEffectiveLeaveRequests(data);
-    const generated = buildAssignmentsFromTemplate(
-      data.templateSchedule,
-      data.positions,
-      weekStart,
-      effectiveLeaves,
-      data.scheduleRules,
-      data.positionRules,
-      data.holidays,
-    ).map((item) => ({
-      ...item,
-      id: generateId("weekly"),
-    }));
-    data.weeklySchedule.push(...generated);
+    data.weeklySchedule.push(...(await createSmartWeekRows(data, weekStart, "draft")));
   }
 
   // Lọc xóa các assignment cũ của ca này
@@ -1021,20 +991,7 @@ export async function syncWeekWeeklyAssignments({
   // Đảm bảo tuần đã được sinh nếu là lần đầu tiên
   const weekAssignments = data.weeklySchedule.filter((item) => item.weekStart === weekStart);
   if (weekAssignments.length === 0) {
-    const effectiveLeaves = getEffectiveLeaveRequests(data);
-    const generated = buildAssignmentsFromTemplate(
-      data.templateSchedule,
-      data.positions,
-      weekStart,
-      effectiveLeaves,
-      data.scheduleRules,
-      data.positionRules,
-      data.holidays,
-    ).map((item) => ({
-      ...item,
-      id: generateId("weekly"),
-    }));
-    data.weeklySchedule.push(...generated);
+    data.weeklySchedule.push(...(await createSmartWeekRows(data, weekStart, "draft")));
   }
 
   const targetSlots = new Set(slots.map((s) => `${s.date}_${s.shift}`));

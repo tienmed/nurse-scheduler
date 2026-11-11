@@ -73,15 +73,35 @@
 - **Bối cảnh & Nghiệp vụ:** Điều phối các vị trí then chốt (Tiếp nhận, Hồ sơ thời vụ, Hành chính KHNV).
 - **Quy tắc bắt buộc:**
   1. **Tiếp nhận (Sảnh):**
-     - **Vị trí Tiếp nhận chỉ cần đúng 2 nhân sự** trong một ca làm việc (không cần phân bổ dư thừa 3 người).
-     - **Phúc Anh (DD20)** và **Lyna (Lưu Đào Marry Lyna - DD21)** là 2 nhân sự CHÍNH ở vị trí Tiếp nhận.
-     - Luôn phải có ít nhất 1 trong 2 người trực tại vị trí Tiếp nhận trong mọi ca làm việc.
-     - Khi **cả 2 cùng nghỉ** trong cùng một ngày/ca, hệ thống BẮT BUỘC phải phát cảnh báo nghiêm trọng.
-     - **Thủy (Trần Thanh Thủy - DD11)** là nhân sự HỖ TRỢ tiếp nhận tạm thời trong tháng này khi có người vắng.
+     - **Vị trí Tiếp nhận đúng 2 nhân sự/ca** (không bố trí dư 3 người).
+     - Hiện thời **xoay đều giữa 3 điều dưỡng: Lyna (DD21), Phúc Anh (DD20), Thủy (DD11)** để đảm bảo công bằng và sẵn sàng thay thế khi 1 người vắng.
+     - Khi có ≥ 2 người trong nhóm xoay nghỉ cùng ca mới bổ sung người khác và phát cảnh báo.
   2. **Làm hồ sơ thời vụ (Nhập liệu KSK):**
      - **Thịnh (Nguyễn Phú Thịnh - DD10)** chỉ làm công việc hồ sơ theo thời vụ; các tuần tiếp theo vẫn tiếp tục duy trì làm hồ sơ (không điều chuyển sang phòng khám lâm sàng).
   3. **Hành chính KHNV:**
      - **Tú Trang (Đặng Lê Tú Trang - DD01)** CHỈ làm những công việc hành chính tại phòng KHNV (không điều động sang làm hồ sơ KSK hay tiếp nhận).
+  4. **Cặp phòng Chăm sóc da (P2.4) & Da liễu (P2.6):**
+     - `Phòng Chăm sóc da (P2.4)` đi theo lịch hoạt động của phòng `Da Liễu`.
+     - Mặc nhiên phân công cho **Mỹ Nhiên (Đoàn Thị Mỹ Nhiên - DD06)** kiêm cả 2 phòng này khi đi làm; chỉ phân điều dưỡng khác vào 2 phòng này khi Mỹ Nhiên nghỉ phép/vắng trong ca đó.
+     - Khi cần người hỗ trợ thay thế Mỹ Nhiên, **Chăm sóc da (P2.4) và Da liễu (P2.6) vẫn phải đi đồng bộ cùng 1 điều dưỡng** trong cùng ca (không tách 2 người khác nhau).
+  5. **Siêu âm (P1.6), Cấp cứu (P1.7), ECG (P1.8), Phòng khám Chuyên gia, Thanh Trùng & RHM:**
+     - **Siêu âm (P1.6), Cấp cứu (P1.7), Đo ECG (P1.8):** Thường trực tất cả các ngày/buổi phòng khám có làm việc (không tắt theo `schedule-embed`).
+     - **Siêu âm (P1.6):** Thường trực mặc nhiên là **Bích Thảo (DD09)**; có thêm **Lyna (DD21)** hỗ trợ khi cần.
+     - **Phòng khám Chuyên gia:** Thường trực mặc nhiên là **Kim Hoa (DD03)**.
+     - **Thanh Trùng & Phòng khám YHCT (P2.5):** Thường trực mặc nhiên là **ĐD Nhân (Lê Thị Nhân - DD16)** (tránh nhầm Đặng Nhân Nghĩa - DD17); khi ĐD Nhân nghỉ phép hoặc cần thay đổi sẽ có **Điệp (Nguyễn Thị Ngọc Điệp - DD07)** hỗ trợ.
+     - **Phòng cấp cứu (P1.7) & Phòng đo ECG (P1.8):** Thường trực mặc nhiên là **Ngọc Hạnh (DD02)**.
+     - **Phòng khám CTCH (P1.9) & Phòng khám Nội 1 (P.13):** Thường trực mặc nhiên là **Nga (Nhữ Thị Phương Nga - DD04)**.
+     - **Phòng khám Phụ - Sản (P1.12), Phòng khám Ngoại (P1.11) & Phòng khám Nội 2 (P1.10):** Thường trực mặc nhiên là **Vĩnh (Nguyễn Thị Vĩnh - DD05)**.
+     - **Thứ tự ưu tiên khi cần người thay thế — Tâm thần kinh - Tâm lý, Mắt (P2.3), Da liễu (P2.6) & TMH (P2.7):**
+       - Tâm thần kinh - Tâm lý: **Điệp (DD07) → Thủy (DD11) → Ái Liên (DD12) → Chuyền (DD08)**.
+       - Mắt: **Chuyền (DD08) → Thủy (DD11) → Ái Liên (DD12)**.
+       - Da liễu & CSD: **Mỹ Nhiên (DD06) → Ái Liên (DD12) → Thủy (DD11)** (đi đồng bộ cả 2 phòng).
+       - TMH: **Điệp (DD07) → Ái Liên (DD12) → Thủy (DD11) → Chuyền (DD08)**.
+     - **Nhóm phòng ít bệnh (tính 0.5 đơn vị tải kiêm nhiệm):** `Phòng khám Ngoại (P1.11)`, `Phòng khám Chuyên gia`, `Dị ứng - Miễn dịch`, `Nội thần kinh (P2.2)`, `Phòng khám Phụ - Sản / Phụ khoa (P1.12)` — ưu tiên ghép kiêm nhiệm cho điều dưỡng lân cận/tải nhẹ thay vì kéo người đang trực phòng đông bệnh.
+     - **Phòng khám RHM (KTC):** Bỏ khỏi lịch phân phòng điều dưỡng tự động và email tuần.
+  6. **Bảo toàn lịch tuần đã chốt & dự tính mở phòng tuần sau (`schedule-embed`):**
+     - Lịch tuần hiện tại đã chốt trên Google Sheets giữ nguyên, tuyệt đối không ghi đè tự động.
+     - Khi dự tính lịch tuần sau: nếu `nhansu/schedule-embed` tuần sau có lịch bác sĩ thì áp dụng lịch đó; nếu chưa có lịch bác sĩ thì tự động áp **lịch mở phòng của tuần hiện tại** (`weekStart - 7 ngày`).
 - **Phạm vi:** [Schedule Rules | Room Assignment | AI Integration]
 
 ---
@@ -102,6 +122,16 @@
      - **Nguyên tắc chia đều khi kiêm nhiệm nhiều vị trí:** Nếu một điều dưỡng phụ trách $n$ vị trí trong cùng 1 ca trực, thì 4 giờ làm việc được chia đều cho $n$ vị trí đó (mỗi vị trí tích lũy $\frac{4}{n}$ giờ kinh nghiệm). Tổng thời gian làm việc thực tế của ca trực luôn bảo toàn đúng 4 giờ.
      - Bảng ma trận tích lũy kinh nghiệm theo lịch sử phân công vị trí (`weeklySchedule`) là cơ sở định lượng để xác định nhân sự "quen thuộc nhất" với từng vị trí công việc khi điều phối chi viện.
 - **Phạm vi:** [Schedule Rules | Room Assignment | Workload Reports | AI Integration]
+
+---
+
+### [P0-RULES-03] Phạm Vi & Giới Hạn Của Nội Dung Góp Ý / Điều Chỉnh Lịch Tuần Sau
+- **Ngày ghi nhận:** 2026-11-11
+- **Bối cảnh & Nghiệp vụ:** Trong email gửi sáng Chủ nhật có nút `[✏️ Góp ý / Điều chỉnh lịch tuần sau →]` trỏ tới `/room-assignment?week=YYYY-MM-DD&openAdjust=1`. Khi người dùng click vào, giao diện sẽ mở cửa sổ đề xuất điều chỉnh thông minh bằng AI.
+- **Quy tắc bắt buộc:**
+  - **Chỉ phục vụ tham khảo cục bộ:** Nội dung phản hồi/góp ý trong biểu mẫu này CHỈ để AI và người điều phối tham khảo đưa ra các gợi ý hoán đổi ca cho riêng tuần được chỉ định.
+  - **Không biến thành kinh nghiệm hay quy tắc chung:** Tuyệt đối KHÔNG đưa nội dung góp ý từ form này vào bảng tính kinh nghiệm giờ làm tích lũy (`calculatePositionExperienceStats` / `experienceLookup`) và KHÔNG tự động biến thành quy tắc bất biến chung (`FIXED_ROOM_STAFF_RULES` / `positionRules`) cho các tuần khác.
+- **Phạm vi:** [Schedule Rules | Room Assignment | AI Integration | Email Notification]
 
 ---
 

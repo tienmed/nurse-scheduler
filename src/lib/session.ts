@@ -13,9 +13,17 @@ interface OptionalUserContext {
   user: SessionUser | null;
 }
 
-export async function getUserContext(options?: { required?: true }): Promise<RequiredUserContext>;
-export async function getUserContext(options: { required: false }): Promise<OptionalUserContext>;
-export async function getUserContext(options: { required?: boolean } = {}) {
+export async function getUserContext(options?: {
+  required?: true;
+  callbackUrl?: string;
+}): Promise<RequiredUserContext>;
+export async function getUserContext(options: {
+  required: false;
+  callbackUrl?: string;
+}): Promise<OptionalUserContext>;
+export async function getUserContext(
+  options: { required?: boolean; callbackUrl?: string } = {},
+) {
   // Nếu chưa cấu hình Google OAuth trong biến môi trường, dùng tài khoản admin@nurseflow.local mặc định để phát triển
   if (!isAuthConfigured()) {
     return {
@@ -33,7 +41,10 @@ export async function getUserContext(options: { required?: boolean } = {}) {
   const session = await auth();
   if (!session?.user) {
     if (options.required ?? true) {
-      redirect("/sign-in");
+      const signInUrl = options.callbackUrl
+        ? `/sign-in?callbackUrl=${encodeURIComponent(options.callbackUrl)}`
+        : "/sign-in";
+      redirect(signInUrl);
     }
 
     return {

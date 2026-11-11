@@ -3,8 +3,13 @@ import { parseISO, format, addDays } from "date-fns";
 import { getAppData } from "@/lib/repository";
 import { getUserContext } from "@/lib/session";
 import { isPastShift, getWeekStart, getNextWeekStart } from "@/lib/date";
-import { buildAssignmentsFromTemplate } from "@/lib/schedule";
-import { isStudyStaff } from "@/lib/study-staff";
+import { fetchEffectivePositionRulesForWeek } from "@/lib/clinic-schedule-api";
+import {
+  buildExperienceHoursLookup,
+  buildRecentHabitStats,
+  buildSmartWeeklyAssignments,
+  isAssignableNursingStaff,
+} from "@/lib/schedule";
 import { aiService } from "@/lib/ai-service";
 import type { WeeklyAssignment, StaffMember, Position, ShiftType } from "@/lib/types";
 
@@ -99,21 +104,34 @@ export async function POST(request: NextRequest) {
     if (assignments.length === 0) {
       assignments = data.weeklySchedule.filter((w) => w.weekStart === targetWeekStart);
       if (assignments.length === 0) {
-        assignments = buildAssignmentsFromTemplate(
-          data.templateSchedule,
-          data.positions,
+        const clinicSync = await fetchEffectivePositionRulesForWeek(
           targetWeekStart,
-          data.leaveRequests,
-          data.scheduleRules,
+          data.positions,
           data.positionRules,
-          data.holidays,
+          { weeklySchedule: data.weeklySchedule },
         );
+        assignments = buildSmartWeeklyAssignments({
+          templateSchedule: data.templateSchedule,
+          positions: data.positions,
+          staff: data.staff,
+          weeklySchedule: data.weeklySchedule,
+          weekStart: targetWeekStart,
+          leaveRequests: data.leaveRequests,
+          scheduleRules: data.scheduleRules,
+          positionRules: clinicSync.effectivePositionRules,
+          holidays: data.holidays,
+          initialStatus: "draft",
+          forceOpenPositionSlots: clinicSync.forceOpenPositionSlots,
+        });
       }
     }
 
+    const expLookup = buildExperienceHoursLookup(data.weeklySchedule, data.staff, data.positions, targetWeekStart);
+    const habitStats = buildRecentHabitStats(data.weeklySchedule, targetWeekStart);
+
     // 3. Xây dựng prompt cho AI Qwen3 để phân tích góp ý và gợi ý hoán đổi
     const staffListSummary = data.staff
-      .filter((s) => s.active)
+      .filter(isAssignableNursingStaff)
       .map((s) => `- ${s.name} (${getStaffShortName(s.name)}): Vị trí [${s.positionIds.map((pid) => posMap.get(pid)?.name || pid).join(", ")}]`)
       .join("\n");
 
@@ -129,14 +147,35 @@ export async function POST(request: NextRequest) {
     const systemPrompt = `Bạn là Trợ lý Điều phối Lịch Y tế QWEN3 cho phòng khám NurseFlow.
 Hãy phân tích nội dung góp ý của Điều phối viên để điều chỉnh lịch phân phòng trực tuần.
 
+NGUYÊN TẮC QUAN TRỌNG VỀ GÓP Ý / ĐIỀU CHỈNH:
+- Nội dung góp ý từ liên kết email chỉ mang tính chất tham khảo cục bộ cho phiên điều chỉnh lịch của riêng tuần được chọn (${targetWeekStart}).
+- TUYỆT ĐỐI KHÔNG đưa nội dung góp ý này vào kho kinh nghiệm tích lũy lâu dài hay suy diễn thành quy tắc chung cho toàn hệ thống.
+- Chỉ đưa ra các đề xuất hoán đổi ca (changes) thực sự cần thiết và hợp lý cho tuần này.
+
 QUY TẮC BẮT BUỘC (TUÂN THỦ 100%):
 1. VỊ TRÍ TIẾP NHẬN: CHỈ CẦN ĐÚNG 2 NHÂN SỰ cho mỗi ca trực (không bố trí 3 người).
-   - Phúc Anh và Lyna là 2 vị trí CHÍNH. Luôn phải có ít nhất 1 trong 2 người trực Tiếp nhận.
-   - Khi cả 2 người này cùng nghỉ thì BẮT BUỘC phải phát cảnh báo nghiêm trọng.
-   - Trần Thanh Thủy (Thủy) là vị trí HỖ TRỢ tiếp nhận tạm trong tháng này (khi cần hoặc khi có 1 trong 2 người chính nghỉ).
+   - Hiện thời xoay đều giữa 3 điều dưỡng: Lyna, Phúc Anh, Thủy (2 người/ca).
+   - Nếu 1 người nghỉ phép thì 2 người còn lại trong bộ 3 trực Tiếp nhận; khi cả nhóm vắng nhiều mới bổ sung điều dưỡng khác và phát cảnh báo.
 2. NGUYỄN PHÚ THỊNH: Chỉ làm hồ sơ theo thời vụ (vị trí Nhập liệu KSK), tuần tiếp theo vẫn tiếp tục làm hồ sơ.
 3. ĐẶNG LÊ TÚ TRANG: CHỈ làm những việc hành chính tại phòng KHNV, tuyệt đối không điều động sang vị trí khác.
-4. ĐIỀU PHỐI DỰ PHÒNG KHNV & GIẢI PHÓNG ĐO SINH HIỆU KHI QUÁ TẢI (>= 4 VỊ TRÍ):
+4. CẶP PHÒNG CHĂM SÓC DA (P2.4) & DA LIỄU (P2.6):
+   - Mặc nhiên phân công cho ĐOÀN THỊ MỸ NHIÊN (Mỹ Nhiên) kiêm cả 2 phòng này khi đi làm.
+   - Chỉ phân điều dưỡng khác vào 2 phòng này khi Mỹ Nhiên có lịch nghỉ phép/ốm/đi học trong ca đó.
+   - Kể cả khi Mỹ Nhiên nghỉ cần người hỗ trợ thay thế, Chăm sóc da (P2.4) và Da liễu (P2.6) VẪN PHẢI đi ĐỒNG BỘ cùng 1 điều dưỡng trong cùng ca (không tách 2 người khác nhau).
+5. CÁC PHÒNG CỐ ĐỊNH ĐIỀU DƯỠNG THƯỜNG TRỰC:
+   - Phòng Siêu âm (P1.6): thường trực mặc nhiên là Bích Thảo; có thêm Lyna hỗ trợ khi cần (hoặc khi Bích Thảo nghỉ).
+   - Phòng khám Chuyên gia: thường trực mặc nhiên là Kim Hoa (chỉ phân người khác khi Kim Hoa nghỉ hoặc quá tải).
+   - Thanh Trùng & Phòng khám YHCT (P2.5): mặc nhiên là ĐD Nhân (Lê Thị Nhân - DD16); khi ĐD Nhân nghỉ phép hoặc cần thay đổi sẽ có Điệp (Nguyễn Thị Ngọc Điệp - DD07) hỗ trợ.
+   - Phòng cấp cứu (P1.7) & Phòng đo ECG (P1.8): mặc nhiên là Ngọc Hạnh (DD02).
+   - Phòng khám CTCH (P1.9) & Phòng khám Nội 1 (P.13): mặc nhiên là Nga (Nhữ Thị Phương Nga - DD04).
+   - Phòng khám Phụ - Sản (P1.12), Phòng khám Ngoại (P1.11) & Phòng khám Nội 2 (P1.10): mặc nhiên là Vĩnh (Nguyễn Thị Vĩnh - DD05).
+   - Phòng khám Tâm thần kinh - Tâm lý: thứ tự ưu tiên Điệp -> Thủy -> Ái -> Chuyền (khi cần người thay thế).
+   - Phòng khám Mắt (P2.3): thứ tự ưu tiên Chuyền -> Thủy -> Ái (khi cần người thay thế).
+   - Da liễu & Chăm sóc da: mặc nhiên Nhiên; khi Nhiên nghỉ ưu tiên đồng bộ Ái -> Thủy.
+   - Phòng khám TMH (P2.7): thứ tự ưu tiên Điệp -> Ái -> Thủy -> Chuyền (khi cần người thay thế).
+   - Nhóm PHÒNG ÍT BỆNH (Ngoại P1.11, Chuyên gia, Dị ứng - Miễn dịch, Nội thần kinh P2.2, Phụ khoa / Phụ - Sản P1.12): lượng bệnh ít, ưu tiên ghép kiêm nhiệm cho điều dưỡng khu vực lân cận hoặc người giữ tải nhẹ (tính 0.5 tải), tránh kéo người đang gánh phòng đông bệnh.
+   - Bỏ Phòng khám RHM (KTC), không xếp lịch vào vị trí này.
+6. ĐIỀU PHỐI DỰ PHÒNG KHNV & GIẢI PHÓNG ĐO SINH HIỆU KHI QUÁ TẢI (>= 4 VỊ TRÍ):
    - Thiên Trang và ĐD Nghĩa (nghiadn.pk@pnt.edu.vn) làm việc toàn thời gian tại phòng KHNV.
    - Khi có nhân sự bị quá tải (phụ trách >= 4 vị trí trong 1 ca): Kích hoạt điều động hỗ trợ.
    - Vị trí Đo sinh hiệu thông thường có 2 nhân sự.
@@ -216,9 +255,10 @@ Số lượng phân công hiện thời: ${assignments.length} ca.
         );
         const targetStaff = data.staff.find(
           (s) =>
-            s.id === ch.newStaffId ||
-            s.name.toLowerCase() === (ch.newStaffName || "").toLowerCase() ||
-            getStaffShortName(s.name).toLowerCase() === (ch.newStaffName || "").toLowerCase(),
+            isAssignableNursingStaff(s) &&
+            (s.id === ch.newStaffId ||
+              s.name.toLowerCase() === (ch.newStaffName || "").toLowerCase() ||
+              getStaffShortName(s.name).toLowerCase() === (ch.newStaffName || "").toLowerCase()),
         );
 
         if (targetPos && targetStaff) {
@@ -360,15 +400,16 @@ Số lượng phân công hiện thời: ${assignments.length} ca.
             );
 
             if (vitalsAssignments.length > 0) {
-              // Trong các nhân sự đo sinh hiệu, chọn người quen thuộc nhất với vị trí quá tải (ưu tiên người có positionIds hoặc đã từng làm)
+              // Trong các nhân sự đo sinh hiệu, chọn người có kinh nghiệm tích lũy & thói quen gần đây cao nhất với vị trí quá tải
               let bestVitalsAssignment = vitalsAssignments[0];
               let bestScore = -1;
 
               for (const va of vitalsAssignments) {
                 const vStaff = staffMap.get(va.staffId);
                 if (!vStaff) continue;
-                let score = 0;
-                if (vStaff.positionIds.includes(relievedPos.id)) score += 10;
+                const expHours = expLookup.get(vStaff.id)?.get(relievedPos.id) ?? 0;
+                const recentHabit = habitStats.positionWeightMap.get(`${relievedPos.id}_${vStaff.id}`) ?? 0;
+                const score = expHours * 2 + recentHabit * 10 + (vStaff.positionIds.includes(relievedPos.id) ? 5 : 0);
                 if (score > bestScore) {
                   bestScore = score;
                   bestVitalsAssignment = va;
@@ -377,20 +418,27 @@ Số lượng phân công hiện thời: ${assignments.length} ca.
 
               const staffToTransfer = staffMap.get(bestVitalsAssignment.staffId);
               if (staffToTransfer && staffToTransfer.id !== staffId) {
-                // Xác định nhân sự KHNV thay thế: Ưu tiên Nghĩa (nếu không bận phép/học), sau đó tới Thiên Trang
+                // Xác định nhân sự KHNV thay thế: Ưu tiên Nghĩa (nếu không nghỉ phép hoặc đi học trong ca này), sau đó tới Thiên Trang
                 let khnvStaff: StaffMember | undefined;
                 const nghiaLeave = nghiaStaff
                   ? data.leaveRequests.find(
-                      (l) => l.staffId === nghiaStaff.id && l.date === date && (l.shift === "full-day" || l.shift === shift),
+                      (l) =>
+                        l.staffId === nghiaStaff.id &&
+                        l.date === date &&
+                        (l.shift === "full-day" || l.shift === shift) &&
+                        l.status !== "rejected",
                     )
                   : null;
-                const isNghiaStudying = nghiaStaff ? isStudyStaff(nghiaStaff) : false;
 
-                if (nghiaStaff && !nghiaLeave && !isNghiaStudying) {
+                if (nghiaStaff && !nghiaLeave) {
                   khnvStaff = nghiaStaff;
                 } else if (thienTrangStaff) {
                   const trangLeave = data.leaveRequests.find(
-                    (l) => l.staffId === thienTrangStaff.id && l.date === date && (l.shift === "full-day" || l.shift === shift),
+                    (l) =>
+                      l.staffId === thienTrangStaff.id &&
+                      l.date === date &&
+                      (l.shift === "full-day" || l.shift === shift) &&
+                      l.status !== "rejected",
                   );
                   if (!trangLeave) khnvStaff = thienTrangStaff;
                 }
