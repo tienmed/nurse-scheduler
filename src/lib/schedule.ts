@@ -659,8 +659,18 @@ export function buildSmartWeeklyAssignments({
         .filter((t) => t.positionId === pos.id)
         .sort((a, b) => (a.slotIndex ?? 0) - (b.slotIndex ?? 0));
 
+      const thinhMember = activeStaff.find(isThinhStaff);
       const isForceOpen = Boolean(forceOpenPositionSlots?.has(`${rule.dayOfWeek}-${rule.shift}-${pos.id}`));
-      if (templateSchedule.length > 0 && tEntries.length === 0 && !isAlwaysOpenOperationalPosition(pos) && !isForceOpen) {
+      if (isKskRecordPosition(pos) && thinhMember) {
+        if (leaveChecker.check(thinhMember.id, date, rule.shift)) {
+          continue; // Thịnh nghỉ phép -> tạm nghỉ Nhập liệu KSK ca này, không kéo điều dưỡng lâm sàng sang
+        }
+      } else if (
+        templateSchedule.length > 0 &&
+        tEntries.length === 0 &&
+        !isAlwaysOpenOperationalPosition(pos) &&
+        !isForceOpen
+      ) {
         continue;
       }
 
@@ -799,6 +809,15 @@ export function buildSmartWeeklyAssignments({
               score += 8000 - tnCount * 400;
             } else if (candidates.some((c) => isTiepNhanRotationStaff(c))) {
               score -= 2000;
+            }
+          }
+
+          // 5a. Quy tắc đặc biệt Nhập liệu KSK: Thịnh là nhân sự thời vụ chuyên trách hồ sơ KSK
+          if (isKskRecordPosition(position)) {
+            if (isThinhStaff(member)) {
+              score += 8000;
+            } else if (candidates.some((c) => isThinhStaff(c))) {
+              score -= 3000;
             }
           }
 

@@ -879,4 +879,56 @@ describe("Smart Weekly Schedule, Confirm Token & Email HTML", () => {
     const hoaSuggestion = suggestions.find((s) => s.staff.id === "st-hoa");
     expect(hoaSuggestion?.reasons.some((r) => r.includes("Phòng ít bệnh"))).toBe(true);
   });
+
+  it("tự động xếp Thịnh vào Nhập liệu KSK kể cả khi thiếu trong templateSchedule và bỏ qua ca Thịnh nghỉ phép", () => {
+    const kskStaff: StaffMemberType[] = [
+      ...staff,
+      {
+        id: "st-thinh",
+        name: "Nguyễn Phú Thịnh",
+        code: "DD10",
+        email: "thinh@pnt.edu.vn",
+        role: "viewer",
+        positionIds: ["position-o-sinh-hieu"],
+        active: true,
+        prefersOvertime: true,
+      },
+    ];
+    const kskPositions: PositionType[] = [
+      { id: "position-nhap-lieu-ksk", name: "Nhập liệu KSK", area: "Hành chính", quota: 1 },
+      { id: "position-tiep-nhan", name: "Tiếp nhận", area: "Sảnh", quota: 2 },
+    ];
+    const tplWithoutKsk: TemplateAssignmentType[] = [
+      { id: "t-tn", dayOfWeek: 1, shift: "morning", positionId: "position-tiep-nhan", staffId: "st-lyna", slotIndex: 0 },
+    ];
+    const leaves: LeaveRecordType[] = [
+      {
+        id: "lv-thinh-mon",
+        staffId: "st-thinh",
+        date: "2026-11-16",
+        shift: "full-day",
+        reason: "phep",
+        status: "approved",
+      },
+    ];
+
+    const generated = buildSmartWeeklyAssignments({
+      templateSchedule: tplWithoutKsk,
+      positions: kskPositions,
+      staff: kskStaff,
+      weeklySchedule: [],
+      weekStart: "2026-11-16",
+      leaveRequests: leaves,
+      scheduleRules: DEFAULT_SCHEDULE_RULES,
+      positionRules: [],
+      holidays: [],
+      initialStatus: "draft",
+    });
+
+    const monKsk = generated.filter((g) => g.date === "2026-11-16" && g.positionId === "position-nhap-lieu-ksk");
+    const tueKsk = generated.filter((g) => g.date === "2026-11-17" && g.positionId === "position-nhap-lieu-ksk");
+    expect(monKsk).toHaveLength(0);
+    expect(tueKsk).toHaveLength(2);
+    expect(tueKsk.every((g) => g.staffId === "st-thinh")).toBe(true);
+  });
 });
