@@ -145,7 +145,7 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
                     Nhân viên
                   </th>
                   {daysArray.map((day) => (
-                    <th key={`${day.dateStr}-dow`} colSpan={2} className={`px-2 py-1 text-center font-medium border-b border-b-slate-200 border-r border-r-slate-200 text-xs text-slate-500 ${day.isOffDay ? "bg-amber-50/50 text-amber-700" : "bg-slate-100/50"}`}>
+                    <th key={`${day.dateStr}-dow`} colSpan={2} className={`px-2 py-1 text-center font-medium border-b border-b-slate-200 border-r border-r-slate-200 text-xs ${day.isOffDay ? "bg-amber-50/50 text-amber-700" : day.isWeekend ? "bg-slate-200/60 font-semibold text-slate-700" : "bg-slate-100/50 text-slate-500"}`}>
                       {day.dow}
                     </th>
                   ))}
@@ -161,14 +161,14 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
                 </tr>
                 <tr>
                   {daysArray.map((day) => (
-                    <th key={day.dateStr} colSpan={2} className={`px-2 py-2 text-center font-medium border-r border-slate-200 border-b border-b-slate-200 ${day.isOffDay ? "bg-slate-100" : ""}`}>
+                    <th key={day.dateStr} colSpan={2} className={`px-2 py-2 text-center font-medium border-r border-slate-200 border-b border-b-slate-200 ${day.isOffDay ? "bg-amber-50/30 text-amber-800" : day.isWeekend ? "bg-slate-100/80 text-slate-700" : ""}`}>
                       {day.label}
                     </th>
                   ))}
                 </tr>
                 <tr>
                   {daysArray.map((day) => (
-                    <td key={`${day.dateStr}-sub`} colSpan={2} className={`p-0 border-r border-slate-200 ${day.isOffDay ? "bg-slate-100" : ""}`}>
+                    <td key={`${day.dateStr}-sub`} colSpan={2} className={`p-0 border-r border-slate-200 ${day.isOffDay ? "bg-amber-50/20" : day.isWeekend ? "bg-slate-100/50" : ""}`}>
                       <div className="flex text-xs text-slate-400 font-medium w-[48px]">
                         <div className="flex-1 text-center border-r border-slate-200/60 py-1">S</div>
                         <div className="flex-1 text-center py-1">C</div>
@@ -195,7 +195,7 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
                         return val;
                       };
                       return (
-                        <td key={day.dateStr} colSpan={2} className={`p-0 border-r border-slate-200 ${day.isOffDay ? "bg-slate-50/50" : ""}`}>
+                        <td key={day.dateStr} colSpan={2} className={`p-0 border-r border-slate-200 ${day.isOffDay ? "bg-amber-50/20" : day.isWeekend ? "bg-slate-50/80" : ""}`}>
                           <div className="flex h-full w-full min-w-[48px] items-center text-center">
                             <div className="flex-1 border-r border-slate-200/50 min-h-[36px] h-full flex items-center justify-center">
                               {renderCell(data?.morning)}

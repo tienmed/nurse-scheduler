@@ -3,9 +3,10 @@ import { format, parseISO, addDays, isWithinInterval, startOfToday } from "date-
 import { vi } from "date-fns/locale";
 import { LEAVE_REASON_LABELS, LEAVE_SHIFT_LABELS } from "@/lib/constants";
 import type { LeaveReason, LeaveRecord, LeaveShift, StaffMember } from "@/lib/types";
+import { type LeaveSubstitutionPlan, renderSubstitutionPlanHtml } from "@/lib/substitution-logic";
 
-const ADMIN_APPROVER_EMAIL = "tienmed@gmail.com";
-const NOTIFY_BCC_EMAIL = "nghiadn.pk@pnt.edu.vn";
+export const ADMIN_APPROVER_EMAIL = "tienmed@gmail.com";
+export const NOTIFY_BCC_EMAIL = "nghiadn.pk@pnt.edu.vn";
 
 function getSmtpTransporter() {
   const smtpUser = process.env.SMTP_USER_NV;
@@ -60,6 +61,7 @@ export interface LeaveItemSummary {
   existingLeaveCount?: number;
   existingStaffNames?: string[];
   isQuotaExceeded?: boolean;
+  status?: "approved" | "pending";
 }
 
 export interface UpcomingLeavePreviewItem {
@@ -131,7 +133,7 @@ function renderUpcoming7DaysTableHtml(items?: UpcomingLeavePreviewItem[], baseUr
         const isMorning = item.shift === "morning";
         const isAfternoon = item.shift === "afternoon";
         const shiftCode = isMorning ? "S" : isAfternoon ? "C" : "CN";
-        const shiftBg = isMorning ? "#f59e0b" : isAfternoon ? "#2563eb" : "#7e22ce";
+        const shiftBg = isMorning ? "#f59e0b" : isAfternoon ? "#2563eb" : "#0f766e";
         const shiftDesc = isMorning ? "Sáng" : isAfternoon ? "Chiều" : "Cả ngày";
 
         let reasonBadge = `<span style="background-color:#dcfce7;color:#166534;padding:2px 6px;border-radius:4px;font-size:11px;font-weight:bold;border:1px solid #bbf7d0;">Phép</span>`;
@@ -210,6 +212,7 @@ export interface SendApprovalRequestEmailParams {
   hasUrgent: boolean;
   urgentNote?: string;
   upcoming7DaysLeaves?: UpcomingLeavePreviewItem[];
+  substitutionPlan?: LeaveSubstitutionPlan;
 }
 
 /**
@@ -229,12 +232,15 @@ export async function sendLeaveApprovalRequestEmail(
     return { success: false, error: errorMsg };
   }
 
-  const { staff, leaveItems, yearlyStats, approveToken, hasUrgent, urgentNote, upcoming7DaysLeaves } = params;
+  const { staff, leaveItems, yearlyStats, approveToken, hasUrgent, urgentNote, upcoming7DaysLeaves, substitutionPlan } = params;
   const baseUrl = getBaseUrl();
   const approveUrl = `${baseUrl}/api/leave/approve?token=${encodeURIComponent(approveToken)}`;
   const calendarUrl = `${baseUrl}/dang-ky-phep?tab=calendar`;
 
-  const subjectPrefix = hasUrgent ? "🚨 [CẤP THIẾT - CHỜ DUYỆT]" : "📋 [CHỜ DUYỆT]";
+  const hasSubstitutionItems = substitutionPlan?.hasIntraWeekSlots && substitutionPlan.items.length > 0;
+  const subjectPrefix = hasUrgent
+    ? (hasSubstitutionItems ? "🚨 [CẤP THIẾT & ĐIỀU PHỐI]" : "🚨 [CẤP THIẾT - CHỜ DUYỆT]")
+    : (hasSubstitutionItems ? "📋 [CHỜ DUYỆT & ĐIỀU PHỐI]" : "📋 [CHỜ DUYỆT]");
   const subject = `${subjectPrefix} Đơn xin nghỉ phép của ĐD ${staff.name} (${staff.code}) - ${leaveItems.length} ca`;
 
   // Render từng ca xin nghỉ thành các Thẻ Khối (Cards) 100% width, tự thích ứng trên Mobile
@@ -249,7 +255,7 @@ export async function sendLeaveApprovalRequestEmail(
       const isMorning = item.shift === "morning";
       const isAfternoon = item.shift === "afternoon";
       const shiftCode = isMorning ? "S" : isAfternoon ? "C" : "CN";
-      const shiftBg = isMorning ? "#f59e0b" : isAfternoon ? "#2563eb" : "#7e22ce";
+      const shiftBg = isMorning ? "#f59e0b" : isAfternoon ? "#2563eb" : "#0f766e";
 
       const reasonLabel = LEAVE_REASON_LABELS[item.reason] || item.reason;
       let reasonBadge = `<span style="background-color:#dcfce7;color:#166534;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:bold;border:1px solid #bbf7d0;">${reasonLabel}</span>`;
@@ -261,9 +267,14 @@ export async function sendLeaveApprovalRequestEmail(
         reasonBadge = `<span style="background-color:#f1f5f9;color:#334155;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:bold;border:1px solid #e2e8f0;">${reasonLabel}</span>`;
       }
 
-      const urgentBadge = item.isUrgent
-        ? `<span style="background-color:#fee2e2;color:#991b1b;padding:3px 8px;border-radius:9999px;font-size:10px;font-weight:bold;border:1px solid #fecaca;white-space:nowrap;">🚨 Cấp thiết</span>`
-        : `<span style="background-color:#f0fdf4;color:#166534;padding:3px 8px;border-radius:9999px;font-size:10px;font-weight:bold;border:1px solid #bbf7d0;white-space:nowrap;">Bình thường</span>`;
+      let statusBadge = "";
+      if (item.status === "approved") {
+        statusBadge = `<span style="background-color:#dcfce7;color:#166534;padding:3px 8px;border-radius:9999px;font-size:10px;font-weight:bold;border:1px solid #bbf7d0;white-space:nowrap;">✓ Đã tự động duyệt</span>`;
+      } else if (item.isUrgent) {
+        statusBadge = `<span style="background-color:#fee2e2;color:#991b1b;padding:3px 8px;border-radius:9999px;font-size:10px;font-weight:bold;border:1px solid #fecaca;white-space:nowrap;">🚨 Chờ duyệt cấp thiết</span>`;
+      } else {
+        statusBadge = `<span style="background-color:#fef3c7;color:#92400e;padding:3px 8px;border-radius:9999px;font-size:10px;font-weight:bold;border:1px solid #fde68a;white-space:nowrap;">⏳ Chờ Quản lý duyệt</span>`;
+      }
 
       // Phân tích định mức và hiển thị cảnh báo
       const count = item.existingLeaveCount ?? 0;
@@ -271,25 +282,26 @@ export async function sendLeaveApprovalRequestEmail(
         ? item.existingStaffNames.join(", ")
         : "";
 
+      const quotaLimit = item.reason === "dihoc" ? 3 : 2;
       let quotaHtml = "";
-      if (item.isQuotaExceeded || count >= 2) {
+      if (item.isQuotaExceeded || count >= quotaLimit) {
         quotaHtml = `
           <div style="background-color:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:6px 10px;color:#991b1b;font-size:12px;font-weight:bold;margin-top:5px;">
-            ⚠️ ${count}/2 (VƯỢT ĐỊNH MỨC NGHỈ/CA)
+            ⚠️ ${count}/${quotaLimit} (VƯỢT ĐỊNH MỨC NGHỈ/CA)
             ${names ? `<div style="font-weight:normal;font-size:11px;color:#7f1d1d;margin-top:2px;">Đã có: <strong>${names}</strong></div>` : ""}
           </div>
         `;
-      } else if (count === 1) {
+      } else if (count > 0) {
         quotaHtml = `
           <div style="background-color:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:6px 10px;color:#1e40af;font-size:12px;font-weight:bold;margin-top:5px;">
-            ℹ️ 1/2 (Đã có 1 người - Còn trống 1 chỗ)
+            ℹ️ ${count}/${quotaLimit} (Đã có ${count} người - Còn trống ${quotaLimit - count} chỗ)
             ${names ? `<div style="font-weight:normal;font-size:11px;color:#1e3a8a;margin-top:2px;">Đã có: <strong>${names}</strong></div>` : ""}
           </div>
         `;
       } else {
         quotaHtml = `
           <div style="background-color:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:6px 10px;color:#166534;font-size:12px;font-weight:bold;margin-top:5px;">
-            ✓ 0/2 (Ca còn trống chỗ)
+            ✓ 0/${quotaLimit} (Ca còn trống chỗ)
           </div>
         `;
       }
@@ -306,7 +318,7 @@ export async function sendLeaveApprovalRequestEmail(
                 ${shiftCode} · ${shiftLabel}
               </span>
               <span style="margin-left:4px;display:inline-block;">
-                ${urgentBadge}
+                ${statusBadge}
               </span>
             </td>
           </tr>
@@ -342,6 +354,10 @@ export async function sendLeaveApprovalRequestEmail(
       </p>
     </div>
   `
+    : "";
+
+  const substitutionPlanHtml = substitutionPlan
+    ? renderSubstitutionPlanHtml(substitutionPlan, baseUrl)
     : "";
 
   const upcoming7DaysTableHtml = renderUpcoming7DaysTableHtml(upcoming7DaysLeaves, baseUrl);
@@ -401,6 +417,9 @@ export async function sendLeaveApprovalRequestEmail(
             <!-- Khối Thẻ ca xin nghỉ - Tự động co giãn 100% trên Mobile & Desktop -->
             ${leaveCardsHtml}
 
+            <!-- Khối gợi ý thay thế vị trí phép đột xuất trong tuần (nếu có) -->
+            ${substitutionPlanHtml}
+
             <!-- Nút bấm phê duyệt 1 chạm Touch-Friendly -->
             <table role="presentation" style="width:100%;border-collapse:collapse;margin:16px 0 12px 0;">
               <tr>
@@ -424,7 +443,7 @@ export async function sendLeaveApprovalRequestEmail(
 
             <hr style="border:none;border-top:1px solid #e2e8f0;margin:20px 0 12px 0;" />
             <p style="margin:0;font-size:11px;color:#94a3b8;line-height:1.5;">
-              Sau khi duyệt, dữ liệu sẽ được ghi nhận chính thức vào Google Sheets và tự động gửi email thông báo xác thực tới Điều dưỡng ${staff.name} (BCC tới ĐD Nghĩa).
+              Sau khi duyệt, dữ liệu sẽ được ghi nhận chính thức vào Google Sheets và tự động gửi email thông báo xác thực tới Điều dưỡng ${staff.name} (BCC tới ĐD Nghĩa và Quản lý tienmed).
             </p>
           </td>
         </tr>
@@ -434,12 +453,24 @@ export async function sendLeaveApprovalRequestEmail(
   `;
 
   try {
-    const info = await transporter.sendMail({
+    const mailOptions: nodemailer.SendMailOptions = {
       from: `"NurseFlow Hệ Thống" <${smtpUser}>`,
       to: ADMIN_APPROVER_EMAIL,
       subject,
       html: htmlContent,
-    });
+    };
+
+    const staffEmail = (staff.email || "").trim().toLowerCase();
+    const bccRecipients = [NOTIFY_BCC_EMAIL].filter(
+      (email) =>
+        email.toLowerCase() !== staffEmail &&
+        email.toLowerCase() !== ADMIN_APPROVER_EMAIL.toLowerCase(),
+    );
+    if (bccRecipients.length > 0) {
+      mailOptions.bcc = bccRecipients;
+    }
+
+    const info = await transporter.sendMail(mailOptions);
 
     console.log("✅ [EmailService] Gửi email yêu cầu duyệt thành công:", info.messageId);
     return { success: true, messageId: info.messageId };
@@ -456,6 +487,8 @@ export interface SendApprovedNotificationEmailParams {
   upcoming7DaysLeaves?: UpcomingLeavePreviewItem[];
   skipBcc?: boolean;
   isAutoApprovedStudy?: boolean;
+  isAutoApproved?: boolean;
+  substitutionPlan?: LeaveSubstitutionPlan;
 }
 
 /**
@@ -475,14 +508,16 @@ export async function sendLeaveApprovedNotificationEmail(
     return { success: false, error: errorMsg };
   }
 
-  const { staff, leaveItems, approvedAt, upcoming7DaysLeaves, skipBcc = false, isAutoApprovedStudy = false } = params;
+  const { staff, leaveItems, approvedAt, upcoming7DaysLeaves, skipBcc = false, isAutoApprovedStudy = false, isAutoApproved = false, substitutionPlan } = params;
   const approvedTimeStr = approvedAt || format(new Date(), "HH:mm dd/MM/yyyy");
   const baseUrl = getBaseUrl();
   const calendarUrl = `${baseUrl}/dang-ky-phep?tab=calendar`;
 
   const subject = isAutoApprovedStudy
     ? `[XÁC THỰC THÀNH CÔNG] Lịch nghỉ đi học của ĐD ${staff.name} đã được xác nhận`
-    : `[XÁC THỰC ĐỒNG Ý] Đơn xin nghỉ phép của ĐD ${staff.name} đã được phê duyệt`;
+    : isAutoApproved
+      ? `[TỰ ĐỘNG DUYỆT] Đơn xin nghỉ phép của ĐD ${staff.name} đã được tự động phê duyệt (Định mức ≤ 2 người/buổi)`
+      : `[XÁC THỰC ĐỒNG Ý] Đơn xin nghỉ phép của ĐD ${staff.name} đã được phê duyệt`;
 
   // Render từng ca đã duyệt thành các thẻ khối (Cards) 100% width trên Mobile
   const leaveCardsHtml = leaveItems
@@ -496,7 +531,7 @@ export async function sendLeaveApprovedNotificationEmail(
       const isMorning = item.shift === "morning";
       const isAfternoon = item.shift === "afternoon";
       const shiftCode = isMorning ? "S" : isAfternoon ? "C" : "CN";
-      const shiftBg = isMorning ? "#f59e0b" : isAfternoon ? "#2563eb" : "#7e22ce";
+      const shiftBg = isMorning ? "#f59e0b" : isAfternoon ? "#2563eb" : "#0f766e";
 
       const reasonLabel = LEAVE_REASON_LABELS[item.reason] || item.reason;
       let reasonBadge = `<span style="background-color:#dcfce7;color:#166534;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:bold;border:1px solid #bbf7d0;">${reasonLabel}</span>`;
@@ -528,7 +563,7 @@ export async function sendLeaveApprovedNotificationEmail(
               </div>
               <div>
                 <span style="color:#64748b;font-size:11px;font-weight:bold;text-transform:uppercase;">Trạng thái: </span>
-                <span style="color:#059669;font-weight:bold;font-size:12px;">✓ Đã phê duyệt chính thức</span>
+                <span style="color:#059669;font-weight:bold;font-size:12px;">✓ ${isAutoApproved ? "Đã tự động phê duyệt (Người thứ 1-2 trong buổi)" : "Đã phê duyệt chính thức"}</span>
               </div>
             </td>
           </tr>
@@ -537,9 +572,13 @@ export async function sendLeaveApprovedNotificationEmail(
     })
     .join("");
 
+  const substitutionPlanHtml = substitutionPlan
+    ? renderSubstitutionPlanHtml(substitutionPlan, baseUrl)
+    : "";
+
   const upcoming7DaysTableHtml = renderUpcoming7DaysTableHtml(upcoming7DaysLeaves, baseUrl);
 
-  const htmlContent = `
+  const buildHtmlContent = (planHtml: string = "") => `
     <!DOCTYPE html>
     <html lang="vi">
     <head>
@@ -553,7 +592,13 @@ export async function sendLeaveApprovedNotificationEmail(
         <tr>
           <td style="background:linear-gradient(135deg,#059669 0%,#10b981 100%);padding:18px 16px;color:#ffffff;text-align:left;">
             <p style="margin:0 0 4px 0;font-size:11px;font-weight:bold;text-transform:uppercase;letter-spacing:1px;opacity:0.85;">NurseFlow · Xác thực phê duyệt</p>
-            <h1 style="margin:0;font-size:18px;font-weight:bold;line-height:1.3;">${isAutoApprovedStudy ? "Lịch nghỉ đi học đã được XÁC NHẬN" : "Đơn xin nghỉ phép đã được PHÊ DUYỆT"}</h1>
+            <h1 style="margin:0;font-size:18px;font-weight:bold;line-height:1.3;">${
+              isAutoApprovedStudy
+                ? "Lịch nghỉ đi học đã được XÁC NHẬN"
+                : isAutoApproved
+                  ? "Đơn xin nghỉ phép đã được TỰ ĐỘNG DUYỆT"
+                  : "Đơn xin nghỉ phép đã được PHÊ DUYỆT"
+            }</h1>
           </td>
         </tr>
 
@@ -566,7 +611,9 @@ export async function sendLeaveApprovedNotificationEmail(
             <p style="margin:0 0 16px 0;font-size:13px;line-height:1.6;color:#334155;">
               ${isAutoApprovedStudy
                 ? `Lịch xin nghỉ đi học của bạn đã được hệ thống kiểm tra định mức (không quá 3 người nghỉ/buổi) và <strong>tự động xác nhận thành công</strong> vào lúc <strong>${approvedTimeStr}</strong>. Dữ liệu đã được cập nhật chính thức vào hệ thống.`
-                : `Phiếu xin nghỉ phép của bạn đã được quản lý (<strong>tienmed@gmail.com</strong>) kiểm tra và <strong>chính thức phê duyệt</strong> vào lúc <strong>${approvedTimeStr}</strong>. Dữ liệu đã được cập nhật chính thức vào hệ thống.`}
+                : isAutoApproved
+                  ? `Phiếu xin nghỉ phép của bạn thuộc chỉ tiêu người thứ 1 hoặc thứ 2 trong buổi nên đã được <strong>hệ thống tự động phê duyệt chính thức</strong> vào lúc <strong>${approvedTimeStr}</strong> (định mức ≤ 2 người/buổi). Dữ liệu đã được cập nhật chính thức vào hệ thống.`
+                  : `Phiếu xin nghỉ phép của bạn đã được quản lý (<strong>tienmed@gmail.com</strong>) kiểm tra và <strong>chính thức phê duyệt</strong> vào lúc <strong>${approvedTimeStr}</strong>. Dữ liệu đã được cập nhật chính thức vào hệ thống.`}
             </p>
 
             <!-- Tiêu đề danh sách ca -->
@@ -576,6 +623,9 @@ export async function sendLeaveApprovedNotificationEmail(
 
             <!-- Danh sách ca đã duyệt dạng Thẻ Card Mobile -->
             ${leaveCardsHtml}
+
+            <!-- Khối kế hoạch gợi ý thay thế vị trí (nếu có cho Ban Quản lý) -->
+            ${planHtml}
 
             <!-- LƯU Ý LÀM PHIẾU GIẤY THEO QUI ĐỊNH -->
             <div style="background-color:#eff6ff;border:1px solid #bfdbfe;border-left:4px solid #3b82f6;border-radius:8px;padding:12px 14px;margin:16px 0 18px 0;">
@@ -605,7 +655,7 @@ export async function sendLeaveApprovedNotificationEmail(
             <p style="margin:0;font-size:11px;color:#94a3b8;line-height:1.5;">
               ${skipBcc
                 ? "Email này được gửi tự động từ hệ thống NurseFlow riêng tới cá nhân người đăng ký để xác nhận lịch nghỉ thành công."
-                : `Email này được gửi tự động từ hệ thống NurseFlow tới người gửi phiếu và được đồng gửi (BCC) tới ĐD Nghĩa (${NOTIFY_BCC_EMAIL}) để theo dõi và đối soát.`}
+                : `Email này được gửi tự động từ hệ thống NurseFlow tới người gửi phiếu và được đồng gửi (BCC) tới ĐD Nghĩa (${NOTIFY_BCC_EMAIL}) và Quản lý tienmed (${ADMIN_APPROVER_EMAIL}) để theo dõi và đối soát.`}
             </p>
           </td>
         </tr>
@@ -613,6 +663,8 @@ export async function sendLeaveApprovedNotificationEmail(
     </body>
     </html>
   `;
+
+  const htmlContent = buildHtmlContent("");
 
   try {
     const mailOptions: nodemailer.SendMailOptions = {
@@ -623,7 +675,38 @@ export async function sendLeaveApprovedNotificationEmail(
     };
 
     if (!skipBcc) {
-      mailOptions.bcc = NOTIFY_BCC_EMAIL;
+      const staffEmail = (staff.email || "").trim().toLowerCase();
+      const bccRecipients = Array.from(
+        new Set(
+          [NOTIFY_BCC_EMAIL, ADMIN_APPROVER_EMAIL].filter(
+            (email) => email.toLowerCase() !== staffEmail
+          )
+        )
+      );
+
+      // Nếu có kế hoạch gợi ý thay thế vị trí trong tuần, gửi riêng bản có gợi ý cho ĐD Nghĩa & Quản lý
+      if (substitutionPlanHtml && bccRecipients.length > 0) {
+        const adminSubject = `[ĐIỀU PHỐI PHÉP ĐỘT XUẤT] Gợi ý thay thế ca nghỉ của ĐD ${staff.name} (${staff.code})`;
+        const adminHtmlContent = buildHtmlContent(substitutionPlanHtml);
+
+        // Gửi cho nhân sự trước
+        if (staff.email) {
+          await transporter.sendMail(mailOptions);
+        }
+
+        // Gửi riêng cho Ban Quản lý (ĐD Nghĩa & Tiến) bản có gợi ý thay thế
+        const adminMailOptions: nodemailer.SendMailOptions = {
+          from: `"NurseFlow Hệ Thống" <${smtpUser}>`,
+          to: bccRecipients,
+          subject: adminSubject,
+          html: adminHtmlContent,
+        };
+        const info = await transporter.sendMail(adminMailOptions);
+        console.log("✅ [EmailService] Gửi email điều phối phép đột xuất thành công:", info.messageId);
+        return { success: true, messageId: info.messageId };
+      } else if (bccRecipients.length > 0) {
+        mailOptions.bcc = bccRecipients;
+      }
     }
 
     const info = await transporter.sendMail(mailOptions);

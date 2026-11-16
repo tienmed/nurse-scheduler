@@ -5,6 +5,7 @@ import { vi } from "date-fns/locale";
 import { LEAVE_SHIFT_LABELS } from "@/lib/constants";
 import { getAppData, invalidateAppDataCache, writeAppDataKeysToSheets } from "@/lib/repository";
 import { sendLeaveApprovedNotificationEmail, getUpcoming7DaysApprovedLeaves } from "@/lib/email-service";
+import { generateLeaveSubstitutionPlan } from "@/lib/substitution-logic";
 import type { LeaveShift, LeaveRecord } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -326,10 +327,21 @@ export async function GET(request: NextRequest) {
 
       const upcoming7DaysLeaves = getUpcoming7DaysApprovedLeaves(data.leaveRequests, data.staff);
 
+      const substitutionPlan = generateLeaveSubstitutionPlan({
+        slots: emailItems,
+        targetStaff: staff,
+        staff: data.staff,
+        positions: data.positions,
+        weeklySchedule: data.weeklySchedule,
+        templateSchedule: data.templateSchedule,
+        leaveRequests: data.leaveRequests,
+      });
+
       sendLeaveApprovedNotificationEmail({
         staff,
         leaveItems: emailItems,
         upcoming7DaysLeaves,
+        substitutionPlan,
       }).catch((err) => {
         console.error("🚨 [ApproveRoute] Lỗi gửi email phản hồi sau duyệt:", err);
       });
@@ -372,7 +384,7 @@ export async function GET(request: NextRequest) {
       `,
       noticeHtml: `
         <div class="notice">
-          <strong>Đã gửi email xác nhận:</strong> Hệ thống đã tự động gửi email thông báo xác thực tới Điều dưỡng <strong>${staffName}</strong> (chỉ gửi các ca vừa được duyệt mới) kèm lời nhắc làm phiếu giấy theo quy định, đồng thời gửi BCC tới <strong>ĐD Nghĩa</strong> (nghiadn.pk@pnt.edu.vn).
+          <strong>Đã gửi email xác nhận:</strong> Hệ thống đã tự động gửi email thông báo xác thực tới Điều dưỡng <strong>${staffName}</strong> (chỉ gửi các ca vừa được duyệt mới) kèm lời nhắc làm phiếu giấy theo quy định, đồng thời gửi BCC tới <strong>ĐD Nghĩa</strong> (nghiadn.pk@pnt.edu.vn) và <strong>Quản lý tienmed</strong> (tienmed@gmail.com).
         </div>
       `,
     });

@@ -1,5 +1,62 @@
 # NurseFlow Versioning
 
+## v1.4.7 (2026-11-16)
+### Tự Động Duyệt Nghỉ Phép (Người Thứ 1 & 2 Trong Buổi) & Kế Hoạch Gợi Ý Thay Thế Vị Trí Phép Đột Xuất
+- **Quy tắc Tự động Duyệt Nghỉ Phép (`src/lib/leave-logic.ts`, `src/app/dang-ky-phep/actions.ts`):**
+  - Trích xuất module lõi chuẩn hóa `evaluateSlotQuota` (`src/lib/leave-logic.ts`) dùng chung cho cả Server Action, Form Client và bộ kiểm thử đơn vị.
+  - Khi điều dưỡng nộp phiếu xin nghỉ phép (`phep`), nếu buổi đó (Sáng hoặc Chiều) của ngày đó hiện có `< 2` người đã đăng ký/duyệt (tức người đăng ký mới là người đầu tiên hoặc người thứ 2 trong buổi):
+    - Hệ thống **tự động phê duyệt chính thức ngay lập tức** (`status: "approved"`).
+    - Tự động đính kèm ghi chú hệ thống `[Tự động duyệt nghỉ phép - Định mức ≤ 2 người/buổi]`.
+  - Trường hợp buổi đó đã có $\ge 2$ người đăng ký (người mới là người thứ 3 trở đi):
+    - Đơn vượt định mức, yêu cầu người gửi đánh dấu "Nghỉ cấp thiết" và điền giải trình.
+    - Lưu trạng thái tạm `status: "pending"`, gửi email yêu cầu duyệt 1 chạm tới Quản lý `tienmed@gmail.com`.
+  - Hỗ trợ xử lý thông minh đơn nộp nhiều ca hỗn hợp (mixed batch): Các ca người thứ 1-2 được tự động duyệt và gửi email xác nhận ngay lập tức, các ca vượt định mức được chuyển email duyệt tới Quản lý.
+  - Khắc phục lỗi tính gộp định mức ca cả ngày (`full-day`) trong bảng tóm tắt gửi Quản lý.
+- **Kế Hoạch Gợi Ý Thay Thế Vị Trí Phép Đột Xuất Trong Tuần (`src/lib/substitution-logic.ts`, `src/lib/email-service.ts`):**
+  - Tự động phát hiện các ca xin nghỉ phép rơi vào **tuần hiện tại đang trực** (phép đột xuất trong tuần).
+  - Truy xuất các vị trí chuyên môn nhân sự đang đảm nhiệm từ `weekly_schedule` (hoặc lịch nền `template_schedule` nếu chưa gán tuần).
+  - Tích hợp thuật toán xếp hạng ứng viên thông minh `generateLeaveSubstitutionPlan`:
+    - Loại trừ các nhân sự bận nghỉ phép hoặc đi học trong cùng ca.
+    - Áp dụng các quy chuẩn vàng theo phòng (`FIXED_ROOM_STAFF_RULES` & `SPECIALTY_POOL_RULES`): Siêu âm (Bích Thảo/Lyna), Tiếp nhận (nhóm xoay Lyna, Phúc Anh, Thủy), Cặp Da liễu & CSD (Mỹ Nhiên, Ái Liên, Thủy), Tâm thần kinh (Điệp, Thủy, Ái Liên, Chuyền), Mắt (Chuyền, Thủy, Ái Liên), TMH (Điệp, Ái Liên, Thủy, Chuyền), Thanh trùng & YHCT (Điệp hỗ trợ ĐD Nhân), Chuyên gia (Kim Hoa).
+    - Ưu tiên nhân sự rảnh ca hoàn toàn (`Rảnh chưa có ca`), nhân sự kiêm nhiệm phòng ít bệnh ($\le 0.5$ tải) hoặc điều động dự phòng KHNV (ĐD Nghĩa / Thiên Trang trám Đo sinh hiệu).
+    - Cung cấp số giờ kinh nghiệm tích lũy tại vị trí đó làm cơ sở tham khảo thuyết phục.
+  - **Giao diện Email Gửi Riêng Cho ĐD Nghĩa & Quản lý Tiến:**
+    - Gắn khối giao diện nổi bật `🔄 Kế hoạch gợi ý thay thế vị trí phép đột xuất (Tuần này)` vào email gửi riêng tới **ĐD Nghĩa** (`nghiadn.pk@pnt.edu.vn`) và **Quản lý Tiến** (`tienmed@gmail.com`).
+    - Email gửi cho cá nhân điều dưỡng xin nghỉ được bảo mật, chỉ chứa xác nhận lịch nghỉ cá nhân mà không hiển thị khối gợi ý điều hành nội bộ này.
+    - Cung cấp liên kết trực tiếp 1-chạm mở bảng Phân phòng tuần (`/room-assignment?week=...&openAdjust=1`) để Ban Quản lý thuận tiện điều chỉnh ngay trên hệ thống.
+- **Thông Báo Đã Duyệt Kèm Cho tienmed & ĐD Nghĩa (`src/lib/email-service.ts`, `src/app/api/leave/approve/route.ts`):**
+  - Mở rộng hàm `sendLeaveApprovedNotificationEmail`: khi gửi thông báo duyệt thành công (cả tự động duyệt lẫn quản lý duyệt 1 chạm), danh sách BCC được đồng gửi tới **cả Quản lý tienmed (`tienmed@gmail.com`) bên cạnh ĐD Nghĩa (`nghiadn.pk@pnt.edu.vn`)**.
+  - Thiết kế tiêu đề email riêng `[TỰ ĐỘNG PHÊ DUYỆT]` hoặc `[ĐIỀU PHỐI PHÉP ĐỘT XUẤT]` khi có ca nghỉ trong tuần.
+  - Tự động lọc trùng lặp nếu người nhận chính (`to`) là chính Quản lý hoặc ĐD Nghĩa.
+  - Chuẩn hóa màu sắc y tế (bỏ hoàn toàn mã màu tím `purple` trong thẻ ca).
+- **Cập nhật Giao diện Cổng Đăng Ký (`src/components/leave-portal/flexible-leave-form.tsx`):**
+  - Tích hợp trực tiếp module chuẩn `evaluateSlotQuota`, đảm bảo đồng bộ 100% giữa giao diện và server.
+  - Nhãn hiển thị định mức từng ca thông báo trực quan: `Định mức ca: X/2 người đã nghỉ (Người thứ X+1 - Tự động duyệt ngay)`.
+  - Nút bấm và thông tin trợ giúp phân biệt rõ ràng giữa ca được tự động duyệt ngay và ca vượt định mức cần quản lý phê duyệt.
+- **Kiểm thử Đơn vị (`tests/unit/leave-approval.test.ts`, `tests/unit/leave-substitution.test.ts`):**
+  - Bổ sung 11 ca kiểm thử mới trong `tests/unit/leave-substitution.test.ts`: kiểm tra nhận diện ngày trong tuần vs ngoài tuần, đối chiếu vị trí từ `weekly_schedule`, fallback sang `template_schedule`, loại trừ nhân sự bận nghỉ/học, ca cả ngày `full-day`, render bảng HTML Teal chuẩn y tế không màu tím, và xác thực email người nhận.
+  - Toàn bộ **95/95 unit tests** vượt qua (6/6 test files), **0 lỗi TypeScript**.
+
+## v1.4.6 (2026-11-15)
+### Tự Động Xuất & Gửi Email Bảng Chấm Công Tháng Cũ Vào Ngày Đầu Tháng Mới
+- **Kịch bản tự động xuất Excel & gửi Email (`scripts/email-monthly-timesheet.mjs`):**
+  - Tự động xác định tháng vừa qua theo múi giờ Việt Nam (`Asia/Ho_Chi_Minh` / `UTC+7`) khi chạy vào ngày đầu tháng, hoặc tùy biến tháng qua đối số CLI `--month=YYYY-MM` / `--month YYYY-MM`.
+  - Kết nối trực tiếp Google Sheets API, tải dữ liệu bảng `weekly_schedule`, `leave_requests`, `leave_cancellations`, `staff`, `positions`, `schedule_rules`, `holidays`.
+  - Tích hợp module tạo file Excel chuẩn [monthly-timesheet-excel.ts](file:///E:/App%20Nurses/src/lib/monthly-timesheet-excel.ts) (`ExcelJS`): chia 2 ca Sáng/Chiều từng ngày, đánh dấu ký hiệu trực (`✔`, `T`, `P`, `H`, `O`), viền ô và tô màu phân loại.
+  - Tự động tính toán loại trừ phép đã hủy (`leave_cancellations`) đồng bộ tuyệt đối với logic hệ thống.
+  - Soạn nội dung email HTML trang trọng mang phong cách thương hiệu NurseFlow (bảng màu Teal & responsive card) tóm tắt nhanh số ngày công, số phép và thông báo đính kèm file Excel chi tiết: `Bao_Cao_Cham_Cong_Thang_MM_YYYY.xlsx`.
+- **Danh sách người nhận mặc định:**
+  - ĐD Đặng Lê Tú Trang: `trangdlt@pnt.edu.vn` (DD01)
+  - ĐD Đặng Nhân Nghĩa: `nghiadn.pk@pnt.edu.vn` (DD17)
+  - BS. Trịnh Trung Tiến: `tienmed@gmail.com`
+  - Hỗ trợ ghi đè linh hoạt qua cờ dòng lệnh `--to=email1,email2` hoặc biến môi trường `MONTHLY_TIMESHEET_RECIPIENTS`.
+- **Tập lệnh thực thi & Tác vụ Windows Task Scheduler:**
+  - [scripts/run-monthly-timesheet.bat](file:///E:/App%20Nurses/scripts/run-monthly-timesheet.bat): Điều hướng về thư mục gốc dự án, ép cổng SMTP SSL 465 và nạp `.env.local` cùng `email.env`.
+  - [scripts/install-monthly-timesheet-task.bat](file:///E:/App%20Nurses/scripts/install-monthly-timesheet-task.bat): Đăng ký tác vụ **`Nusres_Monthly_Timesheet_Email`** trên Windows Task Scheduler kích hoạt vào lúc **08:00** sáng ngày 1 hàng tháng (`/sc monthly /d 1 /st 08:00 /f`), xử lý an toàn đường dẫn chứa khoảng trắng.
+- **Kiểm thử & Độ tin cậy:**
+  - Mở rộng bộ kiểm thử đơn vị với 17 test cases mới trong [tests/unit/monthly-timesheet.test.ts](file:///E:/App%20Nurses/tests/unit/monthly-timesheet.test.ts).
+  - Toàn bộ 63/63 unit tests vượt qua, 0 lỗi TypeScript, 0 tệp tạm phát sinh.
+
 ## v1.4.5 (2026-11-11)
 ### Phân Bổ Lịch Tuần Tự Động Theo Kinh Nghiệm & Thói Quen + Email Sáng Chủ Nhật
 - **Thuật toán sinh lịch thông minh (`src/lib/schedule.ts`, `src/lib/repository.ts`):**

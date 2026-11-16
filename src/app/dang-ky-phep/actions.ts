@@ -10,6 +10,8 @@ import {
   sendLeaveApprovedNotificationEmail,
   getUpcoming7DaysApprovedLeaves,
 } from "@/lib/email-service";
+import { evaluateSlotQuota } from "@/lib/leave-logic";
+import { generateLeaveSubstitutionPlan } from "@/lib/substitution-logic";
 import { isStudyStaff } from "@/lib/study-staff";
 import type { LeaveReason, LeaveShift } from "@/lib/types";
 
@@ -131,13 +133,7 @@ export async function submitLeavePortalAction(formData: FormData) {
       }
     }
 
-    // [QWEN3] Kiểm tra định mức cho từng ca & Xác định trạng thái tự động duyệt
-    let hasLeaveQuotaExceeded = false;
-    const exceededLeaveDates: string[] = [];
-
-    const slotStatuses: ("approved" | "pending")[] = [];
-    const slotIsAutoApprovedStudy: boolean[] = [];
-
+    // [QWEN3] Kiểm tra tính hợp lệ ngày nghỉ (không áp dụng Thứ 7 / Chủ nhật)
     for (const slot of slots) {
       if (!slot.date || !slot.shift) {
         throw new Error("Thiếu thông tin ngày hoặc ca làm việc.");
@@ -152,88 +148,31 @@ export async function submitLeavePortalAction(formData: FormData) {
           `Ngày ${formattedDate} (${dayName}) không áp dụng nghỉ phép. Nghỉ phép chỉ áp dụng từ Thứ 2 đến Thứ 6.`
         );
       }
-
-      if (isRegisteredByAdmin) {
-        slotStatuses.push("approved");
-        slotIsAutoApprovedStudy.push(false);
-        continue;
-      }
-
-      if (slot.reason === "dihoc") {
-        // [QWEN3] Ca đi học: Kiểm tra theo BUỔI (Sáng/Chiều)
-        // Tính tất cả nhân sự khác có lịch nghỉ trong ngày (loại trừ targetStaff và rejected)
-        const sameDayAllLeaves = data.leaveRequests.filter(
-          (l) => l.date === slot.date && l.staffId !== targetStaff.id && l.status !== "rejected",
-        );
-
-        let morningCount = 0;
-        let afternoonCount = 0;
-        for (const l of sameDayAllLeaves) {
-          if (l.shift === "full-day") {
-            morningCount++;
-            afternoonCount++;
-          } else if (l.shift === "morning") {
-            morningCount++;
-          } else if (l.shift === "afternoon") {
-            afternoonCount++;
-          }
-        }
-
-        // Quy tắc mốc 3 người theo BUỔI:
-        // Nếu buổi đó đã có >= 3 người nghỉ (người mới sẽ là người thứ 4 trở đi, > 3 người)
-        // -> Vượt ngưỡng, chuyển sang pending để Quản lý duyệt.
-        // Nếu buổi đó đang < 3 người nghỉ (người mới là người thứ 1, 2 hoặc 3, <= 3 người)
-        // -> Tự động duyệt ngay (approved).
-        let isStudyQuotaExceeded = false;
-        if (slot.shift === "morning") {
-          isStudyQuotaExceeded = morningCount >= 3;
-        } else if (slot.shift === "afternoon") {
-          isStudyQuotaExceeded = afternoonCount >= 3;
-        } else if (slot.shift === "full-day") {
-          isStudyQuotaExceeded = morningCount >= 3 || afternoonCount >= 3;
-        }
-
-        if (isStudyQuotaExceeded) {
-          slotStatuses.push("pending");
-          slotIsAutoApprovedStudy.push(false);
-        } else {
-          slotStatuses.push("approved");
-          slotIsAutoApprovedStudy.push(true);
-        }
-      } else {
-        // [QWEN3] Ca nghỉ phép thông thường (phep)
-        // Đếm số người đã đăng ký cùng ca (loại trừ đi học và ca của chính nhân sự mục tiêu)
-        const sameDayLeaves = data.leaveRequests.filter(
-          (l) => l.date === slot.date && l.reason !== "dihoc" && l.staffId !== targetStaff.id && l.status !== "rejected",
-        );
-
-        let morningCount = 0;
-        let afternoonCount = 0;
-
-        for (const l of sameDayLeaves) {
-          if (l.shift === "full-day") {
-            morningCount++;
-            afternoonCount++;
-          } else if (l.shift === "morning") {
-            morningCount++;
-          } else if (l.shift === "afternoon") {
-            afternoonCount++;
-          }
-        }
-
-        const isMorningExceeded = (slot.shift === "full-day" || slot.shift === "morning") && morningCount >= 2;
-        const isAfternoonExceeded = (slot.shift === "full-day" || slot.shift === "afternoon") && afternoonCount >= 2;
-
-        if (isMorningExceeded || isAfternoonExceeded) {
-          hasLeaveQuotaExceeded = true;
-          slot.isUrgent = true;
-          exceededLeaveDates.push(`${slot.date} (${slot.shift === "morning" ? "Sáng" : slot.shift === "afternoon" ? "Chiều" : "Cả ngày"})`);
-        }
-
-        slotStatuses.push("pending");
-        slotIsAutoApprovedStudy.push(false);
-      }
     }
+
+    // [QWEN3] Đánh giá định mức và tự động duyệt từng ca dựa trên module chuẩn evaluateSlotQuota
+    const slotEvaluations = slots.map((slot) =>
+      evaluateSlotQuota({
+        slot,
+        existingLeaves: data.leaveRequests,
+        targetStaffId: targetStaff.id,
+        allStaff: data.staff,
+        isRegisteredByAdmin,
+      })
+    );
+
+    let hasLeaveQuotaExceeded = false;
+    const exceededLeaveDates: string[] = [];
+
+    slots.forEach((slot, index) => {
+      const evalRes = slotEvaluations[index];
+      if (slot.reason !== "dihoc" && evalRes.isQuotaExceeded) {
+        hasLeaveQuotaExceeded = true;
+        slot.isUrgent = true;
+        const shiftLabel = slot.shift === "morning" ? "Sáng" : slot.shift === "afternoon" ? "Chiều" : "Cả ngày";
+        exceededLeaveDates.push(`${slot.date} (${shiftLabel})`);
+      }
+    });
 
     // Nếu ca nghỉ phép vượt quota 2 người/ca mà chưa xác nhận cấp thiết hoặc chưa điền lý do
     if (hasLeaveQuotaExceeded && (!isUrgent || !urgentNote) && !isRegisteredByAdmin) {
@@ -251,14 +190,17 @@ export async function submitLeavePortalAction(formData: FormData) {
 
     // Chuẩn bị danh sách bản ghi lưu Google Sheets
     const newEntries = slots.map((slot, index) => {
+      const evalRes = slotEvaluations[index];
       let noteContent = slot.note || "";
       if (isUrgent && urgentNote) {
         noteContent = `[CẤP THIẾT] ${urgentNote}${noteContent ? ` - ${noteContent}` : ""}`;
       }
       if (isRegisteredByAdmin) {
         noteContent = `[Admin ${currentStaff.name} đăng ký hộ] ${noteContent}`.trim();
-      } else if (slotIsAutoApprovedStudy[index]) {
+      } else if (evalRes.isAutoApprovedStudy) {
         noteContent = `[Tự động duyệt đi học - Định mức ≤ 3 người/buổi] ${noteContent}`.trim();
+      } else if (evalRes.isAutoApprovedLeave) {
+        noteContent = `[Tự động duyệt nghỉ phép - Định mức ≤ 2 người/buổi] ${noteContent}`.trim();
       }
 
       return {
@@ -267,7 +209,7 @@ export async function submitLeavePortalAction(formData: FormData) {
         shift: slot.shift,
         reason: slot.reason || "phep",
         note: noteContent,
-        status: slotStatuses[index],
+        status: evalRes.status,
         approveToken,
         createdAt: nowIso,
       };
@@ -286,7 +228,18 @@ export async function submitLeavePortalAction(formData: FormData) {
     const upcoming7DaysLeaves = getUpcoming7DaysApprovedLeaves(data.leaveRequests, data.staff);
 
     // [QWEN3] Phân luồng gửi email:
-    // Trường hợp 1: Admin đăng ký hộ -> Đơn đã Duyệt chính thức ngay -> Gửi email xác thực tới nhân sự được đăng ký hộ (kèm BCC ĐD Nghĩa)
+    // Tính toán kế hoạch gợi ý thay thế vị trí cho các ca nghỉ phép trong tuần (nếu có)
+    const substitutionPlan = generateLeaveSubstitutionPlan({
+      slots,
+      targetStaff,
+      staff: data.staff,
+      positions: data.positions,
+      weeklySchedule: data.weeklySchedule,
+      templateSchedule: data.templateSchedule,
+      leaveRequests: data.leaveRequests,
+    });
+
+    // Trường hợp 1: Admin đăng ký hộ -> Đơn đã Duyệt chính thức ngay -> Gửi email xác thực tới nhân sự được đăng ký hộ (kèm BCC ĐD Nghĩa và Quản lý)
     if (isRegisteredByAdmin) {
       const emailResult = await sendLeaveApprovedNotificationEmail({
         staff: targetStaff,
@@ -299,6 +252,7 @@ export async function submitLeavePortalAction(formData: FormData) {
         })),
         approvedAt: format(new Date(), "HH:mm dd/MM/yyyy"),
         upcoming7DaysLeaves,
+        substitutionPlan,
       });
 
       let emailStatusNote = "";
@@ -316,7 +270,7 @@ export async function submitLeavePortalAction(formData: FormData) {
     const isAllAutoApprovedStudy =
       slots.length > 0 &&
       slots.every((s) => s.reason === "dihoc") &&
-      slotStatuses.every((st) => st === "approved");
+      slotEvaluations.every((e) => e.status === "approved");
 
     if (isAllAutoApprovedStudy) {
       const emailResult = await sendLeaveApprovedNotificationEmail({
@@ -344,72 +298,94 @@ export async function submitLeavePortalAction(formData: FormData) {
       redirect(`/dang-ky-phep?tab=calendar&message=${encodeURIComponent(msg)}`);
     }
 
-    // Trường hợp 3: Có ca cần Quản lý phê duyệt (nghỉ phép thông thường hoặc ca đi học vượt > 3 người/buổi)
-    // -> Gửi email duyệt 1 chạm tới tienmed@gmail.com
-    const leaveItemsWithQuotaDetails = slots.map((s, index) => {
-      const isStudy = s.reason === "dihoc";
-      const sameDayLeaves = data.leaveRequests.filter(
-        (l) => l.date === s.date && (isStudy ? true : l.reason !== "dihoc") && l.staffId !== targetStaff.id && l.status !== "rejected",
-      );
+    // Phân loại các ca: đã tự động duyệt vs đang chờ duyệt (pending)
+    const approvedIndices: number[] = [];
+    const pendingIndices: number[] = [];
 
-      const matchingLeaves = sameDayLeaves.filter((l) => {
-        if (s.shift === "full-day") return true;
-        return l.shift === "full-day" || l.shift === s.shift;
+    slotEvaluations.forEach((evalRes, index) => {
+      if (evalRes.status === "approved") {
+        approvedIndices.push(index);
+      } else {
+        pendingIndices.push(index);
+      }
+    });
+
+    let autoApproveEmailResult: { success: boolean; error?: string } | null = null;
+    let pendingApprovalEmailResult: { success: boolean; error?: string } | null = null;
+
+    // Gửi email xác nhận tự động duyệt cho các ca được duyệt tự động (nếu có)
+    // Thông báo đã duyệt gửi tới nhân sự, đồng thời đồng gửi (BCC) cho Quản lý tienmed bên cạnh ĐD Nghĩa!
+    if (approvedIndices.length > 0) {
+      const approvedItems = approvedIndices.map((i) => ({
+        date: slots[i].date,
+        shift: slots[i].shift,
+        reason: slots[i].reason || "phep",
+        note: slots[i].note,
+        isUrgent: false,
+      }));
+
+      autoApproveEmailResult = await sendLeaveApprovedNotificationEmail({
+        staff: targetStaff,
+        leaveItems: approvedItems,
+        approvedAt: format(new Date(), "HH:mm dd/MM/yyyy"),
+        upcoming7DaysLeaves,
+        skipBcc: false, // [QWEN3] Thông báo đã duyệt kèm cho tienmed bên cạnh DD Nghĩa đã nhận!
+        isAutoApproved: true,
+        substitutionPlan,
+      });
+    }
+
+    // Nếu có ca pending (vượt định mức) -> gửi email yêu cầu duyệt tới Quản lý tienmed
+    if (pendingIndices.length > 0) {
+      const leaveItemsWithQuotaDetails = slots.map((s, index) => {
+        const evalRes = slotEvaluations[index];
+        return {
+          date: s.date,
+          shift: s.shift,
+          reason: s.reason || "phep",
+          note: s.note,
+          isUrgent: s.isUrgent || isUrgent,
+          existingLeaveCount: evalRes.relevantCount,
+          existingStaffNames: evalRes.existingStaffNames,
+          isQuotaExceeded: evalRes.isQuotaExceeded,
+          status: evalRes.status,
+        };
       });
 
-      const existingStaffNames: string[] = [];
-      for (const ml of matchingLeaves) {
-        const staffObj = data.staff.find((st) => st.id === ml.staffId);
-        const name = staffObj?.name || ml.staffId;
-        if (!existingStaffNames.includes(name)) {
-          existingStaffNames.push(name);
-        }
-      }
+      const hasPendingStudyOverQuota = pendingIndices.some((i) => slots[i].reason === "dihoc");
 
-      const quotaLimit = isStudy ? 3 : 2;
-      const isExceeded = matchingLeaves.length >= quotaLimit;
+      pendingApprovalEmailResult = await sendLeaveApprovalRequestEmail({
+        staff: targetStaff,
+        leaveItems: leaveItemsWithQuotaDetails,
+        yearlyStats,
+        approveToken,
+        hasUrgent: isUrgent || hasLeaveQuotaExceeded || hasPendingStudyOverQuota,
+        urgentNote: isUrgent
+          ? urgentNote
+          : hasPendingStudyOverQuota
+            ? "Đăng ký đi học vào buổi đã có trên 3 người nghỉ (cần quản lý phê duyệt)"
+            : undefined,
+        upcoming7DaysLeaves,
+        substitutionPlan,
+      });
+    }
 
-      return {
-        date: s.date,
-        shift: s.shift,
-        reason: s.reason || "phep",
-        note: s.note,
-        isUrgent: s.isUrgent || isUrgent,
-        existingLeaveCount: matchingLeaves.length,
-        existingStaffNames,
-        isQuotaExceeded: isExceeded,
-      };
-    });
-
-    const hasPendingStudyOverQuota = slots.some((s, i) => s.reason === "dihoc" && slotStatuses[i] === "pending");
-
-    const emailResult = await sendLeaveApprovalRequestEmail({
-      staff: currentStaff,
-      leaveItems: leaveItemsWithQuotaDetails,
-      yearlyStats,
-      approveToken,
-      hasUrgent: isUrgent || hasLeaveQuotaExceeded || hasPendingStudyOverQuota,
-      urgentNote: isUrgent
-        ? urgentNote
-        : hasPendingStudyOverQuota
-          ? "Đăng ký đi học vào buổi đã có trên 3 người nghỉ (cần quản lý phê duyệt)"
-          : undefined,
-      upcoming7DaysLeaves,
-    });
-
+    // Xây dựng thông điệp phản hồi cho người dùng
     let emailStatusNote = "";
-    if (!emailResult.success) {
-      console.warn("⚠️ [EmailService] Không thể gửi email duyệt:", emailResult.error);
-      emailStatusNote = ` (Lưu ý: Chưa gửi được email duyệt do: ${emailResult.error || "Lỗi cấu hình SMTP"})`;
+    if (autoApproveEmailResult && !autoApproveEmailResult.success) {
+      emailStatusNote += ` (Lưu ý: Chưa gửi được email tự động duyệt do: ${autoApproveEmailResult.error || "Lỗi SMTP"})`;
+    }
+    if (pendingApprovalEmailResult && !pendingApprovalEmailResult.success) {
+      emailStatusNote += ` (Lưu ý: Chưa gửi được email yêu cầu duyệt do: ${pendingApprovalEmailResult.error || "Lỗi SMTP"})`;
     }
 
     let msg = "";
-    if (hasPendingStudyOverQuota) {
-      msg = "Lịch nghỉ đi học rơi vào buổi đã có trên 3 người nghỉ nên cần Quản lý (tienmed@gmail.com) phê duyệt." + emailStatusNote;
-    } else if (isUrgent || hasLeaveQuotaExceeded) {
-      msg = "Đã gửi phiếu xin nghỉ cấp thiết. Đơn đã được chuyển tạm thời và đang chờ quản lý xem xét duyệt." + emailStatusNote;
+    if (pendingIndices.length === 0) {
+      msg = `Đơn xin nghỉ phép (${slots.length} ca) đã được HỆ THỐNG TỰ ĐỘNG DUYỆT THÀNH CÔNG (người thứ 1 hoặc thứ 2 trong buổi ≤ 2 người). Đã gửi email thông báo xác nhận tới bạn, ĐD Nghĩa và Quản lý tienmed.${emailStatusNote}`;
+    } else if (approvedIndices.length === 0) {
+      msg = `Đơn xin nghỉ có ${pendingIndices.length} ca vượt định mức (≥ 2 người/buổi) nên đã chuyển email tới Quản lý (tienmed@gmail.com) để xem xét phê duyệt.${emailStatusNote}`;
     } else {
-      msg = "Đã gửi phiếu xin nghỉ phép thành công. Đang chờ quản lý (tienmed@gmail.com) phê duyệt." + emailStatusNote;
+      msg = `Hệ thống đã TỰ ĐỘNG DUYỆT ${approvedIndices.length} ca (định mức ≤ 2 người/buổi). Còn ${pendingIndices.length} ca vượt định mức đã chuyển email tới Quản lý để xem xét phê duyệt.${emailStatusNote}`;
     }
 
     redirect(`/dang-ky-phep?tab=calendar&message=${encodeURIComponent(msg)}`);

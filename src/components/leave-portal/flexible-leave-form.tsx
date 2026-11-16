@@ -7,6 +7,7 @@ import { Calendar, Plus, Trash2, AlertTriangle, CheckCircle2, Clock, Send, Spark
 import { LEAVE_SHIFT_LABELS } from "@/lib/constants";
 import type { LeaveReason, LeaveRecord, LeaveShift, StaffMember } from "@/lib/types";
 import { submitLeavePortalAction } from "@/app/dang-ky-phep/actions";
+import { evaluateSlotQuota } from "@/lib/leave-logic";
 import { isStudyStaff as checkIsStudyStaff } from "@/lib/study-staff";
 
 interface SlotItem {
@@ -101,52 +102,23 @@ export function FlexibleLeaveForm({
   const [isPending, startTransition] = useTransition();
   const [clientError, setClientError] = useState<string | null>(null);
 
-  // Helper tính số lượng người đã nghỉ cho 1 ca cụ thể (loại trừ chính nhân sự mục tiêu)
+  // Helper tính số lượng người đã nghỉ cho 1 ca cụ thể (loại trừ chính nhân sự mục tiêu) dựa trên evaluateSlotQuota
   function checkSlotQuota(date: string, shift: LeaveShift, reason: LeaveReason = "phep") {
     const isStudy = reason === "dihoc";
-    const maxQuota = isStudy ? 3 : 2;
+    if (!date) return { count: 0, exceeded: false, maxQuota: isStudy ? 3 : 2, isStudy };
 
-    if (!date) return { count: 0, exceeded: false, maxQuota, isStudy };
-
-    const sameDayLeaves = existingLeaves.filter((l) => {
-      if (l.date !== date || l.staffId === activeTargetStaff.id || l.status === "rejected") return false;
-      // Với nghỉ phép thông thường: không tính ca đi học vào định mức 2 người
-      if (!isStudy && l.reason === "dihoc") return false;
-      return true;
+    const evalRes = evaluateSlotQuota({
+      slot: { date, shift, reason },
+      existingLeaves,
+      targetStaffId: activeTargetStaff.id,
+      allStaff,
+      isRegisteredByAdmin: isRegisteringForOther,
     });
 
-    let morningCount = 0;
-    let afternoonCount = 0;
-
-    for (const l of sameDayLeaves) {
-      if (l.shift === "full-day") {
-        morningCount++;
-        afternoonCount++;
-      } else if (l.shift === "morning") {
-        morningCount++;
-      } else if (l.shift === "afternoon") {
-        afternoonCount++;
-      }
-    }
-
-    let relevantCount = 0;
-    if (shift === "full-day") {
-      relevantCount = Math.max(morningCount, afternoonCount);
-    } else if (shift === "morning") {
-      relevantCount = morningCount;
-    } else {
-      relevantCount = afternoonCount;
-    }
-
-    const isExceeded =
-      (shift === "full-day" && (morningCount >= maxQuota || afternoonCount >= maxQuota)) ||
-      (shift === "morning" && morningCount >= maxQuota) ||
-      (shift === "afternoon" && afternoonCount >= maxQuota);
-
     return {
-      count: relevantCount,
-      exceeded: isExceeded,
-      maxQuota,
+      count: evalRes.relevantCount,
+      exceeded: evalRes.isQuotaExceeded,
+      maxQuota: evalRes.quotaLimit,
       isStudy,
     };
   }
@@ -634,12 +606,12 @@ export function FlexibleLeaveForm({
                     ) : slot.quota.exceeded ? (
                       <span className="inline-flex items-center gap-1.5 rounded-lg bg-rose-100 px-2.5 py-1 text-xs font-bold text-rose-800">
                         <AlertTriangle className="h-3.5 w-3.5 text-rose-600" />
-                        Vượt định mức: Đã đủ {slot.quota.count}/2 người nghỉ
+                        Vượt định mức: Đã đủ {slot.quota.count}/2 người nghỉ (Cần giải trình cấp thiết)
                       </span>
                     ) : (
                       <span className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
                         <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
-                        Định mức ca: {slot.quota.count}/2 người đã nghỉ
+                        Định mức ca: {slot.quota.count}/2 người đã nghỉ (Người thứ {slot.quota.count + 1} - Tự động duyệt ngay)
                       </span>
                     )}
                   </div>
@@ -741,21 +713,27 @@ export function FlexibleLeaveForm({
                   <Clock className="h-4 w-4 animate-spin" />
                   {isRegisteringForOther
                     ? "Đang ghi nhận và duyệt chính thức..."
-                    : "Đang ghi nhận tạm và gửi email duyệt..."}
+                    : hasExceededQuota
+                      ? "Đang ghi nhận tạm và gửi email duyệt..."
+                      : "Đang ghi nhận và tự động duyệt..."}
                 </>
               ) : (
                 <>
                   {isRegisteringForOther ? <CheckCircle2 className="h-4 w-4" /> : <Send className="h-4 w-4" />}
                   {isRegisteringForOther
                     ? `Đăng ký & Duyệt chính thức cho ĐD ${activeTargetStaff.name}`
-                    : "Gửi phiếu xin nghỉ phép"}
+                    : hasExceededQuota
+                      ? "Gửi phiếu xin nghỉ cấp thiết (Chờ duyệt)"
+                      : "Gửi phiếu xin nghỉ phép (Tự động duyệt)"}
                 </>
               )}
             </button>
             <p className="mt-2 text-center text-[11px] sm:text-xs text-slate-400">
               {isRegisteringForOther
                 ? "Đơn do Quản trị viên trực tiếp tạo sẽ được Duyệt chính thức ngay và gửi email thông báo xác nhận tới điều dưỡng."
-                : "Đơn sẽ được ghi nhận tạm và chuyển email tới quản lý để duyệt 1 chạm."}
+                : hasExceededQuota
+                  ? "Đơn có ca vượt định mức (≥ 2 người/buổi) sẽ được ghi nhận tạm và chuyển email tới Quản lý để xem xét duyệt."
+                  : "Ca nghỉ thứ 1 hoặc thứ 2 trong buổi sẽ được hệ thống TỰ ĐỘNG DUYỆT NGAY và gửi email thông báo tới bạn, ĐD Nghĩa và Quản lý tienmed."}
             </p>
           </div>
         </form>
