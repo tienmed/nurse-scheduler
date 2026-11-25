@@ -10,6 +10,7 @@ import { EmptyState } from "@/components/empty-state";
 import { LeaveCalendar } from "@/components/leave-calendar";
 import { SubmitButton } from "@/components/submit-button";
 import { SurfaceSection } from "@/components/surface-section";
+import { ManagerPendingApprovals } from "@/components/leave-portal/manager-pending-approvals";
 import {
     LEAVE_REASON_LABELS,
     LEAVE_SHIFT_LABELS,
@@ -85,6 +86,8 @@ export default async function LeavePage({ searchParams }: LeavePageProps) {
         note: l.note,
     }));
 
+    const pendingLeaves = data.leaveRequests.filter((l) => l.status === "pending");
+
     return (
         <AppShell
             currentPath="/leave"
@@ -95,6 +98,16 @@ export default async function LeavePage({ searchParams }: LeavePageProps) {
             message={message}
             error={error}
         >
+            {/* KHỐI DUYỆT PHÉP CHỜ XỬ LÝ CHO QUẢN TRỊ VIÊN */}
+            {editable && pendingLeaves.length > 0 && (
+                <div className="mb-6">
+                    <ManagerPendingApprovals
+                        pendingLeaves={pendingLeaves}
+                        allStaff={data.staff}
+                    />
+                </div>
+            )}
+
             {/* BANNER DẪN TỚI CỔNG ĐỘC LẬP */}
             <div className="mb-6 rounded-3xl border border-teal-200 bg-gradient-to-r from-teal-50 via-white to-slate-50 p-5 shadow-sm flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div className="space-y-1">
