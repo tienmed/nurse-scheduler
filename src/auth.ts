@@ -66,12 +66,12 @@ async function resolveRole(email: string): Promise<Role | null> {
     return access.role;
   }
 
-  // 2. Chế độ mở rộng: Nếu email tồn tại trong danh sách Nhân sự đang hoạt động, tự động cấp quyền viewer
-  const isStaff = data.staff.some(
+  // 2. Chế độ mở rộng: Nếu email tồn tại trong danh sách Nhân sự đang hoạt động, lấy đúng role của nhân sự (admin/coordinator/viewer)
+  const staffMember = data.staff.find(
     (s) => s.email.trim().toLowerCase() === normalized && s.active !== false
   );
-  if (isStaff) {
-    return "viewer";
+  if (staffMember) {
+    return staffMember.role || "viewer";
   }
 
   return null;

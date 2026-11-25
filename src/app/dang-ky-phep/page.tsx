@@ -137,12 +137,22 @@ export default async function LeavePortalPage({ searchParams }: PageProps) {
   const yearlyStats = calculateYearlyApprovedLeaveStats(currentStaff.id, data.leaveRequests);
   const activeStaffList = data.staff.filter((s) => s.active !== false);
 
+  const userEmail = (user?.email || "").trim().toLowerCase();
+  const staffEmail = (currentStaff?.email || "").trim().toLowerCase();
+  const privilegedEmails = [
+    "tienmed@gmail.com",
+    "nghiadn.pk@pnt.edu.vn",
+    "bstien@pnt.edu.vn",
+    "admin@nurseflow.local",
+  ];
+
   const isManager =
     user?.role === "admin" ||
     user?.role === "coordinator" ||
-    ["tienmed@gmail.com", "nghiadn.pk@pnt.edu.vn", "admin@nurseflow.local"].includes(
-      user?.email?.toLowerCase() || "",
-    );
+    currentStaff?.role === "admin" ||
+    currentStaff?.role === "coordinator" ||
+    privilegedEmails.includes(userEmail) ||
+    privilegedEmails.includes(staffEmail);
 
   const allPendingLeaves = data.leaveRequests.filter((l) => l.status === "pending");
 

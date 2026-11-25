@@ -407,12 +407,18 @@ export async function approveLeaveFromWebAction(params: {
 }): Promise<{ success: boolean; message: string }> {
   try {
     const { user } = await getUserContext({ required: false });
+    const userEmail = (user?.email || "").trim().toLowerCase();
+    const privilegedEmails = [
+      "tienmed@gmail.com",
+      "nghiadn.pk@pnt.edu.vn",
+      "bstien@pnt.edu.vn",
+      "admin@nurseflow.local",
+    ];
+
     const isManager =
       user?.role === "admin" ||
       user?.role === "coordinator" ||
-      ["tienmed@gmail.com", "nghiadn.pk@pnt.edu.vn", "admin@nurseflow.local"].includes(
-        user?.email?.toLowerCase() || "",
-      );
+      privilegedEmails.includes(userEmail);
 
     if (!isManager) {
       return { success: false, message: "Bạn không có quyền quản lý để phê duyệt đơn nghỉ phép." };
@@ -512,12 +518,18 @@ export async function rejectLeaveFromWebAction(params: {
 }): Promise<{ success: boolean; message: string }> {
   try {
     const { user } = await getUserContext({ required: false });
+    const userEmail = (user?.email || "").trim().toLowerCase();
+    const privilegedEmails = [
+      "tienmed@gmail.com",
+      "nghiadn.pk@pnt.edu.vn",
+      "bstien@pnt.edu.vn",
+      "admin@nurseflow.local",
+    ];
+
     const isManager =
       user?.role === "admin" ||
       user?.role === "coordinator" ||
-      ["tienmed@gmail.com", "nghiadn.pk@pnt.edu.vn", "admin@nurseflow.local"].includes(
-        user?.email?.toLowerCase() || "",
-      );
+      privilegedEmails.includes(userEmail);
 
     if (!isManager) {
       return { success: false, message: "Bạn không có quyền quản lý để từ chối đơn nghỉ phép." };
