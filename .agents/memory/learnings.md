@@ -150,6 +150,30 @@
 
 ---
 
+### [P0-AUTH-01] Phân Quyền Kép (Staff Role & Access Control)
+- **Ngày ghi nhận:** 2026-11-25
+- **Bối cảnh & Nghiệp vụ:** Hệ thống hỗ trợ đăng nhập qua Google OAuth, lưu quyền trong 2 nguồn: `access_control` và danh sách nhân sự `staff`.
+- **Nguyên nhân gốc rễ:**
+  - Nếu hàm `resolveRole` trong `src/auth.ts` chỉ kiểm tra `access_control` rồi tự động gán vai trò `viewer`, các tài khoản quản lý được khai báo trong `staff` với `role: "admin"` hoặc `role: "coordinator"` (như `tienmed@gmail.com`) sẽ bị hạ quyền thành `viewer`.
+- **Quy tắc bắt buộc:**
+  1. Khi phân giải vai trò người dùng trong `src/auth.ts`:
+     - Kiểm tra biến môi trường (`AUTHORIZED_ADMIN_EMAILS`, `AUTHORIZED_COORDINATOR_EMAILS`).
+     - Kiểm tra bảng `access_control`.
+     - Nếu không có trong `access_control`, **BẮT BUỘC** đọc thuộc tính `role` của nhân sự trong bảng `staff` (`staffMember.role || "viewer"`), tuyệt đối không ép cứng về `"viewer"`.
+  2. Trong các trang giao diện quản lý (như `dang-ky-phep`): Nhận diện quyền quản lý qua cả `user.role`, `currentStaff.role`, mã chức danh (`BS`, `ADMIN`), và danh sách email đặc quyền (`tienmed@gmail.com`, `nghiadn.pk@pnt.edu.vn`, `bstien@pnt.edu.vn`).
+- **Phạm vi:** [Auth | Access Control | Leave Portal]
+
+---
+
+### [P0-LEAVE-APPROVAL-01] Kênh Duyệt Phép Trực Tiếp & Link Token 1-Chạm
+- **Ngày ghi nhận:** 2026-11-25
+- **Bối cảnh & Nghiệp vụ:** Nhân viên xin nghỉ phép vượt định mức sẽ sinh mã `approveToken` và lưu trạng thái `pending`.
+- **Quy tắc bắt buộc:**
+  - **Kênh duyệt 1-chạm qua Token (`/api/leave/approve?token=...`):** Luôn là endpoint độc lập, sẵn sàng kích hoạt tức thì mà không phụ thuộc vào giao diện hay trạng thái deploy của trang web. Khi quản lý cần duyệt gấp ca nghỉ pending, có thể sử dụng trực tiếp URL chứa token này.
+- **Phạm vi:** [Leave Portal | Approval API | Email Service]
+
+---
+
 ## 📝 Mẫu Ghi Nhận Bài Học Mới (Template)
 
 ```markdown
