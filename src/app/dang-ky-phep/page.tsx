@@ -151,6 +151,8 @@ export default async function LeavePortalPage({ searchParams }: PageProps) {
     user?.role === "coordinator" ||
     currentStaff?.role === "admin" ||
     currentStaff?.role === "coordinator" ||
+    currentStaff?.code === "BS" ||
+    currentStaff?.code === "ADMIN" ||
     privilegedEmails.includes(userEmail) ||
     privilegedEmails.includes(staffEmail);
 
