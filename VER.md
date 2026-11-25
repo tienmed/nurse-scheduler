@@ -1,6 +1,51 @@
 # NurseFlow Versioning
 
-## v1.4.7 (2026-11-16)
+## v1.5.0 (2026-11-25)
+### Bổ Sung Giao Diện Duyệt Phép Chờ Xử Lý Trực Tiếp Trên Mobile Cho Quản Lý
+- **Tính năng Duyệt phép Mobile-First (`src/components/leave-portal/manager-pending-approvals.tsx`):**
+  - Bổ sung tab **"Duyệt phép"** trên cổng `/dang-ky-phep` hiển thị riêng cho Quản lý (`role === 'admin' | 'coordinator'`, `tienmed@gmail.com`, `nghiadn.pk@pnt.edu.vn`).
+  - Hiển thị huy hiệu đỏ đếm số lượng ca nghỉ đang chờ duyệt (`pending`) ngay trên thanh điều hướng tabs.
+  - Thiết kế dạng thẻ bo tròn tối ưu 100% cảm ứng trên điện thoại (Touch-friendly), hiển thị đầy đủ thông tin nhân sự, ngày, ca, lý do và thời gian nộp đơn.
+  - Cho phép Quản lý duyệt 1 chạm hoặc từ chối đơn trực tiếp trên web khi bị trôi/sót email, đồng thời tự động cập nhật Google Sheets và gửi email thông báo kết quả cho nhân sự.
+- **Server Actions Quản trị (`src/app/dang-ky-phep/actions.ts`):**
+  - Cung cấp `approveLeaveFromWebAction` và `rejectLeaveFromWebAction` bảo mật với cơ chế phân quyền Quản lý nghiêm ngặt.
+- **Trang Cổng Nhân Sự (`src/app/dang-ky-phep/page.tsx`):**
+  - Tích hợp điều hướng 5 tabs linh hoạt cho Quản lý, tự động phân phối dữ liệu ca chờ duyệt.
+- **Kiểm thử & Chất lượng:**
+  - `npx tsc --noEmit`: **0 lỗi** kiểu dữ liệu.
+
+## v1.4.9 (2026-11-23)
+### Chuyển Đổi Số Duyệt Ký Nghỉ Phép Qua E-Office PNT (Chấm Dứt Bảng Giấy)
+- **Chuẩn hóa Quy trình Duyệt ký Nghỉ phép qua E-Office PNT:**
+  - Chấm dứt hoàn toàn việc lập và nộp phiếu xin nghỉ phép bằng bảng giấy.
+  - Sau khi đăng ký ca nghỉ trên link `/dang-ky-phep` của NurseFlow để hệ thống kiểm soát hạn ngạch (≤ 2 người/ca phép thường, ≤ 3 người/ca đi học) và điều phối tua trực, người làm đơn bắt buộc phải lên hệ thống **E-Office PNT** (`https://e-office.pnt.edu.vn/app/create-jobs`) để lập phiếu xin nghỉ điện tử theo đúng quy định hành chính của Trường ĐH Y khoa Phạm Ngọc Thạch.
+- **Cập nhật Toàn Diện Hệ Thống:**
+  - **Hằng số hệ thống (`src/lib/constants.ts`):** Khai báo `EOFFICE_PNT_CREATE_JOB_URL = "https://e-office.pnt.edu.vn/app/create-jobs"`.
+  - **Dịch vụ Email (`src/lib/email-service.ts`):** Thay thế toàn bộ nội dung hướng dẫn làm phiếu giấy bằng khối hướng dẫn quy định E-Office PNT kèm nút liên kết ngoài mở trực tiếp trang tạo phiếu nghỉ trên E-Office; cập nhật ghi chú email gửi Ban Quản lý.
+  - **Cổng Đăng Ký Nghỉ Phép (`src/components/leave-portal/flexible-leave-form.tsx`):** Bổ sung khối thông báo hướng dẫn quy trình duyệt ký E-Office PNT nổi bật kèm nút bấm liên kết; cập nhật chú thích dưới nút gửi đơn.
+  - **Server Actions (`src/app/dang-ky-phep/actions.ts`):** Cập nhật thông điệp phản hồi sau khi nộp đơn, nhắc nhở nhân sự hoàn tất thủ tục tạo phiếu trên E-Office PNT.
+  - **Trang Duyệt 1-Chạm (`src/app/api/leave/approve/route.ts`):** Cập nhật nội dung thông báo xác nhận duyệt của Quản lý.
+  - **Tab Thống Kê Phép (`src/components/leave-portal/my-leave-stats-view.tsx`):** Bổ sung quy định duyệt ký qua E-Office PNT trong danh mục quy chế đơn vị.
+  - **Bộ nhớ dự án (`.agents/memory/learnings.md`):** Ghi nhận bài học nguyên tử nghiệp vụ `[P0-LEAVE-EOFFICE-01]`.
+
+## v1.4.8 (2026-11-22)
+### Đồng Bộ Lịch Tuần Sau (23/11 - 27/11/2026) & Dời Phòng Khám Nội Thần Kinh Về Cùng Phòng Khám Nội 1 (P.13)
+- **Đồng Bộ Lịch Tuần Sau Lên Hệ Thống (`weekly_schedule`):**
+  - Đồng bộ chuẩn xác 169 ca trực từ ảnh phân công tuần 23/11/2026 – 27/11/2026 lên Google Sheets.
+  - Tích hợp ngày nghỉ lễ Thứ Ba (24/11/2026) không bố trí ca trực.
+  - Phân bổ chính xác các ca nghỉ phép / ốm của nhân sự: T2 (Liên, Thủy, Chuyền nghỉ phép; Lyna nghỉ ốm), T4 (Phúc Anh nghỉ phép, Lyna nghỉ ốm), T5 (Phúc Anh nghỉ phép), T6 (Phúc Anh nghỉ cả ngày, Ngọc Hạnh nghỉ ca chiều).
+  - Tự động thay thế 183 ca nháp sinh tự động bằng 169 ca trực thực tế (`source: "manual"`, `status: "published"`).
+- **Điều Chỉnh Hệ Thống: Phòng Khám Nội Thần Kinh Dời Về Cùng Phòng Khám Nội 1:**
+  - **Cơ sở dữ liệu Google Sheets (`positions`):** Cập nhật `position-noi-than-kinh` từ `Nội thần kinh (P2.2)` - `Tầng 1 (cánh T)` thành `Nội thần kinh (P.13)` - `Trệt (cánh P)`, mô tả `Phòng khám Nội thần kinh (dời về ghép chung phòng Nội 1 P.13)`.
+  - **Ánh xạ Lịch Bác sĩ (`src/lib/clinic-schedule-api.ts`):** Bổ sung ánh xạ tên chuẩn hóa `nội thần kinh (p.13)` và `nội thần kinh` về `Phòng khám Nội thần kinh` trên Cổng thông tin PNT.
+  - **Khu vực và Kiêm nhiệm (`src/lib/schedule.ts`, `src/app/api/schedule/adjust/route.ts`):** Chuyển khu vực phân phòng của Nội thần kinh về Trệt cánh P cùng phòng P.13; cập nhật logic kiểm tra nhân sự Nga (`isNgaStaff`) tránh nhầm lẫn mã DD04 của ĐD Nghĩa.
+  - **Bộ nhớ dự án (`.agents/memory/learnings.md`):** Ghi nhận bài học nguyên tử nghiệp vụ `[P0-RULES-01]` cập nhật quy chuẩn phòng Nội thần kinh tại P.13 Trệt cánh P.
+- **Dọn dẹp mã nguồn & Xác thực chất lượng toàn diện:**
+  - Loại bỏ các biến cảnh báo unused trong `scripts/email-monthly-timesheet.mjs`, `src/app/api/export/monthly/route.ts`, `src/app/reports/page.tsx`, `src/components/room-assignment/smart-export-adjust-modal.tsx`, `src/lib/monthly-email-html.ts`.
+  - `npm run typecheck`: **0 lỗi**.
+  - `npm run lint`: **0 lỗi, 0 cảnh báo**.
+  - `npm test`: **95/95 test cases passed (100%)**.
+  - `graphify update .`: Tái cấu trúc thành công đồ thị tri thức mã nguồn (**927 nodes, 2813 edges, 51 communities**).
 ### Tự Động Duyệt Nghỉ Phép (Người Thứ 1 & 2 Trong Buổi) & Kế Hoạch Gợi Ý Thay Thế Vị Trí Phép Đột Xuất
 - **Quy tắc Tự động Duyệt Nghỉ Phép (`src/lib/leave-logic.ts`, `src/app/dang-ky-phep/actions.ts`):**
   - Trích xuất module lõi chuẩn hóa `evaluateSlotQuota` (`src/lib/leave-logic.ts`) dùng chung cho cả Server Action, Form Client và bộ kiểm thử đơn vị.

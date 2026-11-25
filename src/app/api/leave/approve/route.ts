@@ -384,7 +384,7 @@ export async function GET(request: NextRequest) {
       `,
       noticeHtml: `
         <div class="notice">
-          <strong>Đã gửi email xác nhận:</strong> Hệ thống đã tự động gửi email thông báo xác thực tới Điều dưỡng <strong>${staffName}</strong> (chỉ gửi các ca vừa được duyệt mới) kèm lời nhắc làm phiếu giấy theo quy định, đồng thời gửi BCC tới <strong>ĐD Nghĩa</strong> (nghiadn.pk@pnt.edu.vn) và <strong>Quản lý tienmed</strong> (tienmed@gmail.com).
+          <strong>Đã gửi email xác nhận:</strong> Hệ thống đã tự động gửi email thông báo xác thực tới Điều dưỡng <strong>${staffName}</strong> (chỉ gửi các ca vừa được duyệt mới) kèm hướng dẫn lên hệ thống <strong>E-Office PNT</strong> (<a href="https://e-office.pnt.edu.vn/app/create-jobs" target="_blank" style="color:#2563eb;font-weight:bold;text-decoration:underline;">e-office.pnt.edu.vn/app/create-jobs</a>) để làm phiếu nghỉ theo quy định (không thực hiện bảng giấy), đồng thời gửi BCC tới <strong>ĐD Nghĩa</strong> (nghiadn.pk@pnt.edu.vn) và <strong>Quản lý tienmed</strong> (tienmed@gmail.com).
         </div>
       `,
     });

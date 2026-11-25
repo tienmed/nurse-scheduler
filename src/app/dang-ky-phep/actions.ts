@@ -3,7 +3,7 @@
 import { format, parseISO } from "date-fns";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { getAppData, invalidateAppDataCache, upsertManyLeaveRequests, calculateYearlyApprovedLeaveStats } from "@/lib/repository";
+import { getAppData, invalidateAppDataCache, upsertManyLeaveRequests, calculateYearlyApprovedLeaveStats, writeAppDataKeysToSheets } from "@/lib/repository";
 import { getUserContext } from "@/lib/session";
 import {
   sendLeaveApprovalRequestEmail,
@@ -261,7 +261,7 @@ export async function submitLeavePortalAction(formData: FormData) {
         emailStatusNote = ` (Lưu ý: Chưa gửi được email xác nhận tới nhân sự do: ${emailResult.error || "Lỗi cấu hình SMTP"})`;
       }
 
-      const msg = `Đã đăng ký và DUYỆT CHÍNH THỨC thành công ${slots.length} ca nghỉ cho ĐD ${targetStaff.name} (${targetStaff.code}). Hệ thống đã gửi email thông báo xác nhận.${emailStatusNote}`;
+      const msg = `Đã đăng ký và DUYỆT CHÍNH THỨC thành công ${slots.length} ca nghỉ cho ĐD ${targetStaff.name} (${targetStaff.code}). Vui lòng lên hệ thống E-Office PNT làm phiếu nghỉ theo quy định (không dùng bảng giấy). Hệ thống đã gửi email thông báo xác nhận.${emailStatusNote}`;
       redirect(`/dang-ky-phep?tab=calendar&message=${encodeURIComponent(msg)}`);
     }
 
@@ -294,7 +294,7 @@ export async function submitLeavePortalAction(formData: FormData) {
         emailStatusNote = ` (Lưu ý: Chưa gửi được email xác nhận cá nhân do: ${emailResult.error || "Lỗi cấu hình SMTP"})`;
       }
 
-      const msg = `Lịch nghỉ đi học (${slots.length} ca) đã được HỆ THỐNG TỰ ĐỘNG XÁC NHẬN THÀNH CÔNG (định mức ≤ 3 người/buổi). Đã gửi email xác nhận riêng tới ${targetStaff.email}.${emailStatusNote}`;
+      const msg = `Lịch nghỉ đi học (${slots.length} ca) đã được HỆ THỐNG TỰ ĐỘNG XÁC NHẬN THÀNH CÔNG (định mức ≤ 3 người/buổi). Vui lòng lên hệ thống E-Office PNT làm phiếu nghỉ theo quy định (không dùng bảng giấy). Đã gửi email xác nhận riêng tới ${targetStaff.email}.${emailStatusNote}`;
       redirect(`/dang-ky-phep?tab=calendar&message=${encodeURIComponent(msg)}`);
     }
 
@@ -381,11 +381,11 @@ export async function submitLeavePortalAction(formData: FormData) {
 
     let msg = "";
     if (pendingIndices.length === 0) {
-      msg = `Đơn xin nghỉ phép (${slots.length} ca) đã được HỆ THỐNG TỰ ĐỘNG DUYỆT THÀNH CÔNG (người thứ 1 hoặc thứ 2 trong buổi ≤ 2 người). Đã gửi email thông báo xác nhận tới bạn, ĐD Nghĩa và Quản lý tienmed.${emailStatusNote}`;
+      msg = `Đơn xin nghỉ phép (${slots.length} ca) đã được HỆ THỐNG TỰ ĐỘNG DUYỆT THÀNH CÔNG (định mức ≤ 2 người/buổi). Vui lòng lên hệ thống E-Office PNT làm phiếu nghỉ theo quy định (không dùng bảng giấy). Đã gửi email thông báo xác nhận tới bạn, ĐD Nghĩa và Quản lý tienmed.${emailStatusNote}`;
     } else if (approvedIndices.length === 0) {
-      msg = `Đơn xin nghỉ có ${pendingIndices.length} ca vượt định mức (≥ 2 người/buổi) nên đã chuyển email tới Quản lý (tienmed@gmail.com) để xem xét phê duyệt.${emailStatusNote}`;
+      msg = `Đơn xin nghỉ có ${pendingIndices.length} ca vượt định mức (≥ 2 người/buổi) nên đã chuyển email tới Quản lý (tienmed@gmail.com) để xem xét phê duyệt. Khi được duyệt, vui lòng lên hệ thống E-Office PNT để làm phiếu nghỉ theo quy định (không thực hiện bảng giấy).${emailStatusNote}`;
     } else {
-      msg = `Hệ thống đã TỰ ĐỘNG DUYỆT ${approvedIndices.length} ca (định mức ≤ 2 người/buổi). Còn ${pendingIndices.length} ca vượt định mức đã chuyển email tới Quản lý để xem xét phê duyệt.${emailStatusNote}`;
+      msg = `Hệ thống đã TỰ ĐỘNG DUYỆT ${approvedIndices.length} ca (định mức ≤ 2 người/buổi). Còn ${pendingIndices.length} ca vượt định mức đã chuyển email tới Quản lý để xem xét phê duyệt. Vui lòng lên hệ thống E-Office PNT để hoàn tất phiếu nghỉ theo quy định (không dùng bảng giấy).${emailStatusNote}`;
     }
 
     redirect(`/dang-ky-phep?tab=calendar&message=${encodeURIComponent(msg)}`);
@@ -395,5 +395,178 @@ export async function submitLeavePortalAction(formData: FormData) {
     }
     const errText = error instanceof Error ? error.message : "Không thể gửi phiếu nghỉ phép.";
     redirect(`/dang-ky-phep?error=${encodeURIComponent(errText)}`);
+  }
+}
+
+/**
+ * [QWEN3] Phê duyệt phiếu/ca nghỉ phép trực tiếp từ giao diện Web (Mobile/Desktop) dành cho Quản lý
+ */
+export async function approveLeaveFromWebAction(params: {
+  leaveId?: string;
+  approveToken?: string;
+}): Promise<{ success: boolean; message: string }> {
+  try {
+    const { user } = await getUserContext({ required: false });
+    const isManager =
+      user?.role === "admin" ||
+      user?.role === "coordinator" ||
+      ["tienmed@gmail.com", "nghiadn.pk@pnt.edu.vn", "admin@nurseflow.local"].includes(
+        user?.email?.toLowerCase() || "",
+      );
+
+    if (!isManager) {
+      return { success: false, message: "Bạn không có quyền quản lý để phê duyệt đơn nghỉ phép." };
+    }
+
+    const { leaveId, approveToken } = params;
+    if (!leaveId && !approveToken) {
+      return { success: false, message: "Không tìm thấy thông tin ca nghỉ cần duyệt." };
+    }
+
+    const data = await getAppData();
+    let matchingLeaves = data.leaveRequests.filter((l) => {
+      if (approveToken && l.approveToken === approveToken) return true;
+      if (leaveId && l.id === leaveId) return true;
+      return false;
+    });
+
+    if (matchingLeaves.length === 0) {
+      return { success: false, message: "Đơn nghỉ phép không tồn tại hoặc đã bị xóa." };
+    }
+
+    const staffId = matchingLeaves[0].staffId;
+    const staff = data.staff.find((s) => s.id === staffId);
+    const staffName = staff?.name || staffId;
+
+    // Lọc các ca đang ở trạng thái pending
+    const pendingSlots = matchingLeaves.filter((l) => l.status === "pending");
+    if (pendingSlots.length === 0) {
+      return { success: true, message: `Đơn của ${staffName} đã được duyệt từ trước đó.` };
+    }
+
+    const matchingIds = new Set(matchingLeaves.map((l) => l.id));
+    data.leaveRequests = data.leaveRequests.map((l) => {
+      if (matchingIds.has(l.id)) {
+        return { ...l, status: "approved" };
+      }
+      return l;
+    });
+
+    await writeAppDataKeysToSheets(data, ["leaveRequests"]);
+    invalidateAppDataCache();
+
+    ["/", "/schedule", "/leave", "/dang-ky-phep", "/reports"].forEach((p) => {
+      revalidatePath(p);
+    });
+
+    // Gửi email thông báo đã duyệt cho nhân sự
+    if (staff?.email) {
+      const emailItems = pendingSlots.map((l) => ({
+        date: l.date,
+        shift: l.shift,
+        reason: l.reason,
+        note: l.note,
+      }));
+
+      const upcoming7DaysLeaves = getUpcoming7DaysApprovedLeaves(data.leaveRequests, data.staff);
+      const substitutionPlan = generateLeaveSubstitutionPlan({
+        slots: emailItems,
+        targetStaff: staff,
+        staff: data.staff,
+        positions: data.positions,
+        weeklySchedule: data.weeklySchedule,
+        templateSchedule: data.templateSchedule,
+        leaveRequests: data.leaveRequests,
+      });
+
+      sendLeaveApprovedNotificationEmail({
+        staff,
+        leaveItems: emailItems,
+        upcoming7DaysLeaves,
+        substitutionPlan,
+      }).catch((err) => {
+        console.error("🚨 [approveLeaveFromWebAction] Lỗi gửi email thông báo đã duyệt:", err);
+      });
+    }
+
+    return {
+      success: true,
+      message: `Đã duyệt thành công ${pendingSlots.length} ca nghỉ của Điều dưỡng ${staffName}.`,
+    };
+  } catch (error: any) {
+    console.error("🚨 [approveLeaveFromWebAction] Lỗi:", error);
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : "Đã có lỗi xảy ra khi phê duyệt.",
+    };
+  }
+}
+
+/**
+ * [QWEN3] Từ chối phiếu/ca nghỉ phép trực tiếp từ giao diện Web dành cho Quản lý
+ */
+export async function rejectLeaveFromWebAction(params: {
+  leaveId?: string;
+  approveToken?: string;
+  reason?: string;
+}): Promise<{ success: boolean; message: string }> {
+  try {
+    const { user } = await getUserContext({ required: false });
+    const isManager =
+      user?.role === "admin" ||
+      user?.role === "coordinator" ||
+      ["tienmed@gmail.com", "nghiadn.pk@pnt.edu.vn", "admin@nurseflow.local"].includes(
+        user?.email?.toLowerCase() || "",
+      );
+
+    if (!isManager) {
+      return { success: false, message: "Bạn không có quyền quản lý để từ chối đơn nghỉ phép." };
+    }
+
+    const { leaveId, approveToken } = params;
+    if (!leaveId && !approveToken) {
+      return { success: false, message: "Không tìm thấy thông tin ca nghỉ cần từ chối." };
+    }
+
+    const data = await getAppData();
+    let matchingLeaves = data.leaveRequests.filter((l) => {
+      if (approveToken && l.approveToken === approveToken) return true;
+      if (leaveId && l.id === leaveId) return true;
+      return false;
+    });
+
+    if (matchingLeaves.length === 0) {
+      return { success: false, message: "Đơn nghỉ phép không tồn tại hoặc đã bị xóa." };
+    }
+
+    const staffId = matchingLeaves[0].staffId;
+    const staff = data.staff.find((s) => s.id === staffId);
+    const staffName = staff?.name || staffId;
+
+    const matchingIds = new Set(matchingLeaves.map((l) => l.id));
+    data.leaveRequests = data.leaveRequests.map((l) => {
+      if (matchingIds.has(l.id)) {
+        return { ...l, status: "rejected" };
+      }
+      return l;
+    });
+
+    await writeAppDataKeysToSheets(data, ["leaveRequests"]);
+    invalidateAppDataCache();
+
+    ["/", "/schedule", "/leave", "/dang-ky-phep", "/reports"].forEach((p) => {
+      revalidatePath(p);
+    });
+
+    return {
+      success: true,
+      message: `Đã từ chối ${matchingLeaves.length} ca nghỉ của Điều dưỡng ${staffName}.`,
+    };
+  } catch (error: any) {
+    console.error("🚨 [rejectLeaveFromWebAction] Lỗi:", error);
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : "Đã có lỗi xảy ra khi từ chối.",
+    };
   }
 }

@@ -7,7 +7,7 @@ import {
   CalendarCheck,
   Clock,
   CheckCircle2,
-  
+  ExternalLink,
   Palmtree,
   GraduationCap,
   HeartCrack,
@@ -15,6 +15,7 @@ import {
   Calendar,
   Sparkles,
 } from "lucide-react";
+import { EOFFICE_PNT_CREATE_JOB_URL } from "@/lib/constants";
 import type { LeaveRecord, StaffMember } from "@/lib/types";
 
 interface MyLeaveStatsViewProps {
@@ -415,6 +416,18 @@ export function MyLeaveStatsView({
           </li>
           <li>
             <strong>Đi học và Nghỉ ốm</strong>: Được theo dõi riêng theo diện đào tạo và chế độ bảo hiểm xã hội, <strong>hoàn toàn không trừ vào quỹ phép năm</strong> của nhân sự.
+          </li>
+          <li>
+            <strong>Duyệt ký điện tử qua E-Office PNT</strong>: Sau khi đăng ký ca nghỉ trên hệ thống điều phối NurseFlow, người làm đơn bắt buộc phải truy cập{" "}
+            <a
+              href={EOFFICE_PNT_CREATE_JOB_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-bold text-sky-700 underline inline-flex items-center gap-0.5 hover:text-sky-900"
+            >
+              E-Office PNT <ExternalLink className="h-3 w-3" />
+            </a>{" "}
+            để làm phiếu nghỉ theo đúng quy định. Đơn vị <strong>không thực hiện bảng giấy</strong>.
           </li>
         </ul>
       </div>

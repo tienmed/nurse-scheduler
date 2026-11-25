@@ -90,14 +90,14 @@
      - **Phòng khám Chuyên gia:** Thường trực mặc nhiên là **Kim Hoa (DD03)**.
      - **Thanh Trùng & Phòng khám YHCT (P2.5):** Thường trực mặc nhiên là **ĐD Nhân (Lê Thị Nhân - DD16)** (tránh nhầm Đặng Nhân Nghĩa - DD17); khi ĐD Nhân nghỉ phép hoặc cần thay đổi sẽ có **Điệp (Nguyễn Thị Ngọc Điệp - DD07)** hỗ trợ.
      - **Phòng cấp cứu (P1.7) & Phòng đo ECG (P1.8):** Thường trực mặc nhiên là **Ngọc Hạnh (DD02)**.
-     - **Phòng khám CTCH (P1.9) & Phòng khám Nội 1 (P.13):** Thường trực mặc nhiên là **Nga (Nhữ Thị Phương Nga - DD04)**.
+     - **Phòng khám CTCH (P1.9), Phòng khám Nội 1 (P.13) & Phòng khám Nội thần kinh (P.13):** Thường trực mặc nhiên là **Nga (Nhữ Thị Phương Nga - DD04)** (do Nội thần kinh dời về cùng phòng khám Nội 1 tại P.13 Trệt cánh P).
      - **Phòng khám Phụ - Sản (P1.12), Phòng khám Ngoại (P1.11) & Phòng khám Nội 2 (P1.10):** Thường trực mặc nhiên là **Vĩnh (Nguyễn Thị Vĩnh - DD05)**.
      - **Thứ tự ưu tiên khi cần người thay thế — Tâm thần kinh - Tâm lý, Mắt (P2.3), Da liễu (P2.6) & TMH (P2.7):**
        - Tâm thần kinh - Tâm lý: **Điệp (DD07) → Thủy (DD11) → Ái Liên (DD12) → Chuyền (DD08)**.
        - Mắt: **Chuyền (DD08) → Thủy (DD11) → Ái Liên (DD12)**.
        - Da liễu & CSD: **Mỹ Nhiên (DD06) → Ái Liên (DD12) → Thủy (DD11)** (đi đồng bộ cả 2 phòng).
        - TMH: **Điệp (DD07) → Ái Liên (DD12) → Thủy (DD11) → Chuyền (DD08)**.
-     - **Nhóm phòng ít bệnh (tính 0.5 đơn vị tải kiêm nhiệm):** `Phòng khám Ngoại (P1.11)`, `Phòng khám Chuyên gia`, `Dị ứng - Miễn dịch`, `Nội thần kinh (P2.2)`, `Phòng khám Phụ - Sản / Phụ khoa (P1.12)` — ưu tiên ghép kiêm nhiệm cho điều dưỡng lân cận/tải nhẹ thay vì kéo người đang trực phòng đông bệnh.
+     - **Nhóm phòng ít bệnh (tính 0.5 đơn vị tải kiêm nhiệm):** `Phòng khám Ngoại (P1.11)`, `Phòng khám Chuyên gia`, `Dị ứng - Miễn dịch`, `Nội thần kinh (P.13 dời về cùng phòng Nội 1)`, `Phòng khám Phụ - Sản / Phụ khoa (P1.12)` — ưu tiên ghép kiêm nhiệm cho điều dưỡng lân cận/tải nhẹ thay vì kéo người đang trực phòng đông bệnh.
      - **Phòng khám RHM (KTC):** Bỏ khỏi lịch phân phòng điều dưỡng tự động và email tuần.
   6. **Bảo toàn lịch tuần đã chốt & dự tính mở phòng tuần sau (`schedule-embed`):**
      - Lịch tuần hiện tại đã chốt trên Google Sheets giữ nguyên, tuyệt đối không ghi đè tự động.
@@ -132,6 +132,21 @@
   - **Chỉ phục vụ tham khảo cục bộ:** Nội dung phản hồi/góp ý trong biểu mẫu này CHỈ để AI và người điều phối tham khảo đưa ra các gợi ý hoán đổi ca cho riêng tuần được chỉ định.
   - **Không biến thành kinh nghiệm hay quy tắc chung:** Tuyệt đối KHÔNG đưa nội dung góp ý từ form này vào bảng tính kinh nghiệm giờ làm tích lũy (`calculatePositionExperienceStats` / `experienceLookup`) và KHÔNG tự động biến thành quy tắc bất biến chung (`FIXED_ROOM_STAFF_RULES` / `positionRules`) cho các tuần khác.
 - **Phạm vi:** [Schedule Rules | Room Assignment | AI Integration | Email Notification]
+
+---
+
+### [P0-LEAVE-EOFFICE-01] Quy Chuẩn Duyệt Ký Nghỉ Phép Qua E-Office PNT (Không Dùng Bảng Giấy)
+- **Ngày ghi nhận:** 2026-11-23
+- **Bối cảnh & Nghiệp vụ:** Chuyển đổi số toàn diện quy trình xin nghỉ phép của điều dưỡng/nhân viên tại phòng khám Trường ĐH Y khoa Phạm Ngọc Thạch.
+- **Quy tắc bắt buộc:**
+  1. **Tuyệt đối không dùng bảng giấy:** Không tiếp nhận và không hướng dẫn nhân sự in/nộp phiếu xin nghỉ bằng giấy.
+  2. **Quy trình 2 bước chuẩn hóa:**
+     - **Bước 1 (Điều phối tua trực trên NurseFlow):** Nhân sự đăng ký ca nghỉ tại link `/dang-ky-phep` để hệ thống tự động kiểm soát hạn ngạch (≤ 2 người/ca với nghỉ phép thường, ≤ 3 người/ca với đi học), kích hoạt cảnh báo cấp thiết và tự động đề xuất phương án thay thế vị trí.
+     - **Bước 2 (Trình ký điện tử trên E-Office PNT):** Sau khi gửi đơn (hoặc sau khi được phê duyệt), người làm đơn bắt buộc phải truy cập hệ thống **E-Office PNT** tại đường dẫn chính thức:
+       👉 `https://e-office.pnt.edu.vn/app/create-jobs`
+       để tạo phiếu nghỉ theo đúng quy định hành chính của Trường.
+  3. **Đồng bộ thông tin toàn hệ thống:** Mọi mẫu email thông báo (`src/lib/email-service.ts`), trang duyệt 1-chạm (`src/app/api/leave/approve/route.ts`), thông báo phản hồi Server Action (`src/app/dang-ky-phep/actions.ts`), banner hướng dẫn form (`flexible-leave-form.tsx`) và quy chế thống kê (`my-leave-stats-view.tsx`) đều phải hiển thị đồng bộ link tạo phiếu E-Office PNT và thông điệp không dùng bảng giấy.
+- **Phạm vi:** [Leave Portal | Email Service | Workflow Policy]
 
 ---
 

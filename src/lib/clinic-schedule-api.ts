@@ -47,6 +47,8 @@ export const POSITION_ID_TO_EMBED_CLINIC: Record<string, string> = {
 const POSITION_NAME_TO_EMBED_CLINIC: Record<string, string> = {
   "dị ứng - miễn dịch": "Dị ứng - Miễn dịch lâm sàng",
   "nội thần kinh (p2.2)": "Phòng khám Nội thần kinh",
+  "nội thần kinh (p.13)": "Phòng khám Nội thần kinh",
+  "nội thần kinh": "Phòng khám Nội thần kinh",
   "nội tim mạch (p2.11b)": "Nội Tim Mạch",
   "phòng chăm sóc da (p2.4)": "Da Liễu",
   "phòng khám bsgd (p1.14)": "Phòng khám Bác sĩ Gia đình",

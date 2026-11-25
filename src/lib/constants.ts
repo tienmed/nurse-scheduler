@@ -11,6 +11,7 @@ import type {
 
 export const APP_NAME = "NurseFlow";
 export const SATURDAY_OT_POSITION_ID = "SAT_OT";
+export const EOFFICE_PNT_CREATE_JOB_URL = "https://e-office.pnt.edu.vn/app/create-jobs";
 
 export const APP_TAGLINE =
   "Điều phối lịch làm việc của điều dưỡng theo tuần, cập nhật nghỉ phép và đồng bộ dữ liệu với Google Sheets.";

@@ -3,8 +3,8 @@
 import { useState, useTransition } from "react";
 import { format, parseISO, isBefore, eachDayOfInterval } from "date-fns";
 import { vi } from "date-fns/locale";
-import { Calendar, Plus, Trash2, AlertTriangle, CheckCircle2, Clock, Send, Sparkles, UserCog } from "lucide-react";
-import { LEAVE_SHIFT_LABELS } from "@/lib/constants";
+import { Calendar, Plus, Trash2, AlertTriangle, CheckCircle2, Clock, Send, Sparkles, UserCog, ExternalLink, FileText } from "lucide-react";
+import { LEAVE_SHIFT_LABELS, EOFFICE_PNT_CREATE_JOB_URL } from "@/lib/constants";
 import type { LeaveReason, LeaveRecord, LeaveShift, StaffMember } from "@/lib/types";
 import { submitLeavePortalAction } from "@/app/dang-ky-phep/actions";
 import { evaluateSlotQuota } from "@/lib/leave-logic";
@@ -353,6 +353,37 @@ export function FlexibleLeaveForm({
             <p className="text-[11px] sm:text-xs text-slate-500">
               Tương đương <strong>{activeYearlyStats.totalSessions} buổi</strong> (2 buổi = 1 ngày)
             </p>
+          </div>
+        </div>
+      </div>
+
+      {/* KHỐI 1.5: THÔNG BÁO QUY ĐỊNH DUYỆT KÝ QUA E-OFFICE PNT (KHÔNG DÙNG BẢNG GIẤY) */}
+      <div className="overflow-hidden rounded-2xl sm:rounded-3xl border border-sky-200 bg-gradient-to-r from-sky-50 via-white to-blue-50/60 p-4 sm:p-5 shadow-sm">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-sky-600 text-white font-bold text-xs shadow-sm">
+                <FileText className="h-4 w-4" />
+              </span>
+              <span className="text-xs font-black uppercase tracking-wider text-sky-950">
+                Quy định duyệt ký nghỉ phép qua E-Office PNT
+              </span>
+            </div>
+            <p className="text-xs text-sky-900 leading-relaxed">
+              Sau khi đăng ký ca nghỉ tại đây để hệ thống NurseFlow kiểm tra định mức (≤ 2 người/ca) và điều phối tua trực, anh/chị <strong>bắt buộc phải đăng nhập hệ thống E-Office PNT để làm phiếu nghỉ theo đúng quy định</strong>. Đơn vị <strong>không thực hiện bảng giấy</strong>.
+            </p>
+          </div>
+
+          <div className="shrink-0">
+            <a
+              href={EOFFICE_PNT_CREATE_JOB_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 rounded-xl bg-sky-600 hover:bg-sky-700 px-4 py-2.5 text-xs font-bold text-white shadow-sm transition"
+            >
+              <span>Tạo phiếu trên E-Office PNT</span>
+              <ExternalLink className="h-3.5 w-3.5" />
+            </a>
           </div>
         </div>
       </div>
@@ -728,12 +759,12 @@ export function FlexibleLeaveForm({
                 </>
               )}
             </button>
-            <p className="mt-2 text-center text-[11px] sm:text-xs text-slate-400">
+            <p className="mt-2 text-center text-[11px] sm:text-xs text-slate-500 leading-relaxed">
               {isRegisteringForOther
-                ? "Đơn do Quản trị viên trực tiếp tạo sẽ được Duyệt chính thức ngay và gửi email thông báo xác nhận tới điều dưỡng."
+                ? "Đơn do Quản trị viên tạo hộ sẽ duyệt ngay trên hệ thống điều phối; nhân sự vẫn cần hoàn tất phiếu nghỉ trên E-Office PNT theo quy định (không dùng bảng giấy)."
                 : hasExceededQuota
-                  ? "Đơn có ca vượt định mức (≥ 2 người/buổi) sẽ được ghi nhận tạm và chuyển email tới Quản lý để xem xét duyệt."
-                  : "Ca nghỉ thứ 1 hoặc thứ 2 trong buổi sẽ được hệ thống TỰ ĐỘNG DUYỆT NGAY và gửi email thông báo tới bạn, ĐD Nghĩa và Quản lý tienmed."}
+                  ? "Đơn có ca vượt định mức (≥ 2 người/buổi) sẽ chuyển email tới Quản lý xem xét. Sau khi gửi, vui lòng lên E-Office PNT để làm phiếu nghỉ (không dùng bảng giấy)."
+                  : "Ca nghỉ thứ 1 hoặc thứ 2 trong buổi sẽ được hệ thống TỰ ĐỘNG DUYỆT. Vui lòng lên hệ thống E-Office PNT để hoàn tất phiếu nghỉ theo quy định (không thực hiện bảng giấy)."}
             </p>
           </div>
         </form>

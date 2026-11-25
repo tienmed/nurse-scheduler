@@ -173,7 +173,7 @@ QUY TẮC BẮT BUỘC (TUÂN THỦ 100%):
    - Phòng khám Mắt (P2.3): thứ tự ưu tiên Chuyền -> Thủy -> Ái (khi cần người thay thế).
    - Da liễu & Chăm sóc da: mặc nhiên Nhiên; khi Nhiên nghỉ ưu tiên đồng bộ Ái -> Thủy.
    - Phòng khám TMH (P2.7): thứ tự ưu tiên Điệp -> Ái -> Thủy -> Chuyền (khi cần người thay thế).
-   - Nhóm PHÒNG ÍT BỆNH (Ngoại P1.11, Chuyên gia, Dị ứng - Miễn dịch, Nội thần kinh P2.2, Phụ khoa / Phụ - Sản P1.12): lượng bệnh ít, ưu tiên ghép kiêm nhiệm cho điều dưỡng khu vực lân cận hoặc người giữ tải nhẹ (tính 0.5 tải), tránh kéo người đang gánh phòng đông bệnh.
+   - Nhóm PHÒNG ÍT BỆNH (Ngoại P1.11, Chuyên gia, Dị ứng - Miễn dịch, Nội thần kinh P.13 dời về cùng phòng Nội 1, Phụ khoa / Phụ - Sản P1.12): lượng bệnh ít, ưu tiên ghép kiêm nhiệm cho điều dưỡng khu vực lân cận hoặc người giữ tải nhẹ (tính 0.5 tải), tránh kéo người đang gánh phòng đông bệnh.
    - Bỏ Phòng khám RHM (KTC), không xếp lịch vào vị trí này.
 6. ĐIỀU PHỐI DỰ PHÒNG KHNV & GIẢI PHÓNG ĐO SINH HIỆU KHI QUÁ TẢI (>= 4 VỊ TRÍ):
    - Thiên Trang và ĐD Nghĩa (nghiadn.pk@pnt.edu.vn) làm việc toàn thời gian tại phòng KHNV.

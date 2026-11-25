@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { getMonthBounds, getMonthKey } from "@/lib/date";
+import { getMonthKey } from "@/lib/date";
 import { getAppData, getEffectiveLeaveRequests } from "@/lib/repository";
 import { buildMonthlyTimesheet } from "@/lib/schedule";
 import { generateMonthlyTimesheetExcelBuffer } from "@/lib/monthly-timesheet-excel";

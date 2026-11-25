@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { LogOut, CalendarCheck, ShieldAlert, HeartPulse, CalendarDays, BarChart3, Compass } from "lucide-react";
+import { LogOut, CalendarCheck, ShieldAlert, HeartPulse, CalendarDays, BarChart3, Compass, CheckSquare } from "lucide-react";
 import { signIn, signOut } from "@/auth";
 import { getAppData, calculateYearlyApprovedLeaveStats } from "@/lib/repository";
 import { getUserContext } from "@/lib/session";
@@ -9,6 +9,7 @@ import { PortalLeaveCalendar } from "@/components/leave-portal/portal-leave-cale
 import { MyLeaveStatsView } from "@/components/leave-portal/my-leave-stats-view";
 import { MyPersonalScheduleView } from "@/components/leave-portal/my-personal-schedule-view";
 import { SmartAdjustTriggerButton } from "@/components/leave-portal/smart-adjust-trigger-button";
+import { ManagerPendingApprovals } from "@/components/leave-portal/manager-pending-approvals";
 import { isStudyStaff } from "@/lib/study-staff";
 
 interface PageProps {
@@ -136,6 +137,15 @@ export default async function LeavePortalPage({ searchParams }: PageProps) {
   const yearlyStats = calculateYearlyApprovedLeaveStats(currentStaff.id, data.leaveRequests);
   const activeStaffList = data.staff.filter((s) => s.active !== false);
 
+  const isManager =
+    user?.role === "admin" ||
+    user?.role === "coordinator" ||
+    ["tienmed@gmail.com", "nghiadn.pk@pnt.edu.vn", "admin@nurseflow.local"].includes(
+      user?.email?.toLowerCase() || "",
+    );
+
+  const allPendingLeaves = data.leaveRequests.filter((l) => l.status === "pending");
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 pb-12 sm:pb-16 selection:bg-teal-100 selection:text-teal-900">
       {/* HEADER ĐỘC LẬP CHO CỔNG NGHỈ PHÉP (RESPONSIVE) */}
@@ -213,8 +223,10 @@ export default async function LeavePortalPage({ searchParams }: PageProps) {
           </div>
         )}
 
-        {/* ĐIỀU HƯỚNG 4 TABS (RESPONSIVE GRID) */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 border-b border-slate-200 gap-1 sm:gap-2">
+        {/* ĐIỀU HƯỚNG TABS (RESPONSIVE GRID) */}
+        <div className={`grid border-b border-slate-200 gap-1 sm:gap-2 ${
+          isManager ? "grid-cols-2 sm:grid-cols-5" : "grid-cols-2 sm:grid-cols-4"
+        }`}>
           {/* Tab 1: Lịch trực của tôi (MỚI - MẶC ĐỊNH) */}
           <Link
             href="/dang-ky-phep?tab=my-schedule"
@@ -266,10 +278,35 @@ export default async function LeavePortalPage({ searchParams }: PageProps) {
             <CalendarDays className="h-4 w-4 shrink-0" />
             <span className="truncate">Lịch thành viên</span>
           </Link>
+
+          {/* Tab 5: Duyệt phép (DÀNH RIÊNG CHO QUẢN LÝ / ADMIN) */}
+          {isManager && (
+            <Link
+              href="/dang-ky-phep?tab=approvals"
+              className={`inline-flex items-center justify-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-2.5 sm:py-3 text-xs sm:text-sm font-bold border-b-2 transition text-center col-span-2 sm:col-span-1 ${
+                activeTab === "approvals"
+                  ? "border-amber-500 text-amber-800 bg-amber-50/50 rounded-t-xl"
+                  : "border-transparent text-slate-500 hover:text-slate-900"
+              }`}
+            >
+              <CheckSquare className="h-4 w-4 shrink-0 text-amber-600" />
+              <span className="truncate">Duyệt phép</span>
+              {allPendingLeaves.length > 0 && (
+                <span className="ml-1 inline-flex items-center justify-center rounded-full bg-rose-500 px-1.5 py-0.2 text-[10px] font-black text-white shadow-sm">
+                  {allPendingLeaves.length}
+                </span>
+              )}
+            </Link>
+          )}
         </div>
 
         {/* NỘI DUNG TƯƠNG ỨNG TỪNG TAB */}
-        {activeTab === "calendar" ? (
+        {activeTab === "approvals" && isManager ? (
+          <ManagerPendingApprovals
+            pendingLeaves={allPendingLeaves}
+            allStaff={data.staff}
+          />
+        ) : activeTab === "calendar" ? (
           <PortalLeaveCalendar
             currentStaff={currentStaff}
             allStaff={data.staff.some((s) => s.id === currentStaff.id) ? data.staff : [currentStaff, ...data.staff]}

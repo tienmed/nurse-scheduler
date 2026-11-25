@@ -1,7 +1,7 @@
 import nodemailer from "nodemailer";
 import { format, parseISO, addDays, isWithinInterval, startOfToday } from "date-fns";
 import { vi } from "date-fns/locale";
-import { LEAVE_REASON_LABELS, LEAVE_SHIFT_LABELS } from "@/lib/constants";
+import { LEAVE_REASON_LABELS, LEAVE_SHIFT_LABELS, EOFFICE_PNT_CREATE_JOB_URL } from "@/lib/constants";
 import type { LeaveReason, LeaveRecord, LeaveShift, StaffMember } from "@/lib/types";
 import { type LeaveSubstitutionPlan, renderSubstitutionPlanHtml } from "@/lib/substitution-logic";
 
@@ -443,7 +443,7 @@ export async function sendLeaveApprovalRequestEmail(
 
             <hr style="border:none;border-top:1px solid #e2e8f0;margin:20px 0 12px 0;" />
             <p style="margin:0;font-size:11px;color:#94a3b8;line-height:1.5;">
-              Sau khi duyệt, dữ liệu sẽ được ghi nhận chính thức vào Google Sheets và tự động gửi email thông báo xác thực tới Điều dưỡng ${staff.name} (BCC tới ĐD Nghĩa và Quản lý tienmed).
+              Sau khi duyệt, dữ liệu sẽ được ghi nhận chính thức vào Google Sheets và tự động gửi email thông báo xác thực tới Điều dưỡng ${staff.name} (BCC tới ĐD Nghĩa và Quản lý tienmed), đồng thời hướng dẫn điều dưỡng lên hệ thống E-Office PNT làm phiếu nghỉ theo quy định (không thực hiện bảng giấy).
             </p>
           </td>
         </tr>
@@ -627,14 +627,19 @@ export async function sendLeaveApprovedNotificationEmail(
             <!-- Khối kế hoạch gợi ý thay thế vị trí (nếu có cho Ban Quản lý) -->
             ${planHtml}
 
-            <!-- LƯU Ý LÀM PHIẾU GIẤY THEO QUI ĐỊNH -->
-            <div style="background-color:#eff6ff;border:1px solid #bfdbfe;border-left:4px solid #3b82f6;border-radius:8px;padding:12px 14px;margin:16px 0 18px 0;">
-              <p style="margin:0 0 4px 0;font-weight:bold;color:#1e40af;font-size:13px;">
-                📝 LƯU Ý THỦ TỤC QUAN TRỌNG:
+            <!-- LƯU Ý THỦ TỤC QUAN TRỌNG: LÀM PHIẾU TRÊN E-OFFICE PNT (KHÔNG DÙNG BẢNG GIẤY) -->
+            <div style="background-color:#eff6ff;border:1px solid #bfdbfe;border-left:4px solid #2563eb;border-radius:10px;padding:14px 16px;margin:18px 0 16px 0;">
+              <p style="margin:0 0 6px 0;font-weight:bold;color:#1e40af;font-size:13px;">
+                📝 LƯU Ý QUY ĐỊNH DUYỆT KÝ QUA E-OFFICE PNT:
               </p>
-              <p style="margin:0;font-size:12px;color:#1e3a8a;line-height:1.5;">
-                Sau khi phiếu nghỉ đã được phê duyệt trên hệ thống, <strong>bạn vui lòng tiến hành làm phiếu giấy xin nghỉ phép theo đúng quy định</strong> của đơn vị/bệnh viện và nộp lại cho bộ phận quản lý.
+              <p style="margin:0 0 10px 0;font-size:12px;color:#1e3a8a;line-height:1.6;">
+                Sau khi phiếu nghỉ đã được phê duyệt trên hệ thống NurseFlow, <strong>bạn bắt buộc phải truy cập hệ thống E-Office PNT để làm phiếu nghỉ theo đúng quy định</strong>. Đơn vị <strong>KHÔNG thực hiện bảng giấy</strong>.
               </p>
+              <div style="text-align:left;">
+                <a href="${EOFFICE_PNT_CREATE_JOB_URL}" target="_blank" style="display:inline-block;background-color:#2563eb;color:#ffffff;text-decoration:none;padding:9px 16px;border-radius:8px;font-size:12px;font-weight:bold;box-shadow:0 2px 6px rgba(37,99,235,0.25);">
+                  👉 Mở E-Office PNT tạo phiếu nghỉ ngay →
+                </a>
+              </div>
             </div>
 
             <!-- NÚT XEM LỊCH TRÊN HỆ THỐNG (TOUCH-FRIENDLY) -->

@@ -139,7 +139,6 @@ export function calculateMonthlyTimesheetStats(
 export function buildMonthlyTimesheetEmailHtml({
   monthKey,
   timesheet,
-  holidays = [],
   generatedAt = new Date(),
 }: MonthlyEmailOptions): {
   subject: string;

@@ -7,7 +7,6 @@ import { SHEET_NAMES } from "@/lib/constants";
 import { buildMonthlyTimesheet } from "@/lib/schedule";
 import { generateMonthlyTimesheetExcelBuffer } from "@/lib/monthly-timesheet-excel";
 import {
-  MONTHLY_TIMESHEET_RECIPIENTS,
   buildMonthlyTimesheetEmailHtml,
   getMonthlyTimesheetRecipients,
   parseMonthArg,

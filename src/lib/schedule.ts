@@ -391,7 +391,10 @@ function isNgaStaff(member: StaffMember): boolean {
   const code = (member.code || "").trim().toUpperCase();
   const lastWord = member.name.trim().split(/\s+/).pop()?.toLowerCase() || "";
   const lower = member.name.toLowerCase();
-  return code === "DD04" || lower.includes("phương nga") || lastWord === "nga";
+  return (
+    (code === "DD04" || lower.includes("phương nga") || lastWord === "nga") &&
+    !lower.includes("nghĩa")
+  );
 }
 
 function isVinhStaff(member: StaffMember): boolean {

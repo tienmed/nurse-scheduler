@@ -1,4 +1,4 @@
-import { Award, BarChart3, Briefcase, CalendarSearch, Clock, Download, FileSpreadsheet, RefreshCcwDot, Sparkles } from "lucide-react";
+import { BarChart3, Briefcase, CalendarSearch, Download, FileSpreadsheet, RefreshCcwDot, Sparkles } from "lucide-react";
 import { AIAssistant } from "@/components/ai-assistant";
 import { AppShell } from "@/components/app-shell";
 import { AuthRequiredState } from "@/components/auth-required-state";
