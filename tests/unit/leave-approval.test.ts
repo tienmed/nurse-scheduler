@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { ADMIN_APPROVER_EMAIL, NOTIFY_BCC_EMAIL } from "@/lib/email-service";
-import { evaluateSlotQuota, LEAVE_QUOTA_LIMIT, STUDY_QUOTA_LIMIT } from "@/lib/leave-logic";
-import type { LeaveRecord } from "@/lib/types";
+import { evaluateSlotQuota, isQuotaExemptStaff, LEAVE_QUOTA_LIMIT, STUDY_QUOTA_LIMIT } from "@/lib/leave-logic";
+import type { LeaveRecord, StaffMember } from "@/lib/types";
 
 describe("[QWEN3] Leave Auto-Approval & Notification Rules (leave-logic.ts)", () => {
   const testDate = "2026-05-11"; // Thứ 2
@@ -339,6 +339,133 @@ describe("[QWEN3] Leave Auto-Approval & Notification Rules (leave-logic.ts)", ()
 
       expect(bccList).toEqual(["tienmed@gmail.com"]);
       expect(bccList).not.toContain("nghiadn.pk@pnt.edu.vn");
+    });
+  });
+
+  describe("[QWEN3] Miễn cơ số tính toán giới hạn nghỉ phép cho BS. Trịnh Trung Tiến & Bác sĩ", () => {
+    const mockStaff: StaffMember[] = [
+      {
+        id: "st-bs-tien",
+        name: "Trịnh Trung Tiến",
+        code: "BS",
+        email: "tienmed@gmail.com",
+        role: "admin",
+        positionIds: [],
+        active: true,
+        prefersOvertime: false,
+      },
+      {
+        id: "st-bs-khanh",
+        name: "Nguyễn Văn Khánh",
+        code: "BS",
+        email: "khanhnv@pnt.edu.vn",
+        role: "admin",
+        positionIds: [],
+        active: true,
+        prefersOvertime: false,
+      },
+      {
+        id: "st-nurse-01",
+        name: "Nguyễn Thị Hoa",
+        code: "DD01",
+        email: "hoant@pnt.edu.vn",
+        role: "viewer",
+        positionIds: ["pos-1"],
+        active: true,
+        prefersOvertime: false,
+      },
+      {
+        id: "st-nurse-02",
+        name: "Trần Thị Lan",
+        code: "DD02",
+        email: "lantt@pnt.edu.vn",
+        role: "viewer",
+        positionIds: ["pos-1"],
+        active: true,
+        prefersOvertime: false,
+      },
+      {
+        id: "st-nurse-03",
+        name: "Lê Văn Cường",
+        code: "DD03",
+        email: "cuonglv@pnt.edu.vn",
+        role: "viewer",
+        positionIds: ["pos-1"],
+        active: true,
+        prefersOvertime: false,
+      },
+    ];
+
+    it("isQuotaExemptStaff nhận diện đúng BS. Trịnh Trung Tiến qua tên, email hoặc mã BS", () => {
+      expect(isQuotaExemptStaff(mockStaff[0])).toBe(true);
+      expect(isQuotaExemptStaff(undefined, "st-bs-tien", mockStaff)).toBe(true);
+      expect(isQuotaExemptStaff({ id: "custom", name: "BS. Trịnh Trung Tiến", code: "BS", positionIds: [], email: "", role: "admin", active: true, prefersOvertime: false })).toBe(true);
+      expect(isQuotaExemptStaff({ id: "custom2", name: "Bs Tien", code: "BS", positionIds: [], email: "bstien@pnt.edu.vn", role: "admin", active: true, prefersOvertime: false })).toBe(true);
+      expect(isQuotaExemptStaff(mockStaff[1])).toBe(true); // code: "BS"
+      expect(isQuotaExemptStaff(mockStaff[2])).toBe(false); // Điều dưỡng bình thường
+    });
+
+    it("Đơn của BS. Trịnh Trung Tiến luôn được duyệt và không bao giờ bị tính vượt định mức (kể cả khi ca đã có người nghỉ)", () => {
+      const existing: LeaveRecord[] = [
+        { id: "l1", staffId: "st-nurse-01", date: testDate, shift: "morning", reason: "phep", status: "approved" },
+        { id: "l2", staffId: "st-nurse-02", date: testDate, shift: "morning", reason: "phep", status: "approved" },
+      ];
+
+      const result = evaluateSlotQuota({
+        slot: { date: testDate, shift: "morning", reason: "phep" },
+        existingLeaves: existing,
+        targetStaffId: "st-bs-tien",
+        allStaff: mockStaff,
+      });
+
+      expect(result.status).toBe("approved");
+      expect(result.isAutoApproved).toBe(true);
+      expect(result.isQuotaExceeded).toBe(false);
+      expect(result.morningCount).toBe(0);
+    });
+
+    it("Ca nghỉ phép của BS. Trịnh Trung Tiến không bị tính vào cơ số 2 người/buổi của điều dưỡng", () => {
+      // Giả sử BS. Tiến và ĐD Hoa đã đăng ký nghỉ ca sáng
+      const existing: LeaveRecord[] = [
+        { id: "l-tien", staffId: "st-bs-tien", date: testDate, shift: "morning", reason: "phep", status: "approved" },
+        { id: "l-hoa", staffId: "st-nurse-01", date: testDate, shift: "morning", reason: "phep", status: "approved" },
+      ];
+
+      // ĐD Lan đăng ký vào cùng buổi sáng -> phải được tính là người thứ 2 (chỉ tính ĐD Hoa, bỏ qua BS. Tiến)
+      const resultLan = evaluateSlotQuota({
+        slot: { date: testDate, shift: "morning", reason: "phep" },
+        existingLeaves: existing,
+        targetStaffId: "st-nurse-02",
+        allStaff: mockStaff,
+      });
+
+      expect(resultLan.status).toBe("approved");
+      expect(resultLan.isAutoApproved).toBe(true);
+      expect(resultLan.isQuotaExceeded).toBe(false);
+      expect(resultLan.morningCount).toBe(1); // Chỉ đếm ĐD Hoa
+      expect(resultLan.existingStaffNames).toEqual(["Nguyễn Thị Hoa"]); // Không chứa tên BS. Tiến trong cơ số tính hạn ngạch
+    });
+
+    it("Điều dưỡng thứ 3 đăng ký chỉ bị vượt định mức khi đã có đủ 2 điều dưỡng khác nghỉ (bỏ qua BS. Tiến)", () => {
+      // Đã có: BS. Tiến, ĐD Hoa, ĐD Lan
+      const existing: LeaveRecord[] = [
+        { id: "l-tien", staffId: "st-bs-tien", date: testDate, shift: "morning", reason: "phep", status: "approved" },
+        { id: "l-hoa", staffId: "st-nurse-01", date: testDate, shift: "morning", reason: "phep", status: "approved" },
+        { id: "l-lan", staffId: "st-nurse-02", date: testDate, shift: "morning", reason: "phep", status: "approved" },
+      ];
+
+      // ĐD Cường là người thứ 3 (trong số điều dưỡng) -> chuyển sang pending (vượt định mức)
+      const resultCuong = evaluateSlotQuota({
+        slot: { date: testDate, shift: "morning", reason: "phep" },
+        existingLeaves: existing,
+        targetStaffId: "st-nurse-03",
+        allStaff: mockStaff,
+      });
+
+      expect(resultCuong.status).toBe("pending");
+      expect(resultCuong.isQuotaExceeded).toBe(true);
+      expect(resultCuong.morningCount).toBe(2); // Chỉ đếm Hoa và Lan (2 người), không phải 3
+      expect(resultCuong.existingStaffNames).toEqual(["Nguyễn Thị Hoa", "Trần Thị Lan"]);
     });
   });
 });

@@ -34,6 +34,7 @@ import {
 import type { ShiftType } from "@/lib/types";
 import { isHoliday } from "@/lib/date";
 import { canEdit, getUserContext } from "@/lib/session";
+import { isQuotaExemptStaff } from "@/lib/leave-logic";
 
 function getValue(formData: FormData, key: string) {
   return `${formData.get(key) ?? ""}`.trim();
@@ -365,29 +366,38 @@ export async function saveLeaveAction(formData: FormData) {
     const forceQuota = getValue(formData, "forceQuota") === "true";
     let quotaExceededDate = "";
 
-    for (const date of validDatesToProcess) {
-      const relevantLeaves = currentData.leaveRequests.filter(
-        (l) => l.date === date && l.reason !== "dihoc" && l.staffId !== staffId
-      );
+    // [QWEN3] Nếu chính nhân sự đăng ký được miễn quota (BS. Trịnh Trung Tiến / Bác sĩ): bỏ qua kiểm tra giới hạn
+    const isTargetExempt = isQuotaExemptStaff(undefined, staffId, currentData.staff);
 
-      let morningCount = 0;
-      let afternoonCount = 0;
-      for (const l of relevantLeaves) {
-        if (l.shift === "full-day") {
-          morningCount++; afternoonCount++;
-        } else if (l.shift === "morning") {
-          morningCount++;
-        } else if (l.shift === "afternoon") {
-          afternoonCount++;
+    if (!isTargetExempt) {
+      for (const date of validDatesToProcess) {
+        const relevantLeaves = currentData.leaveRequests.filter(
+          (l) =>
+            l.date === date &&
+            l.reason !== "dihoc" &&
+            l.staffId !== staffId &&
+            !isQuotaExemptStaff(undefined, l.staffId, currentData.staff)
+        );
+
+        let morningCount = 0;
+        let afternoonCount = 0;
+        for (const l of relevantLeaves) {
+          if (l.shift === "full-day") {
+            morningCount++; afternoonCount++;
+          } else if (l.shift === "morning") {
+            morningCount++;
+          } else if (l.shift === "afternoon") {
+            afternoonCount++;
+          }
         }
-      }
 
-      const isMorningExceeded = (shift === "full-day" || shift === "morning") && morningCount >= 2;
-      const isAfternoonExceeded = (shift === "full-day" || shift === "afternoon") && afternoonCount >= 2;
+        const isMorningExceeded = (shift === "full-day" || shift === "morning") && morningCount >= 2;
+        const isAfternoonExceeded = (shift === "full-day" || shift === "afternoon") && afternoonCount >= 2;
 
-      if (isMorningExceeded || isAfternoonExceeded) {
-        quotaExceededDate = format(parseISO(date), "dd/MM/yyyy");
-        break;
+        if (isMorningExceeded || isAfternoonExceeded) {
+          quotaExceededDate = format(parseISO(date), "dd/MM/yyyy");
+          break;
+        }
       }
     }
 

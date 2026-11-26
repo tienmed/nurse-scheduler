@@ -40,6 +40,17 @@
 
 ---
 
+### [P0-UI-02] Responsive Lịch Nghỉ & Hiển Thị Đầy Đủ Tên Nhân Sự (Omit Staff Code)
+- **Ngày ghi nhận:** 2026-11-26
+- **Bối cảnh & Nghiệp vụ:** Trên các thiết bị mobile, tablet và desktop có nhiều kích thước màn hình khác nhau, thẻ thành viên nghỉ phép tại tab Lịch thành viên (`/dang-ky-phep?tab=calendar`) trước đây bị cắt cụt tên (`truncate`) và hiển thị kèm mã nhân viên (`DD01`, `DD02`...) gây chật chội và khó nhận diện người nghỉ đối với điều phối viên.
+- **Quy tắc bắt buộc:**
+  1. **Hiển thị đầy đủ tên:** Bỏ `truncate`, áp dụng `leading-snug break-words` để họ và tên nhân sự hiển thị trọn vẹn trên mọi kích thước màn hình mà không bị dấu 3 chấm (`...`).
+  2. **Bỏ qua mã nhân viên:** Không hiển thị mã định danh kỹ thuật (`code`), ưu tiên không gian cho tên đầy đủ, nhãn loại nghỉ phép và ký hiệu ca (`S`, `C`, `CN`).
+  3. **Responsive đa thiết bị:** Bố cục dạng lưới thích ứng (`grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4`), tối ưu thẻ thông tin với đường phân cách thanh mảnh và badge ca trực co giãn linh hoạt.
+- **Phạm vi áp dụng:** [Leave Portal | UI/UX Calendar | Responsive Design]
+
+---
+
 ### [P0-LEAVE-01] Phân Quyền Thống Kê Phép Toàn Đơn Vị Theo Năm & Bảo Toàn Dữ Liệu Năm
 - **Ngày ghi nhận:** 2026-11-26
 - **Bối cảnh:** Cổng nghỉ phép (`/dang-ky-phep?tab=stats`) cần cung cấp bảng thống kê toàn bộ nhân sự theo năm cho quản lý (Tiến và Nghĩa).
@@ -76,6 +87,18 @@
   3. **Bảo toàn cảnh báo quá tải định mức:**
      - Hàm kiểm tra quá tải `checkDayOverload` vẫn tiếp nhận toàn bộ các bản ghi ca thô (`rawLeavesForOverload`) để phân tích chính xác xem ca Sáng hay ca Chiều có vượt quá định mức > 2 người nghỉ hay không.
 - **Phạm vi áp dụng:** [Leave Portal | UI/UX Calendar | Shift Grouping & Overload Detection]
+
+---
+
+### [P0-LEAVE-04] Miễn Trừ Cơ Số Giới Hạn Nghỉ Phép Cho BS. Trịnh Trung Tiến & Bác Sĩ (code === "BS")
+- **Ngày ghi nhận:** 2026-11-26
+- **Bối cảnh & Nghiệp vụ:** Cơ số trực phòng khám quy định định mức tối đa 2 người nghỉ phép/buổi và 3 người đi học/buổi đối với điều dưỡng viên. BS. Trịnh Trung Tiến (Ban Giám đốc / Phụ trách phòng khám, `tienmed@gmail.com`, `bstien@pnt.edu.vn`) và các nhân sự có mã chức danh Bác sĩ (`code === "BS"`) không thuộc cơ số điều dưỡng trực.
+- **Quy tắc bắt buộc:**
+  1. **Nhận diện chuẩn (`isQuotaExemptStaff` trong `src/lib/leave-logic.ts`):** Kiểm tra tên chứa "Trịnh Trung Tiến", email thuộc `EXEMPT_QUOTA_EMAILS`, mã `code === "BS"`, hoặc ghi chú chứa cờ `[MIEN_QUOTA]` / `[EXEMPT_QUOTA]`.
+  2. **Không chiếm định mức điều dưỡng:** Khi tính toán số người đã nghỉ trong buổi (`evaluateSlotQuota`), bắt buộc lọc bỏ các ca nghỉ của nhân sự được miễn quota để không đẩy điều dưỡng khác vào tình trạng vượt giới hạn (≥ 2 người/buổi).
+  3. **Tự động duyệt đơn Bác sĩ:** Khi chính nhân sự được miễn quota đăng ký, hệ thống luôn gán `isQuotaExceeded = false` và `status = "approved"`, không bao giờ chặn hay bắt giải trình cấp thiết.
+  4. **Đồng bộ toàn diện:** Áp dụng đồng thời tại Server Action quản trị (`saveLeaveAction` trong `src/app/actions.ts`) và hàm cảnh báo quá tải đỏ trên Lịch nghỉ phép (`checkDayOverload` trong `src/components/leave-portal/portal-leave-calendar.tsx`).
+- **Phạm vi áp dụng:** [Leave Portal | Quota Evaluation | Core Logic | Role-based Exemption]
 
 ---
 

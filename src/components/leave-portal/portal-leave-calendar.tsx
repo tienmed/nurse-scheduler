@@ -19,6 +19,7 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import type { LeaveReason, LeaveRecord, LeaveShift, StaffMember } from "@/lib/types";
+import { isQuotaExemptStaff } from "@/lib/leave-logic";
 
 interface PortalLeaveCalendarProps {
   currentStaff: StaffMember;
@@ -103,10 +104,13 @@ const REASON_CONFIG: Record<
 
 /**
  * Kiểm tra xem ngày có bị quá tải định mức nghỉ hay không (> 2 người nghỉ/ca).
- * Ca đi học (dihoc) không tính vào định mức ca làm việc.
+ * - Ca đi học (dihoc) không tính vào định mức ca làm việc.
+ * - Ca của BS. Trịnh Trung Tiến / Bác sĩ (miễn quota) không tính vào cơ số ca làm việc.
  */
-function checkDayOverload(leaves: LeaveRecord[]) {
-  const activeLeaves = leaves.filter((l) => l.reason !== "dihoc");
+function checkDayOverload(leaves: LeaveRecord[], allStaff: StaffMember[] = []) {
+  const activeLeaves = leaves.filter(
+    (l) => l.reason !== "dihoc" && !isQuotaExemptStaff(undefined, l.staffId, allStaff)
+  );
   let morningCount = 0;
   let afternoonCount = 0;
 
@@ -419,7 +423,7 @@ export function PortalLeaveCalendar({
               const isDayToday = isSameDay(dateObj, today);
               const dayLabel = format(dateObj, "EEEE", { locale: vi });
               const dateLabel = format(dateObj, "dd/MM/yyyy");
-              const overloadInfo = checkDayOverload(rawLeavesForOverload);
+              const overloadInfo = checkDayOverload(rawLeavesForOverload, allStaff);
 
               return (
                 <div
@@ -503,19 +507,16 @@ export function PortalLeaveCalendar({
                               : "bg-slate-50/80 border-slate-200/80 hover:bg-slate-100/80"
                           }`}
                         >
-                          {/* Hàng 1: Tên nhân sự */}
-                          <div className="flex items-center justify-between gap-1.5 mb-1">
-                            <span className="truncate text-xs font-bold text-slate-900">
+                          {/* Hàng 1: Tên nhân sự đầy đủ, không bị cắt cụt */}
+                          <div className="mb-1.5">
+                            <span className="text-xs sm:text-[13px] font-bold text-slate-900 leading-snug break-words">
                               {person?.name || l.staffId}
                               {isMe && <span className="ml-1 text-teal-700 font-extrabold">(Bạn)</span>}
-                            </span>
-                            <span className="text-[10px] font-medium text-slate-400 shrink-0">
-                              {person?.code || ""}
                             </span>
                           </div>
 
                           {/* Hàng 2: Huy hiệu Loại nghỉ & Ca S/C/CN rõ nét */}
-                          <div className="flex items-center justify-between gap-1.5 pt-1">
+                          <div className="flex items-center justify-between gap-1.5 pt-1 border-t border-slate-100/80">
                             {/* Loại nghỉ (Phép, Ốm, Đi học, Khác) */}
                             <span className={`inline-flex items-center gap-1 rounded-md px-1.5 sm:px-2 py-0.5 text-[10px] ${reason.badge}`}>
                               <span className={`h-1.5 w-1.5 rounded-full ${reason.dot}`}></span>
@@ -525,7 +526,7 @@ export function PortalLeaveCalendar({
                             {/* Ca nghỉ (S, C, CN) */}
                             <span
                               title={shift.label}
-                              className={`inline-flex items-center justify-center rounded-md px-2 py-0.5 text-[11px] font-black ${shift.badgeBg}`}
+                              className={`inline-flex items-center justify-center rounded-md px-2 py-0.5 text-[11px] font-black shrink-0 ${shift.badgeBg}`}
                             >
                               {shift.code}
                             </span>

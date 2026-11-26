@@ -189,11 +189,8 @@ export default async function LeavePortalPage({ searchParams }: PageProps) {
               />
 
               <div className="text-right">
-                <span className="block text-xs sm:text-sm font-bold text-slate-900 truncate max-w-[120px] sm:max-w-none">
+                <span className="block text-xs sm:text-sm font-bold text-slate-900">
                   {currentStaff.name}
-                </span>
-                <span className="block text-[10px] sm:text-[11px] text-slate-400 font-medium">
-                  {currentStaff.code}
                 </span>
               </div>
               <form

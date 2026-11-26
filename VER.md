@@ -1,5 +1,19 @@
 # NurseFlow Versioning
 
+## v1.5.3 (2026-11-26)
+### Miễn Trừ Cơ Số Tính Toán Giới Hạn Nghỉ Phép Cho BS. Trịnh Trung Tiến & Bác Sĩ
+- **Tách Biệt Bác Sĩ / Ban Giám Đốc Khỏi Cơ Số Điều Dưỡng (`src/lib/leave-logic.ts`):**
+  - Bổ sung hàm tiện ích `isQuotaExemptStaff`: Nhận diện BS. Trịnh Trung Tiến (`tienmed@gmail.com`, `bstien@pnt.edu.vn`, tên chứa "Trịnh Trung Tiến"), nhân sự có mã Bác sĩ (`code === "BS"`), hoặc ghi chú có tag `[MIEN_QUOTA]`/`[EXEMPT_QUOTA]`.
+  - Cập nhật module đánh giá định mức `evaluateSlotQuota`:
+    - Khi tính số lượng người đã nghỉ trong buổi (`morningCount`, `afternoonCount`), hệ thống tự động **bỏ qua các ca nghỉ của nhân sự được miễn quota** (trong đó có BS. Trịnh Trung Tiến), đảm bảo không chiếm dụng định mức 2 người/buổi của điều dưỡng trực.
+    - Khi chính BS. Trịnh Trung Tiến / Bác sĩ đăng ký nghỉ phép: Luôn tự động duyệt chính thức ngay lập tức (`isQuotaExceeded: false`, `status: "approved"`), không bao giờ bị báo vượt định mức hay chặn gửi đơn.
+- **Đồng Bộ Kiểm Tra Giới Hạn Quản Trị & Lịch Nghỉ (`src/app/actions.ts`, `src/components/leave-portal/portal-leave-calendar.tsx`):**
+  - Cập nhật `saveLeaveAction` trong `actions.ts`: Khi kiểm tra định mức 2 người/ca, bỏ qua đơn của BS. Trịnh Trung Tiến và Bác sĩ.
+  - Cập nhật hàm `checkDayOverload` trong `portal-leave-calendar.tsx`: Không tính ca nghỉ của BS. Tiến vào cảnh báo quá tải đỏ trên lịch nghỉ phép.
+- **Kiểm Thử & Đảm Bảo Chất Lượng:**
+  - Bổ sung test suite chi tiết trong `tests/unit/leave-approval.test.ts` (4 unit test kiểm thử toàn diện: nhận diện, tự động duyệt, không chiếm cơ số điều dưỡng, phát hiện đúng người thứ 3).
+  - Vitest test suite: **99 passed (6 test files)**.
+
 ## v1.5.2 (2026-11-26)
 ### Gom Ca S+C Thành Ca Cả Ngày (CN), Khử Trùng Lặp & Triệt Tiêu Cảnh Báo Quá Tải Ảo
 - **Gom Ca Thông Minh & Đếm Đúng Số Người (`src/components/leave-portal/portal-leave-calendar.tsx`):**

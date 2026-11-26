@@ -3,6 +3,54 @@ import type { LeaveRecord, LeaveShift, LeaveReason, StaffMember } from "./types"
 export const LEAVE_QUOTA_LIMIT = 2; // Định mức nghỉ phép thông thường: tối đa 2 người/buổi
 export const STUDY_QUOTA_LIMIT = 3; // Định mức đi học: tối đa 3 người/buổi
 
+/**
+ * [QWEN3] Danh sách email của các nhân sự đặc thù được miễn tính vào cơ số giới hạn nghỉ phép
+ * (BS. Trịnh Trung Tiến - Ban Giám đốc phụ trách phòng khám)
+ */
+export const EXEMPT_QUOTA_EMAILS = [
+  "tienmed@gmail.com",
+  "bstien@pnt.edu.vn",
+];
+
+/**
+ * [QWEN3] Kiểm tra một nhân sự có được miễn cơ số tính toán giới hạn nghỉ phép hay không.
+ * Các trường hợp được miễn:
+ * 1. BS. Trịnh Trung Tiến (theo tên hoặc email)
+ * 2. Nhân sự có mã chức danh Bác sĩ (code === "BS") hoặc Ban Giám đốc (role/notes)
+ * 3. Ghi chú có tag [MIEN_QUOTA] hoặc [EXEMPT_QUOTA]
+ */
+export function isQuotaExemptStaff(staff?: StaffMember | null, staffId?: string, allStaff: StaffMember[] = []): boolean {
+  const target = staff || allStaff.find((s) => s.id === staffId);
+  if (!target) return false;
+
+  const email = (target.email || "").trim().toLowerCase();
+  if (EXEMPT_QUOTA_EMAILS.some((e) => e.toLowerCase() === email)) {
+    return true;
+  }
+
+  const code = (target.code || "").trim().toUpperCase();
+  if (code === "BS") {
+    return true;
+  }
+
+  const name = (target.name || "").trim().toLowerCase();
+  const normalizedName = name
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/đ/g, "d");
+
+  if (normalizedName.includes("trinh trung tien") || normalizedName.includes("tienmed")) {
+    return true;
+  }
+
+  const notes = (target.notes || "").toUpperCase();
+  if (notes.includes("[MIEN_QUOTA]") || notes.includes("[EXEMPT_QUOTA]") || notes.includes("[BAN GIÁM ĐỐC]")) {
+    return true;
+  }
+
+  return false;
+}
+
 export interface SlotEvaluationResult {
   status: "approved" | "pending";
   isAutoApproved: boolean;
@@ -36,12 +84,17 @@ export function evaluateSlotQuota(params: {
 }): SlotEvaluationResult {
   const { slot, existingLeaves, targetStaffId, allStaff = [], isRegisteredByAdmin = false } = params;
 
-  if (isRegisteredByAdmin) {
+  // [QWEN3] Kiểm tra nếu nhân sự mục tiêu là người được miễn cơ số (BS. Trịnh Trung Tiến / Bác sĩ):
+  // Luôn tự động duyệt chính thức, không bao giờ bị tính vượt định mức hay chặn đăng ký.
+  const targetStaff = allStaff.find((s) => s.id === targetStaffId);
+  const isTargetExempt = isQuotaExemptStaff(targetStaff, targetStaffId, allStaff);
+
+  if (isRegisteredByAdmin || isTargetExempt) {
     return {
       status: "approved",
-      isAutoApproved: false,
-      isAutoApprovedLeave: false,
-      isAutoApprovedStudy: false,
+      isAutoApproved: isTargetExempt,
+      isAutoApprovedLeave: isTargetExempt && slot.reason !== "dihoc",
+      isAutoApprovedStudy: isTargetExempt && slot.reason === "dihoc",
       isQuotaExceeded: false,
       morningCount: 0,
       afternoonCount: 0,
@@ -54,13 +107,15 @@ export function evaluateSlotQuota(params: {
   const isStudy = slot.reason === "dihoc";
   const quotaLimit = isStudy ? STUDY_QUOTA_LIMIT : LEAVE_QUOTA_LIMIT;
 
-  // Lọc các bản ghi nghỉ của nhân sự khác trong cùng ngày (loại bỏ rejected và chính staff)
+  // Lọc các bản ghi nghỉ của nhân sự khác trong cùng ngày (loại bỏ rejected, chính staff, và nhân sự được miễn quota như BS. Tiến)
   // Với ca nghỉ phép: không tính ca đi học vào định mức 2 người
   const sameDayLeaves = existingLeaves.filter((l) => {
     if (l.date !== slot.date) return false;
     if (l.staffId === targetStaffId) return false;
     if (l.status === "rejected") return false;
     if (!isStudy && l.reason === "dihoc") return false;
+    // [QWEN3] Không tính ca nghỉ của BS. Trịnh Trung Tiến / Bác sĩ vào cơ số giới hạn
+    if (isQuotaExemptStaff(undefined, l.staffId, allStaff)) return false;
     return true;
   });
 
