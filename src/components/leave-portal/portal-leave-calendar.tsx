@@ -148,26 +148,73 @@ export function PortalLeaveCalendar({
     .sort((a, b) => a.date.localeCompare(b.date));
 
   // 2. Lịch các thành viên: chỉ lấy các ca ĐÃ DUYỆT (approved hoặc cũ) trong khoảng thời gian horizonDays
+  // [QWEN3] Khử trùng lặp theo cặp nhân sự + ngày + ca (staffId + date + shift) để bảo vệ toàn vẹn hiển thị
   const horizonEnd = addDays(today, horizonDays);
+  const seenMemberLeaves = new Set<string>();
   const approvedMemberLeaves = allLeaves
     .filter((l) => {
       try {
+        if (!l.staffId || !l.date) return false;
         const d = parseISO(l.date);
         const isApproved = l.status === "approved" || !l.status;
         const inWindow = isWithinInterval(d, { start: today, end: horizonEnd });
-        return isApproved && inWindow;
+        if (!isApproved || !inWindow) return false;
+
+        const dedupeKey = `${l.staffId}|${l.date}|${l.shift}`;
+        if (seenMemberLeaves.has(dedupeKey)) return false;
+        seenMemberLeaves.add(dedupeKey);
+        return true;
       } catch {
         return false;
       }
     })
     .sort((a, b) => a.date.localeCompare(b.date));
 
-  // Nhóm theo ngày
+  // [QWEN3] Nhóm theo ngày và gom ca: Nếu cùng 1 nhân sự đăng ký cả ca S (morning) và C (afternoon) trong cùng ngày -> gom thành 1 thẻ CN (full-day)
   const groupedByDate = new Map<string, LeaveRecord[]>();
   approvedMemberLeaves.forEach((leave) => {
     const list = groupedByDate.get(leave.date) ?? [];
     list.push(leave);
     groupedByDate.set(leave.date, list);
+  });
+
+  // Chuyển đổi danh sách hiển thị theo ngày sau khi gom ca
+  const displayGroupedByDate = new Map<string, { displayLeaves: LeaveRecord[]; rawLeavesForOverload: LeaveRecord[]; uniqueStaffCount: number }>();
+  groupedByDate.forEach((leaves, dateStr) => {
+    // 1. Phân nhóm theo staffId trong ngày
+    const staffLeavesMap = new Map<string, LeaveRecord[]>();
+    leaves.forEach((l) => {
+      const existing = staffLeavesMap.get(l.staffId) ?? [];
+      existing.push(l);
+      staffLeavesMap.set(l.staffId, existing);
+    });
+
+    const displayLeaves: LeaveRecord[] = [];
+    staffLeavesMap.forEach((staffLeaves) => {
+      const hasMorning = staffLeaves.some((l) => l.shift === "morning");
+      const hasAfternoon = staffLeaves.some((l) => l.shift === "afternoon");
+      const fullDayRecord = staffLeaves.find((l) => l.shift === "full-day");
+
+      if (fullDayRecord) {
+        displayLeaves.push(fullDayRecord);
+      } else if (hasMorning && hasAfternoon) {
+        // Cùng 1 người đăng ký cả S và C -> Gom lại thành 1 thẻ CN (full-day)
+        const primary = staffLeaves.find((l) => l.shift === "morning") || staffLeaves[0];
+        displayLeaves.push({
+          ...primary,
+          id: `${primary.staffId}-${dateStr}-merged-cn`,
+          shift: "full-day",
+        });
+      } else {
+        staffLeaves.forEach((l) => displayLeaves.push(l));
+      }
+    });
+
+    displayGroupedByDate.set(dateStr, {
+      displayLeaves,
+      rawLeavesForOverload: leaves,
+      uniqueStaffCount: staffLeavesMap.size,
+    });
   });
 
   return (
@@ -365,14 +412,14 @@ export function PortalLeaveCalendar({
           </div>
         </div>
 
-        {groupedByDate.size > 0 ? (
+        {displayGroupedByDate.size > 0 ? (
           <div className="grid gap-3.5 sm:gap-4 lg:gap-5 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {[...groupedByDate.entries()].map(([dateStr, leaves]) => {
+            {[...displayGroupedByDate.entries()].map(([dateStr, { displayLeaves, rawLeavesForOverload, uniqueStaffCount }]) => {
               const dateObj = parseISO(dateStr);
               const isDayToday = isSameDay(dateObj, today);
               const dayLabel = format(dateObj, "EEEE", { locale: vi });
               const dateLabel = format(dateObj, "dd/MM/yyyy");
-              const overloadInfo = checkDayOverload(leaves);
+              const overloadInfo = checkDayOverload(rawLeavesForOverload);
 
               return (
                 <div
@@ -419,7 +466,7 @@ export function PortalLeaveCalendar({
                           </span>
                         )}
                         <span className="text-[10px] sm:text-[11px] font-bold text-slate-400">
-                          {leaves.length} người
+                          {uniqueStaffCount} người
                         </span>
                       </div>
                     </div>
@@ -441,7 +488,7 @@ export function PortalLeaveCalendar({
 
                   {/* Danh sách các nhân sự nghỉ trong ngày */}
                   <div className="space-y-2 sm:space-y-2.5">
-                    {leaves.map((l) => {
+                    {displayLeaves.map((l) => {
                       const person = allStaff.find((s) => s.id === l.staffId);
                       const isMe = person?.id === currentStaff.id;
                       const shift = SHIFT_CONFIG[l.shift] || SHIFT_CONFIG["full-day"];

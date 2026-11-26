@@ -4,7 +4,7 @@ import { cache as reactCache } from "react";
 import { revalidateTag } from "next/cache";
 import { SHEET_HEADERS, SHEET_NAMES } from "@/lib/constants";
 import { env, getServiceAccountPrivateKey, isSheetsConfigured } from "@/lib/env";
-import type { AppData } from "@/lib/types";
+import type { AppData, LeaveRecord } from "@/lib/types";
 
 type SheetName = keyof typeof SHEET_NAMES;
 type SheetRow = Record<string, string>;
@@ -506,17 +506,32 @@ export async function readAppDataFromSheets(): Promise<AppData> {
       status: (row.status as any) || "draft",
       note: row.note,
     })),
-    leaveRequests: parseSheetData(SHEET_NAMES.leaveRequests).map((row) => ({
-      id: row.id,
-      staffId: row.staffId,
-      date: row.date,
-      shift: row.shift as "morning" | "afternoon" | "full-day",
-      reason: (row.reason as any) || "personal",
-      note: row.note,
-      status: (row.status as any) || "approved",
-      approveToken: row.approveToken || "",
-      createdAt: row.createdAt || "",
-    })),
+    leaveRequests: (() => {
+      const parsed = parseSheetData(SHEET_NAMES.leaveRequests);
+      const uniqueLeaves: LeaveRecord[] = [];
+      const seen = new Set<string>();
+
+      for (const row of parsed) {
+        if (!row.staffId || !row.date) continue;
+        const shift = (row.shift as "morning" | "afternoon" | "full-day") || "full-day";
+        const key = `${row.staffId}|${row.date}|${shift}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+
+        uniqueLeaves.push({
+          id: row.id,
+          staffId: row.staffId,
+          date: row.date,
+          shift,
+          reason: (row.reason as any) || "personal",
+          note: row.note,
+          status: (row.status as any) || "approved",
+          approveToken: row.approveToken || "",
+          createdAt: row.createdAt || "",
+        });
+      }
+      return uniqueLeaves;
+    })(),
     positionRules: parseSheetData(SHEET_NAMES.positionRules).map((row) => ({
       id: row.id,
       positionId: row.positionId,

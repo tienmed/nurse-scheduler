@@ -10,8 +10,6 @@ import {
   AlertTriangle,
   User,
   Calendar,
-  Layers,
-  Sparkles,
 } from "lucide-react";
 import type { LeaveRecord, StaffMember } from "@/lib/types";
 import { approveLeaveFromWebAction, rejectLeaveFromWebAction } from "@/app/dang-ky-phep/actions";

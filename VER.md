@@ -1,5 +1,23 @@
 # NurseFlow Versioning
 
+## v1.5.2 (2026-11-26)
+### Gom Ca S+C Thành Ca Cả Ngày (CN), Khử Trùng Lặp & Triệt Tiêu Cảnh Báo Quá Tải Ảo
+- **Gom Ca Thông Minh & Đếm Đúng Số Người (`src/components/leave-portal/portal-leave-calendar.tsx`):**
+  - Tự động gộp 2 ca đăng ký Sáng (`morning`) và Chiều (`afternoon`) của cùng 1 nhân sự trong 1 ngày thành 1 thẻ duy nhất hiển thị ký hiệu ca **`CN` (Cả ngày)** màu tím nổi bật.
+  - Chuẩn hóa số lượng người nghỉ ở tiêu đề mỗi ngày theo `uniqueStaffCount` (số nhân sự thực tế duy nhất), giải quyết dứt điểm trường hợp 1 người bị đếm thành 2 người.
+  - Bảo toàn truyền dữ liệu thô `rawLeavesForOverload` vào `checkDayOverload` để giữ vững tính chính xác của cảnh báo quá tải định mức (>2 người/ca).
+- **Làm Sạch Dữ Liệu Google Sheets (`leave_requests`):**
+  - Xóa 3 bản ghi trùng lặp tồn đọng (trong đó có DD02 ngày 27/11/2026) và dọn sạch các hàng rỗng trong tab `leave_requests`.
+- **Bảo Vệ Đa Tầng Adapter & UI (`src/lib/google-sheets.ts`, `src/components/leave-portal/portal-leave-calendar.tsx`):**
+  - Bổ sung cơ chế Deduplicate tự động theo khóa `staffId + date + shift` ngay khi nạp dữ liệu từ Google Sheets.
+  - Tích hợp bộ lọc chống trùng trên giao diện `PortalLeaveCalendar`, ngăn chặn lỗi nhân đôi thẻ nghỉ và triệt tiêu triệt để cảnh báo quá tải ảo (>2 người/ca).
+- **Dọn Sạch ESLint & Chuẩn Hóa Codebase:**
+  - Dọn sạch cảnh báo biến thừa và thay thế `let` thành `const` trong `actions.ts`, `page.tsx`, `all-staff-leave-stats-view.tsx`, `manager-pending-approvals.tsx`.
+- **Kiểm Thử & Đồng Bộ Tri Thức:**
+  - `npm run typecheck`: **0 lỗi** TypeScript.
+  - `npm run lint`: **0 lỗi, 0 cảnh báo**.
+  - `graphify update .`: Cập nhật đồng bộ 955 nodes, 2896 edges, 56 communities.
+
 ## v1.5.1 (2026-11-26)
 ### Bổ Sung Xem Thống Kê Phép Toàn Bộ Nhân Sự Theo Năm Cho Quản Lý
 - **Giao diện Thống kê phép đa năng (`src/components/leave-portal/leave-stats-tab-container.tsx`):**

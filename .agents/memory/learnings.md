@@ -54,6 +54,31 @@
 
 ---
 
+### [P0-LEAVE-02] Khử Trùng Lặp Bản Ghi Nghỉ Phép (Leave Deduplication Invariant)
+- **Ngày ghi nhận:** 2026-11-26
+- **Triệu chứng & Nguyên nhân:** Nhân sự (ví dụ: DD02 ngày 27/11/2026) bị trùng hiển thị 2 thẻ nghỉ phép giống hệt nhau trên lịch, dẫn đến tính sai số người nghỉ ca Chiều (từ 2 người thành 3 người) và kích hoạt nhầm cảnh báo quá tải ảo (`Quá tải (>2/ca)`). Nguyên nhân do bảng Google Sheets có 2 dòng cùng `staffId + date + shift` (một đơn tự động duyệt qua Portal và một đơn nạp từ kịch bản đồng bộ lịch tuần).
+- **Cơ chế phòng ngừa & Chuẩn hóa 2 lớp:**
+  1. **Lớp Adapter Dữ Liệu (`src/lib/google-sheets.ts`):** Trong hàm `readAppDataFromSheets`, khi nạp `leaveRequests` từ Google Sheets, bắt buộc khử trùng lặp (Deduplicate) theo khóa duy nhất `staffId|date|shift` và loại bỏ dòng rác không có `staffId`/`date`.
+  2. **Lớp Giao Diện Lịch Nghỉ (`src/components/leave-portal/portal-leave-calendar.tsx`):** Tại khối tính toán `approvedMemberLeaves`, lọc qua `seenMemberLeaves` theo `staffId|date|shift` trước khi nhóm theo ngày, đảm bảo tuyệt đối không có 2 thẻ cùng 1 nhân sự trong 1 ca làm việc và tính toán chính xác số lượng quá tải ca.
+- **Phạm vi áp dụng:** [Leave Portal | Google Sheets Adapter | Schedule Overload Detection]
+
+---
+
+### [P0-LEAVE-03] Gom Ca S+C Thành Ca Cả Ngày (CN) & Chuẩn Hóa Đếm Nhân Sự Duy Nhất
+- **Ngày ghi nhận:** 2026-11-26
+- **Triệu chứng & Vấn đề:** Khi cùng 1 nhân sự đăng ký nghỉ cả ca Sáng (`morning`) và Chiều (`afternoon`) trong cùng một ngày, giao diện Lịch Nghỉ (`PortalLeaveCalendar`) trước đó tách thành 2 thẻ riêng biệt (`S` và `C`) và đếm số lượng ở header ngày bị cộng dồn thành 2 người (ví dụ: chỉ có 1 nhân sự nhưng báo "2 người").
+- **Cơ chế xử lý chuẩn hóa:**
+  1. **Gom ca thông minh (Merged Shift Card):**
+     - Tại `src/components/leave-portal/portal-leave-calendar.tsx`, khi duyệt danh sách đã khử trùng lặp trong ngày, nhóm theo `staffId`.
+     - Nếu một nhân sự có cả `morning` và `afternoon` trong ngày (hoặc đã có `full-day`), gom thành 1 thẻ duy nhất hiển thị ký hiệu ca **`CN` (Cả ngày)** màu tím nổi bật (`shift: "full-day"`).
+  2. **Chuẩn hóa đếm số người duy nhất (`uniqueStaffCount`):**
+     - Nhãn đếm số lượng người nghỉ trong ngày hiển thị ở tiêu đề ô lịch bắt buộc tính theo kích thước danh sách nhân sự duy nhất (`staffLeavesMap.size`), đảm bảo 1 người đăng ký 2 ca chỉ tính là **1 người**.
+  3. **Bảo toàn cảnh báo quá tải định mức:**
+     - Hàm kiểm tra quá tải `checkDayOverload` vẫn tiếp nhận toàn bộ các bản ghi ca thô (`rawLeavesForOverload`) để phân tích chính xác xem ca Sáng hay ca Chiều có vượt quá định mức > 2 người nghỉ hay không.
+- **Phạm vi áp dụng:** [Leave Portal | UI/UX Calendar | Shift Grouping & Overload Detection]
+
+---
+
 ### [P0-OPS-01] Tác Vụ Lập Lịch Windows & Cụm AI Nội Bộ
 - **Bối cảnh:** Ứng dụng tích hợp các tác vụ nền Windows Task Scheduler và cụm AI chuyên dụng của phòng khám.
 - **Quy tắc bắt buộc:**

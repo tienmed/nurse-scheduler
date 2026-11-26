@@ -6,7 +6,6 @@ import { vi } from "date-fns/locale";
 import {
   Users,
   Search,
-  Calendar,
   CheckCircle2,
   Clock,
   GraduationCap,
@@ -15,9 +14,7 @@ import {
   ChevronUp,
   FileSpreadsheet,
   Palmtree,
-  Filter,
   Check,
-  User,
   Sparkles,
 } from "lucide-react";
 import type { LeaveRecord, StaffMember } from "@/lib/types";

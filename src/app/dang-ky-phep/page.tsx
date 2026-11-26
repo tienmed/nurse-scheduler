@@ -6,7 +6,6 @@ import { getUserContext } from "@/lib/session";
 import { getWeekStartFromInput } from "@/lib/date";
 import { FlexibleLeaveForm } from "@/components/leave-portal/flexible-leave-form";
 import { PortalLeaveCalendar } from "@/components/leave-portal/portal-leave-calendar";
-import { MyLeaveStatsView } from "@/components/leave-portal/my-leave-stats-view";
 import { LeaveStatsTabContainer } from "@/components/leave-portal/leave-stats-tab-container";
 import { MyPersonalScheduleView } from "@/components/leave-portal/my-personal-schedule-view";
 import { SmartAdjustTriggerButton } from "@/components/leave-portal/smart-adjust-trigger-button";

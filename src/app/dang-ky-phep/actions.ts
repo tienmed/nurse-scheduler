@@ -430,7 +430,7 @@ export async function approveLeaveFromWebAction(params: {
     }
 
     const data = await getAppData();
-    let matchingLeaves = data.leaveRequests.filter((l) => {
+    const matchingLeaves = data.leaveRequests.filter((l) => {
       if (approveToken && l.approveToken === approveToken) return true;
       if (leaveId && l.id === leaveId) return true;
       return false;
@@ -541,7 +541,7 @@ export async function rejectLeaveFromWebAction(params: {
     }
 
     const data = await getAppData();
-    let matchingLeaves = data.leaveRequests.filter((l) => {
+    const matchingLeaves = data.leaveRequests.filter((l) => {
       if (approveToken && l.approveToken === approveToken) return true;
       if (leaveId && l.id === leaveId) return true;
       return false;
