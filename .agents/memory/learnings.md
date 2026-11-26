@@ -102,6 +102,21 @@
 
 ---
 
+### [P0-LEAVE-05] Nguyên Tắc Tính Ngày Vắng Mặt Toàn Diện & Ca Pending Quá Khứ
+- **Ngày ghi nhận:** 2026-11-26 (Phiên bản v1.5.5)
+- **Bối cảnh & Nghiệp vụ y tế:**
+  1. Ngày làm việc thực tế của nhân sự liên quan trực tiếp đến mọi lý do vắng mặt: Đi học đào tạo (`dihoc`), Nghỉ không lương / Khác (`khac`), và Nghỉ ốm BHXH (`om`) đều là những ngày nhân sự **không đi làm thực tế**.
+  2. Trong thực tế vận hành, nhiều ca nghỉ đột xuất hoặc được sự đồng ý miệng từ trước vẫn ở trạng thái `pending` (chưa có người bấm nút duyệt trên phần mềm).
+- **Quy tắc bắt buộc:**
+  1. **Tự động công nhận ca quá khứ (`isEffectiveApprovedLeave`):** Mọi ca nghỉ có trạng thái `pending` nhưng ngày nghỉ thuộc **quá khứ** (`date < hôm nay` theo giờ Việt Nam) **mặc nhiên được tính như đã duyệt**, không được loại bỏ khỏi số liệu thống kê hay để treo cảnh báo.
+  2. **Tách bạch nhưng bao quát:**
+     - Luôn cung cấp chỉ số **Tổng ngày vắng mặt thực tế** (Phép năm + Đi học + Nghỉ không lương/Khác + Nghỉ ốm) để đối soát ngày công đi làm thực tế.
+     - Cột **Phép năm** chỉ tính trừ vào quỹ phép chuẩn 12 ngày (`reason === "phep"`).
+     - Không để xảy ra tình trạng nhân sự vắng mặt nhiều ngày (đi học/không lương) nhưng lại hiển thị trống hoặc `0 ngày` gây hiểu nhầm là đi làm đầy đủ.
+  3. **Phạm vi áp dụng:** Toàn bộ bảng thống kê đơn vị, cá nhân, xuất báo cáo Timesheet và logic tính toán ngày công.
+
+---
+
 ### [P0-OPS-01] Tác Vụ Lập Lịch Windows & Cụm AI Nội Bộ
 - **Bối cảnh:** Ứng dụng tích hợp các tác vụ nền Windows Task Scheduler và cụm AI chuyên dụng của phòng khám.
 - **Quy tắc bắt buộc:**

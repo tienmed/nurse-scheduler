@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { EOFFICE_PNT_CREATE_JOB_URL } from "@/lib/constants";
 import type { LeaveRecord, StaffMember } from "@/lib/types";
+import { isEffectiveApprovedLeave } from "@/lib/leave-logic";
 
 interface MyLeaveStatsViewProps {
   currentStaff: StaffMember;
@@ -43,11 +44,10 @@ export function MyLeaveStatsView({
   );
 
   // 2. Ca nghỉ phép (phep):
-  // - Đã duyệt (tính vào quỹ phép)
+  // - Đã duyệt hoặc pending trong quá khứ (tính vào quỹ phép)
   const approvedPaidLeaves = myYearLeaves
     .filter((l) => {
-      const isApproved = l.status === "approved" || !l.status;
-      if (!isApproved || l.reason !== "phep") return false;
+      if (!isEffectiveApprovedLeave(l) || l.reason !== "phep") return false;
       try {
         const d = parseISO(l.date).getDay();
         return d !== 0 && d !== 6; // Bỏ qua Thứ 7, CN
@@ -57,9 +57,9 @@ export function MyLeaveStatsView({
     })
     .sort((a, b) => a.date.localeCompare(b.date));
 
-  // - Chờ duyệt (pending)
+  // - Chờ duyệt trong tương lai
   const pendingPaidLeaves = myYearLeaves
-    .filter((l) => l.status === "pending" && l.reason === "phep")
+    .filter((l) => l.status === "pending" && l.reason === "phep" && !isEffectiveApprovedLeave(l))
     .sort((a, b) => a.date.localeCompare(b.date));
 
   // 3. Các ca không tính trừ phép (Đi học / Nghỉ ốm)
@@ -240,7 +240,8 @@ export function MyLeaveStatsView({
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {displayPaidLeaves.map((leave, idx) => {
-                    const isApproved = leave.status === "approved" || !leave.status;
+                    const isEffectiveApproved = isEffectiveApprovedLeave(leave);
+                    const isPast = leave.date < new Date().toISOString().split("T")[0];
                     let dateLabel = leave.date;
                     try {
                       dateLabel = format(parseISO(leave.date), "dd/MM/yyyy (EEEE)", { locale: vi });
@@ -279,10 +280,10 @@ export function MyLeaveStatsView({
                           </span>
                         </td>
                         <td className="py-3 px-4 text-center">
-                          {isApproved ? (
+                          {isEffectiveApproved ? (
                             <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-0.5 text-[11px] font-bold text-emerald-800">
                               <CheckCircle2 className="h-3 w-3" />
-                              Đã duyệt
+                              {leave.status === "pending" && isPast ? "Đã nghỉ (Quá khứ)" : "Đã duyệt"}
                             </span>
                           ) : (
                             <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-0.5 text-[11px] font-bold text-amber-800">
@@ -315,7 +316,8 @@ export function MyLeaveStatsView({
             {/* Danh sách thẻ trên Mobile */}
             <div className="sm:hidden space-y-3">
               {displayPaidLeaves.map((leave, idx) => {
-                const isApproved = leave.status === "approved" || !leave.status;
+                const isEffectiveApproved = isEffectiveApprovedLeave(leave);
+                const isPast = leave.date < new Date().toISOString().split("T")[0];
                 let dateLabel = leave.date;
                 try {
                   dateLabel = format(parseISO(leave.date), "dd/MM/yyyy (EEEE)", { locale: vi });
@@ -327,7 +329,7 @@ export function MyLeaveStatsView({
                   <div
                     key={leave.id}
                     className={`rounded-2xl border p-3.5 shadow-sm transition ${
-                      isApproved ? "border-slate-200 bg-white" : "border-amber-200 bg-amber-50/40"
+                      isEffectiveApproved ? "border-slate-200 bg-white" : "border-amber-200 bg-amber-50/40"
                     }`}
                   >
                     <div className="flex items-center justify-between border-b border-slate-100 pb-2 mb-2">
@@ -339,10 +341,10 @@ export function MyLeaveStatsView({
                           {dateLabel}
                         </span>
                       </div>
-                      {isApproved ? (
+                      {isEffectiveApproved ? (
                         <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-800">
                           <CheckCircle2 className="h-3 w-3" />
-                          Đã duyệt
+                          {leave.status === "pending" && isPast ? "Đã nghỉ (Quá khứ)" : "Đã duyệt"}
                         </span>
                       ) : (
                         <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-800">

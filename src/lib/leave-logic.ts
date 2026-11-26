@@ -179,3 +179,23 @@ export function evaluateSlotQuota(params: {
     existingStaffNames,
   };
 }
+
+/**
+ * [QWEN3] Kiểm tra một đơn nghỉ có được xem là Đã duyệt hiệu lực hay không.
+ * Quy tắc:
+ * 1. Đơn có status === "approved" hoặc không có status (mặc định cũ).
+ * 2. Đơn ở trạng thái "pending" (Chờ duyệt) nhưng ngày nghỉ thuộc QUÁ KHỨ (date < hôm nay theo giờ VN):
+ *    Xem như đã duyệt trên thực tế vì ca nghỉ đã diễn ra.
+ */
+export function isEffectiveApprovedLeave(leave: { date: string; status?: string; shift?: string }): boolean {
+  if (leave.status === "rejected") return false;
+  if (leave.status === "approved" || !leave.status) return true;
+  if (leave.status === "pending") {
+    const vnToday = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Ho_Chi_Minh" }))
+      .toISOString()
+      .split("T")[0];
+    return leave.date < vnToday;
+  }
+  return false;
+}
+

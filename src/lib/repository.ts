@@ -10,6 +10,7 @@ import { MOCK_DATA } from "@/lib/mock-data";
 import { fetchEffectivePositionRulesForWeek } from "@/lib/clinic-schedule-api";
 import { buildSmartWeeklyAssignments } from "@/lib/schedule";
 import { isPastShift } from "@/lib/date";
+import { isEffectiveApprovedLeave } from "@/lib/leave-logic";
 import type {
   AccessControlEntry,
   AppData,
@@ -596,7 +597,7 @@ export function calculateYearlyApprovedLeaveStats(
   const yearPrefix = `${year}-`;
   const approvedLeaves = leaveRequests.filter((l) => {
     if (l.staffId !== staffId) return false;
-    if (l.status && l.status !== "approved") return false;
+    if (!isEffectiveApprovedLeave(l)) return false;
     if (l.reason !== "phep") return false;
     try {
       const d = parseISO(l.date).getDay();

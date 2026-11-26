@@ -1,5 +1,19 @@
 # NurseFlow Versioning
 
+## v1.5.5 (2026-11-26)
+### Tái Cấu Trúc Bảng Thống Kê Quỹ Phép & Ngày Vắng Mặt Thực Tế, Tự Động Tính Ca Pending Quá Khứ
+- **Tự Động Công Nhận Ca Nghỉ Quá Khứ (`src/lib/leave-logic.ts`, `src/lib/repository.ts`):**
+  - Bổ sung hàm tiện ích `isEffectiveApprovedLeave`: Các ca có trạng thái `pending` (Chờ duyệt) nhưng ngày nghỉ thuộc **quá khứ** (`date < hôm nay` theo giờ Việt Nam) được mặc nhiên xem như đã duyệt trên thực tế, triệt tiêu việc bỏ sót các ca nghỉ thực tế của nhân sự khi tính công/quỹ phép.
+- **Tái Cấu Trúc Bảng Thống Kê Toàn Đơn Vị (`src/components/leave-portal/all-staff-leave-stats-view.tsx`):**
+  - **Bổ sung cột "Tổng vắng" thực tế:** Tính tổng hợp toàn bộ các ngày không đi làm = Phép năm + Đi học + Nghỉ không lương/Khác + Nghỉ ốm. Giúp người quản lý nắm bắt chính xác ngày đi làm thực tế và giải quyết triệt để sự hiểu lầm khi nhân sự đi học (DD17) hay nghỉ không lương (DD04) bị hiển thị là 0 ngày.
+  - Phân tách rõ ràng các cột: **Mã NV | Họ và tên | Tổng vắng | Phép năm | Đi học | Ốm / Không lương | Chờ duyệt | Chi tiết**.
+  - Cập nhật 5 thẻ Metrics tổng quan toàn đơn vị: bổ sung thẻ **Tổng vắng thực tế** nổi bật.
+  - Tách biệt ca chờ duyệt: chỉ cảnh báo các ca chờ duyệt trong **tương lai** (`date >= hôm nay`).
+- **Đồng Bộ Bảng Thống Kê Cá Nhân (`src/components/leave-portal/my-leave-stats-view.tsx`):**
+  - Áp dụng `isEffectiveApprovedLeave` vào danh sách ca nghỉ của cá nhân, hiển thị huy hiệu `Đã nghỉ (Quá khứ)` đối với các ca chờ duyệt đã diễn ra.
+- **Kiểm Thử & Đảm Bảo Chất Lượng:**
+  - TypeScript Typecheck: **0 lỗi** (`tsc --noEmit`).
+
 ## v1.5.4 (2026-11-26)
 ### Triển Khai Hoàn Thiện Thống Kê Phép Toàn Bộ Nhân Sự & Kích Hoạt Vercel Build Sau Khi Dọn Dẹp Integration
 - **Kích Hoạt Tự Động Bản Build Vercel:**

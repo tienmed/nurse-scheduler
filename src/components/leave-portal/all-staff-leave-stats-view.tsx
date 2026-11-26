@@ -16,8 +16,10 @@ import {
   Palmtree,
   Check,
   Sparkles,
+  CalendarOff,
 } from "lucide-react";
 import type { LeaveRecord, StaffMember } from "@/lib/types";
+import { isEffectiveApprovedLeave } from "@/lib/leave-logic";
 
 interface AllStaffLeaveStatsViewProps {
   allStaff: StaffMember[];
@@ -50,10 +52,9 @@ export function AllStaffLeaveStatsView({
     return allStaff.map((staff) => {
       const leaves = yearLeaves.filter((l) => l.staffId === staff.id);
 
-      // Phép đã duyệt (chỉ ngày thứ 2 đến thứ 6)
+      // Phép đã duyệt (gồm status approved HOẶC pending nhưng thuộc quá khứ)
       const approvedPaidLeaves = leaves.filter((l) => {
-        const isApproved = l.status === "approved" || !l.status;
-        if (!isApproved || l.reason !== "phep") return false;
+        if (!isEffectiveApprovedLeave(l) || l.reason !== "phep") return false;
         try {
           const d = parseISO(l.date).getDay();
           return d !== 0 && d !== 6;
@@ -68,9 +69,9 @@ export function AllStaffLeaveStatsView({
       }
       const approvedPaidDays = totalSessions / 2;
 
-      // Phép đang chờ duyệt
+      // Phép đang chờ duyệt trong TƯƠNG LAI (chưa duyệt và chưa diễn ra)
       const pendingPaidLeaves = leaves.filter(
-        (l) => l.status === "pending" && l.reason === "phep",
+        (l) => l.status === "pending" && l.reason === "phep" && !isEffectiveApprovedLeave(l),
       );
 
       // Đi học
@@ -87,6 +88,17 @@ export function AllStaffLeaveStatsView({
         0,
       );
 
+      // Nghỉ không lương / Khác
+      const khacLeaves = leaves.filter((l) => l.reason === "khac");
+      const khacSessions = khacLeaves.reduce(
+        (acc, l) => acc + (l.shift === "full-day" ? 2 : 1),
+        0,
+      );
+
+      // Tổng số buổi và ngày vắng mặt thực tế (Phép + Đi học + Nghỉ không lương/Khác + Nghỉ ốm)
+      const totalAbsenceSessions = totalSessions + dihocSessions + omSessions + khacSessions;
+      const totalAbsenceDays = totalAbsenceSessions / 2;
+
       return {
         staff,
         approvedPaidLeaves,
@@ -97,6 +109,10 @@ export function AllStaffLeaveStatsView({
         dihocSessions,
         omLeaves,
         omSessions,
+        khacLeaves,
+        khacSessions,
+        totalAbsenceSessions,
+        totalAbsenceDays,
         allLeavesInYear: leaves,
       };
     });
@@ -109,6 +125,8 @@ export function AllStaffLeaveStatsView({
     let totalPendingCount = 0;
     let totalDihocSessions = 0;
     let totalOmSessions = 0;
+    let totalKhacSessions = 0;
+    let totalAbsenceDays = 0;
     let activeStaffCount = 0;
 
     staffStats.forEach((s) => {
@@ -118,6 +136,8 @@ export function AllStaffLeaveStatsView({
       totalPendingCount += s.pendingPaidLeaves.length;
       totalDihocSessions += s.dihocSessions;
       totalOmSessions += s.omSessions;
+      totalKhacSessions += s.khacSessions;
+      totalAbsenceDays += s.totalAbsenceDays;
     });
 
     return {
@@ -127,8 +147,11 @@ export function AllStaffLeaveStatsView({
       totalPendingCount,
       totalDihocSessions,
       totalOmSessions,
+      totalKhacSessions,
+      totalAbsenceDays,
     };
   }, [staffStats]);
+
 
   // 4. Lọc và sắp xếp danh sách nhân sự
   const filteredAndSortedStaff = useMemo(() => {
@@ -163,7 +186,7 @@ export function AllStaffLeaveStatsView({
       })
       .sort((a, b) => {
         if (sortBy === "daysDesc") {
-          return b.approvedPaidDays - a.approvedPaidDays || a.staff.name.localeCompare(b.staff.name, "vi");
+          return b.totalAbsenceDays - a.totalAbsenceDays || b.approvedPaidDays - a.approvedPaidDays || a.staff.name.localeCompare(b.staff.name, "vi");
         }
         if (sortBy === "pendingDesc") {
           return b.pendingPaidLeaves.length - a.pendingPaidLeaves.length || a.staff.name.localeCompare(b.staff.name, "vi");
@@ -176,16 +199,17 @@ export function AllStaffLeaveStatsView({
   const [copied, setCopied] = useState(false);
   const handleCopySummary = () => {
     const lines = [
-      `BÁO CÁO THỐNG KÊ NGHỈ PHÉP TOÀN ĐƠN VỊ - NĂM ${selectedYear}`,
+      `BÁO CÁO THỐNG KÊ NGHỈ PHÉP & VẮNG MẶT TOÀN ĐƠN VỊ - NĂM ${selectedYear}`,
       `Tổng số nhân sự: ${unitSummary.activeStaffCount} người`,
-      `Tổng số ngày phép đã duyệt: ${unitSummary.totalApprovedDays} ngày (${unitSummary.totalApprovedSessions} buổi)`,
+      `Tổng số ngày vắng mặt thực tế: ${unitSummary.totalAbsenceDays} ngày`,
+      `Tổng số ngày phép năm đã duyệt: ${unitSummary.totalApprovedDays} ngày (${unitSummary.totalApprovedSessions} buổi)`,
       `Tổng số ca chờ duyệt: ${unitSummary.totalPendingCount} ca`,
-      `Tổng số buổi đi học: ${unitSummary.totalDihocSessions} buổi | Nghỉ ốm: ${unitSummary.totalOmSessions} buổi`,
+      `Tổng số buổi đi học: ${unitSummary.totalDihocSessions} buổi | Nghỉ không lương/khác: ${unitSummary.totalKhacSessions} buổi | Nghỉ ốm: ${unitSummary.totalOmSessions} buổi`,
       `----------------------------------------`,
-      `STT\tMã NV\tHọ và tên\tNghỉ phép (Ngày)\tChờ duyệt\tĐi học (Buổi)\tNghỉ ốm (Buổi)`,
+      `STT\tMã NV\tHọ và tên\tTổng vắng (Ngày)\tPhép năm (Ngày)\tĐi học (Buổi)\tKhông lương/Khác (Buổi)\tNghỉ ốm (Buổi)\tChờ duyệt (Ca)`,
       ...filteredAndSortedStaff.map(
         (item, idx) =>
-          `${idx + 1}\t${item.staff.code}\t${item.staff.name}\t${item.approvedPaidDays}\t${item.pendingPaidLeaves.length}\t${item.dihocSessions}\t${item.omSessions}`,
+          `${idx + 1}\t${item.staff.code}\t${item.staff.name}\t${item.totalAbsenceDays}\t${item.approvedPaidDays}\t${item.dihocSessions}\t${item.khacSessions}\t${item.omSessions}\t${item.pendingPaidLeaves.length}`,
       ),
     ];
     navigator.clipboard.writeText(lines.join("\n"));
@@ -233,14 +257,31 @@ export function AllStaffLeaveStatsView({
           </div>
         </div>
 
-        {/* 4 Thẻ chỉ số tổng hợp đơn vị */}
-        <div className="grid gap-3.5 sm:gap-4 grid-cols-2 lg:grid-cols-4 pt-4">
-          {/* Thẻ 1: Tổng số ngày phép đã duyệt */}
+        {/* 5 Thẻ chỉ số tổng hợp đơn vị */}
+        <div className="grid gap-3.5 sm:gap-4 grid-cols-2 lg:grid-cols-5 pt-4">
+          {/* Thẻ 1: Tổng số ngày vắng mặt thực tế */}
+          <div className="rounded-2xl border-2 border-slate-300 bg-slate-50/90 p-3.5 sm:p-4 shadow-sm col-span-2 sm:col-span-1">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] sm:text-xs font-bold uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
+                <CalendarOff className="h-3.5 w-3.5 text-slate-600" />
+                Tổng vắng thực tế
+              </span>
+            </div>
+            <p className="mt-1.5 text-2xl sm:text-3xl font-black text-slate-900">
+              {unitSummary.totalAbsenceDays}{" "}
+              <span className="text-xs sm:text-sm font-semibold text-slate-600">ngày</span>
+            </p>
+            <p className="text-[11px] text-slate-500 mt-0.5">
+              Phép + Học + Không lương + Ốm
+            </p>
+          </div>
+
+          {/* Thẻ 2: Tổng số ngày phép đã duyệt */}
           <div className="rounded-2xl border-2 border-emerald-300 bg-emerald-50/70 p-3.5 sm:p-4 shadow-sm">
             <div className="flex items-center justify-between">
               <span className="text-[11px] sm:text-xs font-bold uppercase tracking-wider text-emerald-800 flex items-center gap-1.5">
                 <Palmtree className="h-3.5 w-3.5 text-emerald-600" />
-                Tổng phép đã duyệt
+                Phép năm đã duyệt
               </span>
             </div>
             <p className="mt-1.5 text-2xl sm:text-3xl font-black text-emerald-700">
@@ -248,16 +289,16 @@ export function AllStaffLeaveStatsView({
               <span className="text-xs sm:text-sm font-semibold text-emerald-900">ngày</span>
             </p>
             <p className="text-[11px] text-emerald-800 mt-0.5">
-              = <strong>{unitSummary.totalApprovedSessions} buổi</strong> (trên {unitSummary.activeStaffCount} nhân sự)
+              = <strong>{unitSummary.totalApprovedSessions} buổi</strong> trừ quỹ phép
             </p>
           </div>
 
-          {/* Thẻ 2: Ca chờ duyệt */}
+          {/* Thẻ 3: Ca chờ duyệt */}
           <div className="rounded-2xl border border-amber-200 bg-amber-50/60 p-3.5 sm:p-4 shadow-sm">
             <div className="flex items-center justify-between">
               <span className="text-[11px] sm:text-xs font-bold uppercase tracking-wider text-amber-800 flex items-center gap-1.5">
                 <Clock className="h-3.5 w-3.5 text-amber-600" />
-                Ca đang chờ duyệt
+                Chờ duyệt (Tới)
               </span>
             </div>
             <p className="mt-1.5 text-2xl sm:text-3xl font-black text-amber-700">
@@ -265,11 +306,11 @@ export function AllStaffLeaveStatsView({
               <span className="text-xs sm:text-sm font-semibold text-amber-900">ca</span>
             </p>
             <p className="text-[11px] text-amber-800 mt-0.5">
-              Cần xem xét và phê duyệt
+              Chưa duyệt trong tương lai
             </p>
           </div>
 
-          {/* Thẻ 3: Đi học */}
+          {/* Thẻ 4: Đi học */}
           <div className="rounded-2xl border border-indigo-200 bg-white p-3.5 sm:p-4 shadow-sm">
             <div className="flex items-center justify-between">
               <span className="text-[11px] sm:text-xs font-bold uppercase tracking-wider text-indigo-800 flex items-center gap-1.5">
@@ -282,27 +323,28 @@ export function AllStaffLeaveStatsView({
               <span className="text-xs sm:text-sm font-semibold text-slate-600">buổi</span>
             </p>
             <p className="text-[11px] text-slate-500 mt-0.5">
-              Không tính trừ vào quỹ phép
+              Không trừ vào quỹ phép
             </p>
           </div>
 
-          {/* Thẻ 4: Nghỉ ốm */}
+          {/* Thẻ 5: Nghỉ ốm & Khác */}
           <div className="rounded-2xl border border-rose-200 bg-white p-3.5 sm:p-4 shadow-sm">
             <div className="flex items-center justify-between">
               <span className="text-[11px] sm:text-xs font-bold uppercase tracking-wider text-rose-800 flex items-center gap-1.5">
                 <HeartCrack className="h-3.5 w-3.5 text-rose-600" />
-                Nghỉ ốm / BHXH
+                Ốm & Không lương
               </span>
             </div>
             <p className="mt-1.5 text-2xl sm:text-3xl font-black text-rose-700">
-              {unitSummary.totalOmSessions}{" "}
+              {unitSummary.totalOmSessions + unitSummary.totalKhacSessions}{" "}
               <span className="text-xs sm:text-sm font-semibold text-slate-600">buổi</span>
             </p>
             <p className="text-[11px] text-slate-500 mt-0.5">
-              Hưởng chế độ BHXH
+              Ốm: {unitSummary.totalOmSessions}b · Khác: {unitSummary.totalKhacSessions}b
             </p>
           </div>
         </div>
+
       </div>
 
       {/* KHỐI 2: THANH TÌM KIẾM, BỘ LỌC VÀ SẮP XẾP */}
@@ -337,10 +379,10 @@ export function AllStaffLeaveStatsView({
                 type="button"
                 onClick={() => setRoleFilter("has-leave")}
                 className={`rounded-lg px-2.5 py-1.5 transition ${
-                  roleFilter === "has-leave" ? "bg-white text-emerald-800 shadow-sm" : "text-slate-600 hover:text-slate-900"
+                  roleFilter === "has-leave" ? "bg-white text-slate-900 shadow-sm" : "text-slate-600 hover:text-slate-900"
                 }`}
               >
-                Đã nghỉ phép ({staffStats.filter((s) => s.approvedPaidDays > 0).length})
+                Có vắng mặt ({staffStats.filter((s) => s.totalAbsenceDays > 0).length})
               </button>
               <button
                 type="button"
@@ -349,7 +391,7 @@ export function AllStaffLeaveStatsView({
                   roleFilter === "pending" ? "bg-white text-amber-800 shadow-sm" : "text-slate-600 hover:text-slate-900"
                 }`}
               >
-                Có chờ duyệt ({staffStats.filter((s) => s.pendingPaidLeaves.length > 0).length})
+                Chờ duyệt tới ({staffStats.filter((s) => s.pendingPaidLeaves.length > 0).length})
               </button>
             </div>
 
@@ -359,7 +401,7 @@ export function AllStaffLeaveStatsView({
               onChange={(e) => setSortBy(e.target.value as any)}
               className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 focus:border-teal-500 focus:outline-none"
             >
-              <option value="daysDesc">Nghỉ phép nhiều nhất</option>
+              <option value="daysDesc">Vắng mặt nhiều nhất</option>
               <option value="pendingDesc">Chờ duyệt nhiều nhất</option>
               <option value="name">Tên A-Z</option>
             </select>
@@ -373,14 +415,15 @@ export function AllStaffLeaveStatsView({
           <table className="w-full text-left text-xs border-collapse">
             <thead>
               <tr className="bg-slate-100/90 text-slate-700 font-bold border-b border-slate-200">
-                <th className="py-3 px-3 text-center w-12">STT</th>
-                <th className="py-3 px-3.5">Mã NV</th>
-                <th className="py-3 px-4">Họ và tên</th>
-                <th className="py-3 px-3 text-center">Nghỉ phép (Đã duyệt)</th>
-                <th className="py-3 px-3 text-center">Chờ duyệt</th>
-                <th className="py-3 px-3 text-center">Đi học</th>
-                <th className="py-3 px-3 text-center">Nghỉ ốm</th>
-                <th className="py-3 px-4 text-center w-24">Chi tiết</th>
+                <th className="py-3 px-2.5 text-center w-10">STT</th>
+                <th className="py-3 px-2 text-center w-14">Mã NV</th>
+                <th className="py-3 px-3">Họ và tên</th>
+                <th className="py-3 px-2 text-center bg-slate-200/60 font-black text-slate-900">Tổng vắng</th>
+                <th className="py-3 px-2 text-center text-emerald-900">Phép năm</th>
+                <th className="py-3 px-2 text-center text-indigo-900">Đi học</th>
+                <th className="py-3 px-2 text-center text-rose-900">Ốm / Không lương</th>
+                <th className="py-3 px-2 text-center text-amber-800">Chờ duyệt</th>
+                <th className="py-3 px-3 text-center w-24">Chi tiết</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -396,7 +439,7 @@ export function AllStaffLeaveStatsView({
                         isExpanded ? "bg-teal-50/20" : ""
                       }`}
                     >
-                      <td colSpan={8} className="p-0">
+                      <td colSpan={9} className="p-0">
                         {/* Hàng tóm tắt nhân sự */}
                         <div className="grid grid-cols-12 items-center py-3 px-3 text-xs">
                           {/* STT */}
@@ -405,11 +448,11 @@ export function AllStaffLeaveStatsView({
                           </div>
 
                           {/* Mã NV */}
-                          <div className="col-span-1 font-mono font-bold text-slate-600">
+                          <div className="col-span-1 font-mono font-bold text-slate-600 text-center">
                             {item.staff.code}
                           </div>
 
-                          {/* Họ và tên & vai trò */}
+                          {/* Họ và tên & email */}
                           <div className="col-span-3 pr-2">
                             <span className="font-bold text-slate-900 group-hover:text-teal-700 transition">
                               {item.staff.name}
@@ -424,35 +467,41 @@ export function AllStaffLeaveStatsView({
                             </span>
                           </div>
 
-                          {/* Phép đã duyệt */}
-                          <div className="col-span-2 text-center">
+                          {/* Cột 1: Tổng vắng thực tế */}
+                          <div className="col-span-1 text-center bg-slate-50/80 py-1 rounded-lg">
                             <span
-                              className={`inline-flex items-baseline gap-1 font-black text-sm ${
-                                item.approvedPaidDays > 0 ? "text-emerald-700" : "text-slate-400 font-normal"
+                              className={`inline-flex items-baseline gap-0.5 font-black text-sm ${
+                                item.totalAbsenceDays > 0 ? "text-slate-900" : "text-slate-300 font-normal"
                               }`}
                             >
-                              {item.approvedPaidDays}{" "}
-                              <span className="text-[11px] font-semibold text-slate-500">ngày</span>
+                              {item.totalAbsenceDays}
+                              <span className="text-[10px] font-semibold text-slate-500">ng</span>
+                            </span>
+                            {item.totalAbsenceDays > 0 && (
+                              <span className="block text-[9px] text-slate-400">
+                                ({item.totalAbsenceSessions}b)
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Cột 2: Phép năm */}
+                          <div className="col-span-1 text-center">
+                            <span
+                              className={`inline-flex items-baseline gap-0.5 font-bold ${
+                                item.approvedPaidDays > 0 ? "text-emerald-700" : "text-slate-300 font-normal"
+                              }`}
+                            >
+                              {item.approvedPaidDays}
+                              <span className="text-[10px] font-semibold text-emerald-800">ng</span>
                             </span>
                             {item.approvedPaidDays > 0 && (
-                              <span className="block text-[10px] text-slate-400">
-                                ({item.approvedPaidSessions} buổi)
+                              <span className="block text-[9px] text-slate-400">
+                                ({item.approvedPaidSessions}b)
                               </span>
                             )}
                           </div>
 
-                          {/* Chờ duyệt */}
-                          <div className="col-span-1 text-center">
-                            {item.pendingPaidLeaves.length > 0 ? (
-                              <span className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-bold text-amber-800">
-                                {item.pendingPaidLeaves.length} ca
-                              </span>
-                            ) : (
-                              <span className="text-slate-300">—</span>
-                            )}
-                          </div>
-
-                          {/* Đi học */}
+                          {/* Cột 3: Đi học */}
                           <div className="col-span-1 text-center">
                             {item.dihocSessions > 0 ? (
                               <span className="font-bold text-indigo-700">
@@ -463,11 +512,22 @@ export function AllStaffLeaveStatsView({
                             )}
                           </div>
 
-                          {/* Nghỉ ốm */}
+                          {/* Cột 4: Ốm & Không lương */}
                           <div className="col-span-1 text-center">
-                            {item.omSessions > 0 ? (
+                            {item.omSessions + item.khacSessions > 0 ? (
                               <span className="font-bold text-rose-700">
-                                {item.omSessions} b
+                                {item.omSessions + item.khacSessions} b
+                              </span>
+                            ) : (
+                              <span className="text-slate-300">—</span>
+                            )}
+                          </div>
+
+                          {/* Cột 5: Chờ duyệt */}
+                          <div className="col-span-1 text-center">
+                            {item.pendingPaidLeaves.length > 0 ? (
+                              <span className="inline-flex items-center rounded-full bg-amber-100 px-1.5 py-0.2 text-[10px] font-bold text-amber-800">
+                                {item.pendingPaidLeaves.length} ca
                               </span>
                             ) : (
                               <span className="text-slate-300">—</span>
@@ -521,7 +581,8 @@ export function AllStaffLeaveStatsView({
                               {item.allLeavesInYear
                                 .sort((a, b) => a.date.localeCompare(b.date))
                                 .map((leave) => {
-                                  const isApproved = leave.status === "approved" || !leave.status;
+                                  const isEffectiveApproved = isEffectiveApprovedLeave(leave);
+                                  const isPast = leave.date < new Date().toISOString().split("T")[0];
                                   let dateLabel = leave.date;
                                   try {
                                     dateLabel = format(parseISO(leave.date), "dd/MM/yyyy (EEEE)", { locale: vi });
@@ -531,7 +592,7 @@ export function AllStaffLeaveStatsView({
                                     <div
                                       key={leave.id}
                                       className={`rounded-xl border p-2.5 text-xs bg-white shadow-xs ${
-                                        leave.status === "pending"
+                                        !isEffectiveApproved
                                           ? "border-amber-200 bg-amber-50/40"
                                           : "border-slate-200"
                                       }`}
@@ -540,10 +601,10 @@ export function AllStaffLeaveStatsView({
                                         <span className="font-bold text-slate-900 capitalize text-[11px]">
                                           {dateLabel}
                                         </span>
-                                        {isApproved ? (
+                                        {isEffectiveApproved ? (
                                           <span className="inline-flex items-center gap-0.5 rounded-full bg-emerald-100 px-1.5 py-0.2 text-[10px] font-bold text-emerald-800">
                                             <CheckCircle2 className="h-2.5 w-2.5" />
-                                            Đã duyệt
+                                            {leave.status === "pending" && isPast ? "Đã nghỉ (Quá khứ)" : "Đã duyệt"}
                                           </span>
                                         ) : (
                                           <span className="inline-flex items-center gap-0.5 rounded-full bg-amber-100 px-1.5 py-0.2 text-[10px] font-bold text-amber-800">
@@ -578,15 +639,13 @@ export function AllStaffLeaveStatsView({
                                               ? "Đi học"
                                               : leave.reason === "om"
                                               ? "Nghỉ ốm"
-                                              : "Khác"}
+                                              : "Nghỉ không lương / Khác"}
                                           </span>
                                         </div>
 
-                                        {leave.reason === "phep" && (
-                                          <span className="font-bold text-teal-700">
-                                            {leave.shift === "full-day" ? "1.0" : "0.5"} ngày
-                                          </span>
-                                        )}
+                                        <span className="font-bold text-slate-700">
+                                          {leave.shift === "full-day" ? "1.0" : "0.5"} ngày
+                                        </span>
                                       </div>
 
                                       {leave.note && (
@@ -606,28 +665,31 @@ export function AllStaffLeaveStatsView({
                 })
               ) : (
                 <tr>
-                  <td colSpan={8} className="py-8 text-center text-slate-400">
+                  <td colSpan={9} className="py-8 text-center text-slate-400">
                     Không tìm thấy nhân viên nào phù hợp với bộ lọc.
                   </td>
                 </tr>
               )}
             </tbody>
             <tfoot>
-              <tr className="bg-teal-50/80 font-bold text-slate-800 border-t-2 border-teal-200">
+              <tr className="bg-slate-100 font-bold text-slate-800 border-t-2 border-slate-300">
                 <td colSpan={3} className="py-3 px-4 text-right">
                   Tổng cộng toàn đơn vị (Năm {selectedYear}):
                 </td>
-                <td className="py-3 px-3 text-center text-teal-900 font-black text-sm">
-                  {unitSummary.totalApprovedDays} ngày ({unitSummary.totalApprovedSessions} buổi)
+                <td className="py-3 px-2 text-center text-slate-900 font-black text-sm bg-slate-200/70">
+                  {unitSummary.totalAbsenceDays} ngày
                 </td>
-                <td className="py-3 px-3 text-center text-amber-800 font-black">
-                  {unitSummary.totalPendingCount} ca
+                <td className="py-3 px-2 text-center text-emerald-900 font-black">
+                  {unitSummary.totalApprovedDays} ngày
                 </td>
-                <td className="py-3 px-3 text-center text-indigo-800 font-black">
+                <td className="py-3 px-2 text-center text-indigo-900 font-black">
                   {unitSummary.totalDihocSessions} b
                 </td>
-                <td className="py-3 px-3 text-center text-rose-800 font-black">
-                  {unitSummary.totalOmSessions} b
+                <td className="py-3 px-2 text-center text-rose-900 font-black">
+                  {unitSummary.totalOmSessions + unitSummary.totalKhacSessions} b
+                </td>
+                <td className="py-3 px-2 text-center text-amber-800 font-black">
+                  {unitSummary.totalPendingCount} ca
                 </td>
                 <td></td>
               </tr>
@@ -638,3 +700,4 @@ export function AllStaffLeaveStatsView({
     </div>
   );
 }
+
