@@ -1,5 +1,11 @@
 # NurseFlow Versioning
 
+## v1.5.4 (2026-11-26)
+### Triển Khai Hoàn Thiện Thống Kê Phép Toàn Bộ Nhân Sự & Kích Hoạt Vercel Build Sau Khi Dọn Dẹp Integration
+- **Kích Hoạt Tự Động Bản Build Vercel:**
+  - Đẩy phiên bản v1.5.4 lên kho lưu trữ sau khi gỡ bỏ integration Prisma Postgres bị hỏng khỏi Vercel Dashboard.
+  - Kích hoạt lại toàn bộ các tính năng: Thống kê phép cả năm cho Ban Giám Đốc/Quản lý (`tienmed@gmail.com`), duyệt phép trực tiếp, và hiển thị responsive linh hoạt.
+
 ## v1.5.3 (2026-11-26)
 ### Miễn Trừ Cơ Số Tính Toán Giới Hạn Nghỉ Phép Cho BS. Trịnh Trung Tiến & Bác Sĩ
 - **Tách Biệt Bác Sĩ / Ban Giám Đốc Khỏi Cơ Số Điều Dưỡng (`src/lib/leave-logic.ts`):**
