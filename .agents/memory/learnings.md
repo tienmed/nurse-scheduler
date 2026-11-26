@@ -40,6 +40,20 @@
 
 ---
 
+### [P0-LEAVE-01] Phân Quyền Thống Kê Phép Toàn Đơn Vị Theo Năm & Bảo Toàn Dữ Liệu Năm
+- **Ngày ghi nhận:** 2026-11-26
+- **Bối cảnh:** Cổng nghỉ phép (`/dang-ky-phep?tab=stats`) cần cung cấp bảng thống kê toàn bộ nhân sự theo năm cho quản lý (Tiến và Nghĩa).
+- **Quy tắc phân quyền:**
+  - Nhận diện quản lý qua danh sách email đặc quyền (`privilegedEmails`: `tienmed@gmail.com`, `bstien@pnt.edu.vn`, `nghiadn.pk@pnt.edu.vn`, `admin@nurseflow.local`) hoặc vai trò `admin`, `coordinator`, mã `BS`, `ADMIN`.
+  - Quản lý được mặc định hiển thị chế độ xem **"Toàn bộ nhân sự"** kèm tùy chọn chuyển đổi về **"Cá nhân tôi"** và bộ chọn **Năm** (2026, 2025,...). Nhân viên thông thường chỉ xem được số liệu cá nhân của chính mình.
+- **Quy tắc bảo toàn dữ liệu năm (Horizon Bypass):**
+  - Mọi tác vụ thống kê theo năm bắt buộc gọi `getAppData({ ignoreHorizon: true })` để bỏ qua bộ lọc cắt tỉa 60 ngày mặc định, đảm bảo tính toán đầy đủ và chính xác 100% dữ liệu phép trong cả năm.
+- **Quy chuẩn tính phép:**
+  - 1 ca sáng/chiều = 0.5 ngày (1 buổi); 1 ca cả ngày = 1.0 ngày (2 buổi).
+  - Tự động bỏ qua Thứ Bảy và Chủ Nhật (lịch cuối tuần trực riêng, không trừ quỹ phép năm).
+
+---
+
 ### [P0-OPS-01] Tác Vụ Lập Lịch Windows & Cụm AI Nội Bộ
 - **Bối cảnh:** Ứng dụng tích hợp các tác vụ nền Windows Task Scheduler và cụm AI chuyên dụng của phòng khám.
 - **Quy tắc bắt buộc:**

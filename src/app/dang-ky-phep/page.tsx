@@ -7,6 +7,7 @@ import { getWeekStartFromInput } from "@/lib/date";
 import { FlexibleLeaveForm } from "@/components/leave-portal/flexible-leave-form";
 import { PortalLeaveCalendar } from "@/components/leave-portal/portal-leave-calendar";
 import { MyLeaveStatsView } from "@/components/leave-portal/my-leave-stats-view";
+import { LeaveStatsTabContainer } from "@/components/leave-portal/leave-stats-tab-container";
 import { MyPersonalScheduleView } from "@/components/leave-portal/my-personal-schedule-view";
 import { SmartAdjustTriggerButton } from "@/components/leave-portal/smart-adjust-trigger-button";
 import { ManagerPendingApprovals } from "@/components/leave-portal/manager-pending-approvals";
@@ -79,7 +80,8 @@ export default async function LeavePortalPage({ searchParams }: PageProps) {
   }
 
   // 2. KIỂM TRA EMAIL TRONG DANH SÁCH NHÂN SỰ CHÍNH THỨC
-  const data = await getAppData();
+  // [QWEN3] Bỏ qua bộ lọc horizon khi vào tab stats để tính toán chính xác dữ liệu cả năm
+  const data = await getAppData({ ignoreHorizon: activeTab === "stats" });
   let currentStaff = data.staff.find(
     (s) => s.email.toLowerCase() === (user?.email || "").toLowerCase() && s.active !== false,
   );
@@ -325,10 +327,12 @@ export default async function LeavePortalPage({ searchParams }: PageProps) {
             allLeaves={data.leaveRequests}
           />
         ) : activeTab === "stats" ? (
-          <MyLeaveStatsView
+          <LeaveStatsTabContainer
             currentStaff={currentStaff}
+            allStaff={data.staff}
             allLeaves={data.leaveRequests}
             yearlyStats={yearlyStats}
+            isManager={isManager}
           />
         ) : activeTab === "register" ? (
           <FlexibleLeaveForm

@@ -1,5 +1,18 @@
 # NurseFlow Versioning
 
+## v1.5.1 (2026-11-26)
+### Bổ Sung Xem Thống Kê Phép Toàn Bộ Nhân Sự Theo Năm Cho Quản Lý
+- **Giao diện Thống kê phép đa năng (`src/components/leave-portal/leave-stats-tab-container.tsx`):**
+  - Tích hợp thanh chuyển đổi linh hoạt giữa **Toàn bộ nhân sự** và **Cá nhân tôi** dành cho Quản lý (`isManager`).
+  - Mặc định Quản lý được xem bảng tổng hợp phép của toàn bộ nhân sự năm hiện tại.
+  - Hỗ trợ bộ lọc chọn năm tài khóa (2026, 2025,...) linh hoạt.
+- **Bảng Tổng Hợp Thống Kê Phép Toàn Đơn Vị (`src/components/leave-portal/all-staff-leave-stats-view.tsx`):**
+  - Hiển thị bảng tổng hợp toàn bộ nhân viên: Mã, Tên, Chức danh, Số ca/ngày phép đã duyệt, Số buổi đi học đào tạo, Số buổi nghỉ ốm/BHXH.
+  - Tích hợp tìm kiếm nhanh theo tên hoặc mã nhân sự.
+  - Bổ sung modal xem chi tiết từng đơn nghỉ phép của từng nhân viên theo năm được chọn.
+- **Tối ưu Tải Dữ Liệu Theo Năm (`src/app/dang-ky-phep/page.tsx`, `src/lib/repository.ts`):**
+  - Bổ sung tùy chọn `ignoreHorizon: activeTab === 'stats'` khi gọi `getAppData` để tải đầy đủ dữ liệu phép xuyên suốt cả năm thay vì bị giới hạn bởi bộ lọc 180 ngày gần nhất.
+
 ## v1.5.0 (2026-11-25)
 ### Bổ Sung Giao Diện Duyệt Phép Chờ Xử Lý Trực Tiếp Trên Mobile Cho Quản Lý
 - **Tính năng Duyệt phép Mobile-First (`src/components/leave-portal/manager-pending-approvals.tsx`):**

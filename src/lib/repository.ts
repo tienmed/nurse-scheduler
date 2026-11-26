@@ -43,9 +43,9 @@ function cloneData(): AppData {
   return JSON.parse(JSON.stringify(MOCK_DATA)) as AppData;
 }
 
-export async function getAppData(): Promise<AppData> {
+export async function getAppData(options?: { ignoreHorizon?: boolean }): Promise<AppData> {
   let data: AppData;
-  const horizonDays = await getHorizonDays();
+  const horizonDays = options?.ignoreHorizon ? 0 : await getHorizonDays();
 
   if (isSheetsConfigured()) {
     data = await getCachedAppData();
