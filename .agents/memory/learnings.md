@@ -121,6 +121,18 @@
 - **Bối cảnh & Lỗi:** Email gửi thông báo nghỉ phép tự động bị lỗi font chữ tiếng Việt (Mojibake: `Ã¡`, `á»‰`, `ðŸ“‹`), bảng dữ liệu 4 cột bị co rúm trên giao diện điện thoại.
 - **Nguyên nhân gốc rễ:** 
   1. Tệp script `scripts/email-leaves.mjs` bị lưu dưới dạng mã hóa nhầm (Windows-1252 / ANSI) khiến các chuỗi tiếng Việt tĩnh bị biến thành ký tự rác.
+
+---
+
+### [P0-OPS-03] Xử Lý Lỗi Build Vercel Do Tiện Ích Mở Rộng Ngoài (Integration Provisioning Failure)
+- **Ngày ghi nhận:** 2026-11-26
+- **Bối cảnh & Lỗi:** Vercel báo lỗi `Build Failed` ngay ở giai đoạn khởi tạo: *"One or more integration resources failed to provision for this deployment"* với cảnh báo đỏ ở tiện ích ngoài (ví dụ: `prisma-postgres-red-harbor`), khiến mã nguồn mới đẩy lên không thể tiến hành build hay deploy production.
+- **Nguyên nhân gốc rễ:**
+  - Dự án thuần túy sử dụng Google Sheets API làm cơ sở dữ liệu. Tiện ích mở rộng ngoài (Prisma / Postgres addon) đã cấu hình trước đó bị hết hạn hoặc lỗi kết nối, dẫn đến Vercel tự động hủy ngang toàn bộ tiến trình nạp tài nguyên trước khi chạy lệnh build Next.js.
+- **Quy tắc xử lý:**
+  1. Khi gặp lỗi `Provisioning Integrations Failed`: Vào ngay **Settings -> Integrations** trên Vercel Dashboard để ngắt kết nối (`Disconnect / Remove`) các addon không dùng.
+  2. Nâng version hoặc bấm `Redeploy` để kích hoạt lại bản build sạch.
+- **Phạm vi áp dụng:** [Vercel Deployment | CI/CD | Integrations]
   2. Bảng `<table>` truyền thống bị tràn ngang hoặc co ép các cột trên màn hình điện thoại dưới 400px.
 - **Quy tắc phòng ngừa:**
   - Luôn đảm bảo tất cả tệp kịch bản `.mjs` được lưu dưới bảng mã `UTF-8 without BOM`.
